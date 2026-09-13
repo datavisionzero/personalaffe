@@ -14,8 +14,9 @@ Status: the four .NET projects, the two test projects, the self-applying
 migrator, the health endpoints (PERSONAL-2), the checked-in contract and the
 problem document (PERSONAL-3), the web workspace with one screen (PERSONAL-4)
 the Go CLI with two verbs (PERSONAL-5), the image with its Compose topology
-(PERSONAL-6) and the CI gate (PERSONAL-7) exist. PERSONAL-8 is the fresh-checkout
-verification and the handoff.
+(PERSONAL-6), the CI gate (PERSONAL-7) and the fresh-checkout verification
+(PERSONAL-8) all exist. **PERSONAL-E1 is complete**; what the rest of
+`docs/mvp-plan.md` describes is not started.
 
 ## Where this comes from
 
@@ -108,6 +109,7 @@ are adopted with them. PERSONAL-E4 does not reopen the choice.
 personalaffe/
 ├─ .github/workflows/          the gate: ci on every push and pull request
 ├─ deploy/                     Dockerfile, Compose (production and development), .env.example
+├─ scripts/smoke.sh            does this foundation hang together? six checks against a running instance
 ├─ docs/
 │  ├─ adr/                     the decisions
 │  ├─ api/openapi.json         the HTTP contract, captured and checked in
@@ -430,6 +432,51 @@ and in `src/cli`, and they are run by the job that already builds that
 toolchain. What would justify a seventh job is a subject none of the six covers
 — a browser check with its own runtime, say, which is what PERSONAL-E4's
 acceptance criteria will need.
+
+## What the next epics plug into
+
+The foundation was built to be extended in specific places, and this is the list
+so that no epic has to find them again.
+
+**PERSONAL-E2, authentication.** `Program.cs` maps every endpoint into the
+`/api` group; authentication goes in front of that group and nowhere else.
+`RefusalCode.Unauthenticated` and `Forbidden` already exist with their statuses
+and titles, and `Problems.WriteAsync` is what a challenge or a forbid writes
+with — it is there for exactly this and is otherwise used only by the group's
+not-found. The owner's table is the first migration after `TheEmptySchema`. On
+the CLI side, `config.Input.ResolveToken` is a two-rung ladder with the third —
+the keychain — left to the sign-in that fills it, and
+`client.New(address, token, …)` already sends the bearer header when there is a
+token to send.
+
+**PERSONAL-E3, content safeguards.** `RefusalCode.Stale` and its 412 are
+settled; what a write sends to say which version it is replacing is spelled in
+`docs/api.md` as the object's `updated_at`, in the one timestamp format
+`Rfc3339` writes. `deleted` is the code that joins the set, and the table in
+`docs/api.md` is where it is added in the same commit.
+
+**PERSONAL-E4, the shell.** `src/web/src/shell/` owns the frame; the four
+application folders go beside it. The editor components and their package
+versions are listed above, unselected and uninstalled. `disabled` is the refusal
+code the application switch brings. The static files and the SPA fallback are
+already mapped after the `/api` group, so a new screen is a route in the
+application and nothing in the host.
+
+**PERSONAL-E6, files.** `StorageSettings` and `StorageService` already settle
+where the bytes go and prove the place works at start; what is missing is the
+store that writes in it, which belongs in `Infrastructure/`. The volume, its
+ownership and the guard against serving it as a web asset are done.
+
+**PERSONAL-E9, search and the dashboard, and PERSONAL-E10, operations.** Nothing
+in the foundation stands in their way and nothing anticipates them. The two
+volumes a consistent backup has to cover are named in
+[`docs/operations.md`](./operations.md).
+
+**Every epic.** A new endpoint is a change to `docs/api/openapi.json` in the
+same commit, because `ContractTests` compares the two. A new refusal code is a
+row in the table in `docs/api.md` and a case in `Problems`, which throws rather
+than guesses when a code has no status. New tests are more tests in the projects
+CI already runs; a seventh job is only for a subject none of the six covers.
 
 ## What is deliberately not here
 

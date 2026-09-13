@@ -33,6 +33,9 @@ public sealed class StorageService(
     /// </summary>
     private const string Probe = ".personalaffe-write-probe";
 
+    /// <summary>Where the host serves static files from when there is a build to serve.</summary>
+    private const string DefaultWebRoot = "wwwroot";
+
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         var root = settings.ResolvedRoot(environment.ContentRootPath);
@@ -70,14 +73,21 @@ public sealed class StorageService(
     /// <c>VISION.md</c> describes. It is refused here rather than left to the
     /// Files epic to notice.
     /// </summary>
+    /// <remarks>
+    /// The web root is asked for by name rather than taken from the environment
+    /// alone, because a <c>wwwroot</c> that does not exist yet leaves
+    /// <see cref="IWebHostEnvironment.WebRootPath"/> empty — a backend built
+    /// without the web application beside it, which is every developer before
+    /// their first <c>npm run build</c> and CI's own .NET jobs. The guard has to
+    /// hold there too: what makes a path dangerous is where the static files
+    /// will be served from, not whether anybody has built them yet.
+    /// </remarks>
     private void RefuseIfServedAsWebAssets(string root)
     {
-        if (string.IsNullOrEmpty(environment.WebRootPath))
-        {
-            return;
-        }
-
-        var webRoot = Path.GetFullPath(environment.WebRootPath);
+        var webRoot = Path.GetFullPath(
+            string.IsNullOrEmpty(environment.WebRootPath)
+                ? Path.Combine(environment.ContentRootPath, DefaultWebRoot)
+                : environment.WebRootPath);
         var separator = Path.DirectorySeparatorChar;
 
         if (!root.TrimEnd(separator).StartsWith(webRoot.TrimEnd(separator) + separator, StringComparison.Ordinal)

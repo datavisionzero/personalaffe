@@ -18,10 +18,27 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
 conventions and its errors. Read them before adding a file or an endpoint.
 
+## Prerequisites
+
+Three toolchains and a Docker, and each is pinned in exactly one place so that
+this list cannot drift from what actually builds:
+
+| | Version | Pinned by |
+| --- | --- | --- |
+| .NET SDK | 10.0.100 or a later feature band | [`global.json`](global.json) |
+| Node | 24 | the CI job and the Dockerfile's build stage |
+| Go | 1.27 | [`src/cli/go.mod`](src/cli/go.mod) |
+| Docker | any that runs containers | — |
+
+PostgreSQL is not in the list: it arrives as a container, both for development
+and for the tests, which bring up their own with Testcontainers.
+
+Nothing else is needed. No other affe product has to be running, and there is no
+mail server, message broker or object store anywhere in this.
+
 ## Running the backend
 
-Everything below is run from the repository root, and needs the .NET SDK of
-[`global.json`](global.json) and a Docker that can run containers.
+Everything below is run from the repository root.
 
 ```sh
 # the development database — postgres:18 on port 55732, this product's own
@@ -157,6 +174,55 @@ docker compose -f deploy/docker-compose.yml up -d
 
 [`docs/operations.md`](docs/operations.md) has the variables, the reverse-proxy
 boundary, the two volumes and which commands destroy them.
+
+## Checking that it hangs together
+
+With an instance running, one script asks the six questions nothing else answers
+from the outside:
+
+```sh
+scripts/smoke.sh                          # or scripts/smoke.sh http://127.0.0.1:8080
+```
+
+It checks that the API answers, that liveness and readiness both do, that the
+web application is served from the same origin, that an unknown address under
+`/api` is still an API error, that the contract the instance serves is the one
+checked in, and that both clients generate from that document — with `pea`,
+built there and then, reporting the same version the browser would read. It
+writes nothing into the repository and needs no credential.
+
+## Known limits
+
+Everything here is the foundation of PERSONAL-E1 and nothing more.
+
+- **There is no authentication and no owner.** Every address is open to whoever
+  can reach the port. This is PERSONAL-E2's, and until it lands an instance
+  belongs on a machine you own, published on loopback.
+- **There is no content.** No scratchpad, no knowledge pages, no tasks, no
+  files: the database carries one migration and it creates no table. The four
+  applications are PERSONAL-E5 through PERSONAL-E8.
+- **Nothing is recoverable, because nothing is stored.** Trash, revision
+  history and the guard against stale writes are PERSONAL-E3's; the codes they
+  will use are already in the contract.
+- **The file storage volume is checked but never written to.** The Files
+  application is PERSONAL-E6's.
+- **There is no release.** No image is published anywhere, and CI deliberately
+  has no credential to publish one with. Release artifacts are PERSONAL-E10's.
+- **Backups are two volumes and no procedure.** Taking them consistently
+  together is PERSONAL-E10's.
+
+Where each of those plugs in is written down in
+[`docs/codebase.md`](docs/codebase.md), under *What the next epics plug into*.
+
+## Where this came from
+
+The stack, and most of the conventions in it, are adopted from the two sibling
+products rather than chosen again
+([ADR 0001](docs/adr/0001-adopt-the-existing-affe-stack-and-components.md)).
+Which parts came from where — with the revisions inspected, what was adapted and
+what was deliberately left behind — is the table at the top of
+[`docs/codebase.md`](docs/codebase.md). Nothing is shared at build time: there is
+no cross-product library and no runtime dependency on another affe product.
 
 ## CI
 

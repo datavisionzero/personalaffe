@@ -63,6 +63,12 @@ public sealed class StorageTests(PostgresFixture postgres)
     {
         // Files stored under wwwroot would be served to anyone who can guess a
         // name, which is a different product from the one VISION.md describes.
+        //
+        // The path is built rather than probed for on purpose: wwwroot does not
+        // exist until somebody has run `npm run build`, and the first version of
+        // this guard read it off the environment and so did nothing at all on a
+        // checkout where nobody had. CI found that; the guard now asks for the
+        // web root by name, and so does this test.
         var inside = Path.Combine(RepositoryRoot.Path, "src", "Personalaffe.Api", "wwwroot", "files");
 
         await using var instance = AnInstance.Configured(
