@@ -110,6 +110,11 @@ builder.Services.AddScoped<ConfirmSecondFactorEnrolment>();
 builder.Services.AddScoped<DisableSecondFactor>();
 builder.Services.AddScoped<ReissueRecoveryCodes>();
 builder.Services.AddScoped<ChangePassword>();
+builder.Services.AddScoped<ListAgentAccess>();
+builder.Services.AddScoped<GrantAgentAccess>();
+builder.Services.AddScoped<ChangeAgentAccess>();
+builder.Services.AddScoped<ReissueAgentToken>();
+builder.Services.AddScoped<RevokeAgentAccess>();
 builder.Services.AddScoped<ListSessions>();
 builder.Services.AddScoped<RevokeSession>();
 builder.Services.AddScoped<RevokeOtherSessions>();
@@ -205,6 +210,7 @@ api.MapSetup();
 api.MapSession();
 api.MapMe();
 api.MapSecurity();
+api.MapAgents();
 
 // An address under the prefix that no endpoint took is an API mistake and
 // answers as one. Without this it would fall through to the web application's

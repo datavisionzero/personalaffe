@@ -142,9 +142,11 @@ There are two credentials and the instance tells them apart itself:
 - **A browser session**, in an `HttpOnly` cookie the instance sets at sign-in.
   It is a row on the server, so revoking one means something; the cookie holds a
   secret and nothing else, and no script on the page can read it.
-- **`Authorization: Bearer <token>`**, for `pea` and for agents. *Agent access
-  and its tokens are the ticket after this one; until then a bearer token admits
-  nobody, which is the honest answer — none has ever been issued.*
+- **`Authorization: Bearer <token>`**, for agents and for `pea`. A token belongs
+  to one **agent access** — a named, revocable authorization the owner hands out
+  — and the instance tells whose it is from the row it already holds. A token
+  starts with `pea_` so that whoever finds one in a log or a shell history knows
+  what they have found.
 
 The cookie's strictness follows the request's own scheme. Over HTTPS it is
 `__Host-personalaffe_session`, bound to this host and to `/`; over plain HTTP it
@@ -205,6 +207,24 @@ the phone is lost: personalaffe has no mail server to send a link through, and
 these are what stands between that and the procedure on the server. Each works
 once, and `second_factor` at sign-in takes either kind — an authenticator's code
 or one of these. Which one somebody has to hand is not the instance's business.
+
+### What an agent may do
+
+Agent access is **not a second human account and never becomes one.** It has no
+password, no session and no way to sign in; what it has is a token and one
+answer per application — `none`, `read` or `read_write`, for `scratchpad`,
+`knowledge`, `tasks` and `files`.
+
+`read` reads and changes nothing; `read_write` includes deletion, which for
+Scratchpad is permanent and for lasting content is into the Trash. `none` is
+refused as `forbidden`.
+
+**Everything under `/api/agents` and `/api/security`, and the session list, is
+the owner's alone** — not by a permission that could be granted, but because no
+permission for them exists. An agent that could issue a credential could issue
+itself a better one. The refusal happens before the request body is read, so an
+agent asking for one of these hears "not yours" rather than a remark about a
+field it was never going to be allowed to send.
 
 ### Changing how the owner signs in
 
@@ -353,13 +373,19 @@ taken away that is still working.
 ### `GET /api/me`
 
 ```json
-{ "kind": "owner", "email": "owner@example.com", "since": "2026-09-13T12:00:00.000000Z" }
+{
+  "kind": "owner",
+  "email": "owner@example.com",
+  "name": null,
+  "permissions": { "scratchpad": "read_write", "knowledge": "read_write", "tasks": "read_write", "files": "read_write" },
+  "since": "2026-09-13T12:00:00.000000Z"
+}
 ```
 
 Who the presented credential admits, and the cheapest way for a client to find
-out that it still works — which is what both clients do with it. `kind` is
-`owner` or `agent`; an agent answers with its name and its permissions instead
-of an address once agent access exists.
+out that it still works — which is what both clients do with it. An agent
+answers with its own name and exactly what it reaches, and `email` is `null`:
+the owner's address is not an agent's to know.
 
 ### `GET /api/sessions`, `DELETE /api/sessions/{id}`, `DELETE /api/sessions`
 
@@ -406,6 +432,47 @@ gets in.
 
 `{ "current_password": "…", "password": "…" }` → `204`, and every other browser
 signed out.
+
+### `GET /api/agents`
+
+Everything the owner has let in, revoked ones included — a revoked access still
+names the agent everywhere it ever acted, and "what did I hand out" wants the
+whole answer. Each carries its permissions, the head of its current token
+(`pea_` and the characters after it, never the rest), when it was let in, when
+its token was issued, and roughly when it was last used.
+
+### `POST /api/agents`
+
+```json
+{
+  "name": "the deploy agent",
+  "permissions": { "scratchpad": "read_write", "knowledge": "read", "tasks": "none", "files": "none" }
+}
+```
+
+`201`, with the access and **the token, which is in this answer and in no
+other.** What the row keeps is a digest and the head; an owner who loses the
+token reissues rather than recovers, which is the only honest thing a store of
+digests can offer.
+
+Names are unique, case-insensitively: two agents called the same thing are two
+things nobody can tell apart at the moment of revoking one.
+
+### `PATCH /api/agents/{id}`
+
+`{ "name": …, "permissions": … }`, either or both. What is not sent is not
+changed, and a change takes effect on the agent's next request.
+
+### `POST /api/agents/{id}/token`
+
+A new token, which is also how the old one stops working. There is one token
+per access that works, and this is it.
+
+### `DELETE /api/agents/{id}`
+
+Shuts the agent out at once, and answers the access as it now stands. **A
+timestamp, not a deletion**: the row stays and the list keeps it. Revoking a
+revoked access changes nothing and is not an error.
 
 ### Anything else under `/api`
 

@@ -35,6 +35,13 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// </summary>
     public DbSet<RecoveryCode> RecoveryCodes => Set<RecoveryCode>();
 
+    /// <summary>
+    /// The named, revocable authorizations the owner has handed out
+    /// (<see cref="AgentAccess"/>). Not users: there is one human account and
+    /// nothing here can become a second.
+    /// </summary>
+    public DbSet<AgentAccess> AgentAccess => Set<AgentAccess>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // One IEntityTypeConfiguration per table, found rather than listed, so

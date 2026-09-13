@@ -40,11 +40,55 @@ public sealed record Caller
     /// <summary>The browser session this request came in on, where it did.</summary>
     public Guid? SessionId { get; init; }
 
+    /// <summary>What the owner calls this agent access. The owner has no name here.</summary>
+    public string? Name { get; init; }
+
+    /// <summary>
+    /// What this caller may do, one answer per application. The owner's is
+    /// everything; an agent's is what the owner granted.
+    /// </summary>
+    public required Permissions Permissions { get; init; }
+
     public bool IsOwner => Kind == CallerKind.Owner;
 
-    /// <summary>The owner, in a browser or holding their own token.</summary>
+    /// <summary>The owner, in a browser.</summary>
     public static Caller Owner(Guid id, Guid? sessionId = null) =>
-        new() { Kind = CallerKind.Owner, Id = id, SessionId = sessionId };
+        new() { Kind = CallerKind.Owner, Id = id, SessionId = sessionId, Permissions = Permissions.Full };
+
+    /// <summary>An agent, with exactly what it was granted.</summary>
+    public static Caller Agent(AgentAccess access) =>
+        new()
+        {
+            Kind = CallerKind.Agent,
+            Id = (access ?? throw new ArgumentNullException(nameof(access))).Id,
+            Name = access.Name,
+            Permissions = access.Permissions,
+        };
+
+    /// <summary>
+    /// The caller, or a refusal, for a read of <paramref name="application"/>.
+    /// </summary>
+    /// <exception cref="Refusal">This caller has no access to it.</exception>
+    public Caller RequireRead(WorkspaceApplication application) =>
+        Permissions.MayRead(application)
+            ? this
+            : throw Refusal.Forbidden($"This access does not reach {Named(application)}.");
+
+    /// <summary>
+    /// The caller, or a refusal, for a change to <paramref name="application"/>
+    /// — which deletion is, whatever kind of deletion it is.
+    /// </summary>
+    /// <exception cref="Refusal">This caller may not write it, or may not see it at all.</exception>
+    public Caller RequireWrite(WorkspaceApplication application) =>
+        Permissions.MayWrite(application)
+            ? this
+            : throw Refusal.Forbidden(
+                Permissions.MayRead(application)
+                    ? $"This access reads {Named(application)} and does not change it."
+                    : $"This access does not reach {Named(application)}.");
+
+    private static string Named(WorkspaceApplication application) =>
+        application.ToString().ToLowerInvariant();
 
     /// <summary>
     /// The owner, or a refusal. What this guards is everything an agent is

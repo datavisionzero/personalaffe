@@ -20,8 +20,9 @@ the Go CLI with two verbs (PERSONAL-5), the image with its Compose topology
 PERSONAL-E2 is under way: the owner, the one-time setup and the password
 material (PERSONAL-9), the door in front of the `/api` group with the browser's
 sign-in behind it (PERSONAL-10), and the second factor, the recovery codes and
-the owner's sessions (PERSONAL-11). What is not there yet is agent access and
-its tokens, and the two clients' halves.
+the owner's sessions (PERSONAL-11), and agent access with a permission per
+application (PERSONAL-12). What is not there yet is the two clients' halves and
+the owner's recovery on the server.
 
 ## Where this comes from
 
@@ -176,19 +177,21 @@ migration, and later the owner bootstrap, in that order. `Program.cs` is the onl
 file that knows all four layers.
 
 Implemented: `Domain/` with `Refusal`, `RefusalCode`, `Owner`, `Password`,
-`Caller`, `BrowserSession`, `Totp`, `Base32` and `RecoveryCode`;
+`Caller`, `BrowserSession`, `Totp`, `Base32`, `RecoveryCode`,
+`WorkspaceApplication`, `Permission`, `Permissions`, `TokenSecret` and
+`AgentAccess`;
 `Application/Ports/` with the settings records the host validates at startup,
-`IOwners`, `IPasswordHasher`, `IBrowserSessions`, `IRecoveryCodes` and
-`ICallerIdentity`; `Application/Acts/` with the setup, sign-in, session and
-security acts; `Persistence/` with the context, the migrator, three tables and
-their stores, and four migrations; `Security/` with the Argon2id hasher;
+`IOwners`, `IPasswordHasher`, `IBrowserSessions`, `IRecoveryCodes`,
+`IAgentAccessStore` and `ICallerIdentity`; `Application/Acts/` with the setup,
+sign-in, session, security and agent-access acts; `Persistence/` with the
+context, the migrator, four tables and their stores, and five migrations; `Security/` with the Argon2id hasher;
 `Hosting/`; and `Http/` with `Routes`, `Problems`, `Rfc3339`, `VersionHeader`,
 `OpenApiDocument`, `Authentication`, `BrowserSecurity`, `InstanceEndpoints`,
-`HealthEndpoints`, `SetupEndpoints`, `SessionEndpoints`, `MeEndpoints` and
-`SecurityEndpoints`.
+`HealthEndpoints`, `SetupEndpoints`, `SessionEndpoints`, `MeEndpoints`,
+`SecurityEndpoints` and `AgentEndpoints`.
 
-Planned, not implemented: `Files/`, agent access and its tokens, and every
-endpoint of the four applications — an instance answers the five outside the
+Planned, not implemented: `Files/`, and every endpoint of the four
+applications — an instance answers the five outside the
 door and the owner's own, and nothing of the workspace itself.
 
 ## Where an application lives
@@ -216,11 +219,12 @@ what is wanted.
 
 Identity — the owner, agent access and their permissions — is not an
 application. It lives at the root of each layer, because every application asks
-it the same question.
+it the same question: `Owner`, `AgentAccess`, `Permissions` and `Caller` in
+Domain, the acts beside the others, and one store each.
 
-*Planned. PERSONAL-2 created the folders that had something to put in them and
-no others — which is none of these: an empty folder claiming a future module is
-a lie the tree tells.*
+*The application folders are still planned. PERSONAL-2 created the folders that
+had something to put in them and no others — which is none of these: an empty
+folder claiming a future module is a lie the tree tells.*
 
 ## The CLI is a client, not a layer
 

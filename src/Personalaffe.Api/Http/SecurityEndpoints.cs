@@ -42,6 +42,7 @@ public static class SecurityEndpoints
                 return Results.Ok(new SecurityResponse(
                     state.SecondFactorEnabled, state.EnrolledAt, state.RecoveryCodesRemaining));
             })
+            .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("ReadSecurity")
             .WithSummary("Whether a second factor stands between the password and the workspace.")
             .Produces<SecurityResponse>()
@@ -58,6 +59,7 @@ public static class SecurityEndpoints
                 // made from it comes back, and not before.
                 return Results.Ok(new SecondFactorOfferResponse(offer.Secret, offer.Uri));
             })
+            .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("BeginSecondFactorEnrolment")
             .WithSummary("Offer a shared secret for an authenticator. Nothing changes until it is confirmed.")
             .Produces<SecondFactorOfferResponse>()
@@ -73,6 +75,7 @@ public static class SecurityEndpoints
 
                 return Results.Ok(new RecoveryCodesResponse(codes));
             })
+            .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("ConfirmSecondFactorEnrolment")
             .WithSummary("Turn the offered authenticator on, and take the recovery codes that come with it.")
             .Produces<RecoveryCodesResponse>()
@@ -89,6 +92,7 @@ public static class SecurityEndpoints
 
                 return Results.NoContent();
             })
+            .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("DisableSecondFactor")
             .WithSummary("Turn the second factor off. The recovery codes go with it, and every other browser is signed out.")
             .Produces(StatusCodes.Status204NoContent)
@@ -103,6 +107,7 @@ public static class SecurityEndpoints
 
                 return Results.Ok(new RecoveryCodesResponse(codes));
             })
+            .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("ReissueRecoveryCodes")
             .WithSummary("A fresh set of recovery codes. The old set stops working.")
             .Produces<RecoveryCodesResponse>()
@@ -118,6 +123,7 @@ public static class SecurityEndpoints
 
                 return Results.NoContent();
             })
+            .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("ChangePassword")
             .WithSummary("Change the password. Every other browser is signed out.")
             .Produces(StatusCodes.Status204NoContent)

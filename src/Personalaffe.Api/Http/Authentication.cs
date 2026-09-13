@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Personalaffe.Application.Acts;
 using Personalaffe.Application.Ports;
@@ -32,6 +33,19 @@ public static class Authentication
 {
     public const string Scheme = "Personalaffe";
 
+    /// <summary>
+    /// What an endpoint the owner alone may reach asks for.
+    /// </summary>
+    /// <remarks>
+    /// A policy rather than a line in each act, so that the refusal happens
+    /// before the request body is even read: an agent asking for one of these
+    /// should hear "not yours" rather than a remark about the shape of a field
+    /// it was never going to be allowed to send. The acts check it again, which
+    /// is not redundancy anybody should remove — an act is callable from more
+    /// than one endpoint, and only one of them has this on it.
+    /// </remarks>
+    public const string OwnerPolicy = "owner";
+
     public static IServiceCollection AddPersonalaffeAuthentication(this IServiceCollection services)
     {
         services
@@ -43,9 +57,15 @@ public static class Authentication
         // caller, and only what says AllowAnonymous is outside.
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(null)
-            .SetDefaultPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder(Scheme)
+            .SetDefaultPolicy(new AuthorizationPolicyBuilder(Scheme)
                 .RequireAuthenticatedUser()
-                .Build());
+                .Build())
+            .AddPolicy(OwnerPolicy, policy => policy
+                .AddAuthenticationSchemes(Scheme)
+                .RequireAuthenticatedUser()
+                .AddRequirements(new OwnerRequirement()));
+
+        services.AddSingleton<IAuthorizationHandler, OwnerHandler>();
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICallerIdentity, CallerIdentity>();
@@ -67,12 +87,9 @@ public sealed class DoorHandler(
 
         Caller? caller;
 
-        if (!string.IsNullOrEmpty(Request.Headers.Authorization.ToString()))
+        if (Request.Headers.Authorization.ToString() is { Length: > 0 } authorization)
         {
-            // Agent access and its tokens are PERSONAL-12's. Until then a
-            // bearer token admits nobody, which is the honest answer: none has
-            // ever been issued.
-            caller = null;
+            caller = await admit.FromTokenAsync(authorization, Context.RequestAborted);
         }
         else if (Request.Cookies.TryGetValue(BrowserCookie.For(Request).Name, out var secret))
         {
@@ -110,6 +127,24 @@ public sealed class DoorHandler(
 
     protected override Task HandleForbiddenAsync(AuthenticationProperties properties) =>
         Problems.WriteAsync(Context, RefusalCode.Forbidden, detail: null);
+}
+
+/// <summary>What <see cref="Authentication.OwnerPolicy"/> asks of the caller.</summary>
+public sealed class OwnerRequirement : IAuthorizationRequirement;
+
+/// <inheritdoc cref="OwnerRequirement"/>
+public sealed class OwnerHandler(IHttpContextAccessor accessor) : AuthorizationHandler<OwnerRequirement>
+{
+    protected override Task HandleRequirementAsync(
+        AuthorizationHandlerContext context, OwnerRequirement requirement)
+    {
+        if (accessor.HttpContext?.Features.Get<Caller>()?.IsOwner == true)
+        {
+            context.Succeed(requirement);
+        }
+
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>The port answered from the request: whoever the door admitted.</summary>

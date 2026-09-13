@@ -4,7 +4,14 @@ using Personalaffe.Domain;
 namespace Personalaffe.Api.Http;
 
 /// <summary>What <c>GET /api/me</c> answers.</summary>
-public sealed record MeResponse(CallerKind Kind, string? Email, DateTimeOffset Since);
+/// <param name="Email">The owner's login identifier. An agent has none.</param>
+/// <param name="Name">What the owner calls this agent access. The owner has none.</param>
+public sealed record MeResponse(
+    CallerKind Kind,
+    string? Email,
+    string? Name,
+    PermissionsShape Permissions,
+    DateTimeOffset Since);
 
 /// <summary>
 /// Who this credential admits (<c>docs/api.md</c>): the cheapest way for a
@@ -19,7 +26,8 @@ public static class MeEndpoints
             {
                 var who = await act.ExecuteAsync(cancellationToken);
 
-                return Results.Ok(new MeResponse(who.Kind, who.Email, who.Since));
+                return Results.Ok(new MeResponse(
+                    who.Kind, who.Email, who.Name, PermissionsShape.Of(who.Permissions), who.Since));
             })
             .WithName("ReadMe")
             .WithSummary("Who the presented credential admits.")

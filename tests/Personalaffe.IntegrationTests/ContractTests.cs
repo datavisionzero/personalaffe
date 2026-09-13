@@ -42,6 +42,9 @@ public sealed class ContractTests(PostgresFixture postgres)
         var paths = document["paths"]!.AsObject().Select(path => path.Key).Order(StringComparer.Ordinal);
         Assert.Equal(
             [
+                "/api/agents",
+                "/api/agents/{id}",
+                "/api/agents/{id}/token",
                 "/api/health/live",
                 "/api/health/ready",
                 "/api/me",
@@ -69,6 +72,13 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Contains("SecurityResponse", schemas);
         Assert.Contains("RecoveryCodesResponse", schemas);
         Assert.Contains("SessionResponse", schemas);
+        Assert.Contains("AgentResponse", schemas);
+        Assert.Contains("AgentTokenResponse", schemas);
+        // `PermissionsShape` is the contract's shape of the Domain type of the
+        // same name, and the suffix is dropped from the schema id
+        // (OpenApiDocument). This is the first type to use that rule.
+        Assert.Contains("Permissions", schemas);
+        Assert.Contains("Permission", schemas);
     }
 
     [Fact]

@@ -117,6 +117,7 @@ public static class SessionEndpoints
                     session.ExpiresAt,
                     session.Current)));
             })
+            .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("ListSessions")
             .WithSummary("Where this instance is signed in.")
             .Produces<IReadOnlyList<SessionResponse>>()
@@ -129,6 +130,7 @@ public static class SessionEndpoints
 
                 return Results.NoContent();
             })
+            .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("RevokeSession")
             .WithSummary("End one signed-in browser, which may be this one.")
             .Produces(StatusCodes.Status204NoContent)
@@ -142,6 +144,7 @@ public static class SessionEndpoints
 
                 return Results.NoContent();
             })
+            .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("RevokeOtherSessions")
             .WithSummary("End every signed-in browser but this one.")
             .Produces(StatusCodes.Status204NoContent)
