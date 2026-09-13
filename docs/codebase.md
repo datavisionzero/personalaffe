@@ -12,9 +12,9 @@ is wrong.
 
 Status: the four .NET projects, the two test projects, the self-applying
 migrator, the health endpoints (PERSONAL-2), the checked-in contract and the
-problem document (PERSONAL-3) exist. The web application, the CLI, the image
-and CI do not yet; PERSONAL-4 through PERSONAL-8 fill them in the order their
-blockers allow.
+problem document (PERSONAL-3), and the web workspace with one screen
+(PERSONAL-4) exist. The CLI, the image and CI do not yet; PERSONAL-5 through
+PERSONAL-8 fill them in the order their blockers allow.
 
 ## Where this comes from
 
@@ -257,8 +257,16 @@ and the routes, `shared` the Markdown field and the editor behind it, `api` the
 generated client and its wrapper, `components/ui` the owned primitives. The four
 applications get a folder each when they arrive.
 
-*PERSONAL-4 creates `api/`, one foundation screen, and nothing else. The shell,
-the editor and the application folders are PERSONAL-E4's and later.*
+*PERSONAL-4 created `api/`, `shell/`, `shared/` and one screen. The four
+application folders, the navigation, the settings and the editor are
+PERSONAL-E4's and later.*
+
+Two libraries the blueprint names are **not installed yet**: Base UI and
+CodeMirror, with `react-markdown` and its two remark plugins. Nothing on the
+foundation screen is a dialog, a popup or a Markdown field, and a dependency
+added before something uses it is a decision with no reason attached. The
+choice is not reopened when they arrive — the versions are in both sources'
+`src/web/package.json` and the components are listed above.
 
 ## The HTTP contract is an artifact, not an intention
 

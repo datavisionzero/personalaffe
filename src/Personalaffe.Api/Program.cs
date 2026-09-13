@@ -140,6 +140,20 @@ api.MapFallback(context => Problems.WriteAsync(
     RefusalCode.NotFound,
     "This instance has no such endpoint. GET /api/openapi/v1.json is the contract it does have."));
 
+// The web application: built by its own toolchain into wwwroot at image build
+// time (deploy/Dockerfile) or by a local `npm run build`; in development the
+// Vite dev server serves it and this finds nothing. Every path outside `/api`
+// is the application's — its router decides what `/knowledge/architecture` is,
+// and the instance never answers that address itself.
+//
+// After the group, and that order is the whole rule: an address under the
+// prefix has already been answered by the API, by an endpoint or by the
+// group's own not-found, so a client asking for an endpoint this instance does
+// not have gets JSON rather than a 200 of HTML it has to recognise.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+app.MapFallbackToFile("index.html");
+
 app.Run();
 
 return 0;

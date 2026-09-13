@@ -8,8 +8,8 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 
 > **It is not a workspace yet.** What exists today is the foundation of
 > PERSONAL-E1: a .NET host, a PostgreSQL schema that migrates itself, a checked-in
-> HTTP contract, and three operations — a version and two health checks. There
-> is no authentication, no owner, and no content —
+> HTTP contract, three operations — a version and two health checks — and one web
+> page that reads them. There is no authentication, no owner, and no content —
 > **do not put anything personal in an instance of it.** Authentication is
 > PERSONAL-E2's, the content safeguards PERSONAL-E3's.
 
@@ -56,6 +56,35 @@ dotnet test tests/Personalaffe.IntegrationTests  # Testcontainers brings up Post
 
 The integration tests bring up their own PostgreSQL and do not use the
 development database, so the two never interfere.
+
+## Running the web application
+
+The two toolchains run side by side in development: the .NET host answers the
+API, and Vite serves the application and forwards `/api` to it.
+
+```sh
+dotnet run --project src/Personalaffe.Api   # in one terminal, on :5000
+
+cd src/web
+npm ci
+npm run dev                                 # in another, on :5173
+```
+
+`npm run build` writes the built application into
+`src/Personalaffe.Api/wwwroot/`, which the host serves — so after one build a
+single `dotnet run` gives the whole product on `:5000`. The image does the same
+in two stages.
+
+```sh
+cd src/web
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
+
+Each of those generates the API layer from the contract first, which is why
+`src/web/src/api/schema.d.ts` is not committed.
 
 ## The contract
 
