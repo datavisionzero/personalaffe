@@ -1,8 +1,10 @@
 # personalaffe — Product Vision
 
-> **Status:** First draft · **Language:** English
+> **Status:** MVP direction agreed · **Language:** English
 >
-> This document describes the product's direction, not its final specification.
+> This document describes the product's direction and agreed MVP boundaries,
+> not its final specification. See [the MVP plan](docs/mvp-plan.md) for delivery
+> order, epic scope, acceptance criteria, and remaining implementation details.
 
 **License:** MIT · **Hosting model:** self-hosted · **Usage model:** one person
 per instance
@@ -92,7 +94,8 @@ complex roles and permissions.
    keeps them from becoming a jumble of independent products.
 5. **Only enable what is needed.** Each application can be enabled or disabled
    individually. Disabled areas disappear from navigation, the dashboard, and
-   normal workflows without silently deleting their data.
+   normal workflows without silently deleting their data. Their API and CLI
+   operations are unavailable too; retention deadlines continue to run.
 6. **Temporary and permanent are deliberate properties.** The Scratchpad
    cleans itself up; Knowledge persists. Retention is part of each area's
    domain rather than an accidental side effect.
@@ -133,7 +136,8 @@ The global shell remains consistent and includes at least:
 - an app switcher and access to the home page,
 - settings and management of agent credentials,
 - a consistent responsive layout,
-- potentially cross-application search and quick actions later.
+- global search across the four core applications; quick actions may follow
+  later.
 
 ### 6.1 Home and Dashboard
 
@@ -148,9 +152,12 @@ Widgets can summarize content from active applications, for example:
 - recently uploaded files,
 - weather for a location stored in settings.
 
-Only widgets from enabled applications are offered. How freely their selection
-and arrangement can be configured in the MVP remains a detail to decide; the
-home page must already be useful with good defaults.
+Only widgets from enabled applications are offered. The MVP has a predefined
+layout with individually showable or hideable tiles; free arrangement comes
+later. Global search covers knowledge pages, tasks, Scratchpad text, and file
+names, but does not search file contents. Changes made by agents or other
+devices become visible without manual reload. The responsive web application
+requires a network connection; offline editing is outside the MVP.
 
 ### 6.2 Scratchpad
 
@@ -162,9 +169,13 @@ Key properties:
 - quick capture and content that is easy to copy,
 - a chronological view that makes entries easy to find again,
 - manual, permanent deletion of individual entries,
-- automatic deletion after a configurable period, such as seven days,
-- a visible exemption for entries that should be kept longer,
+- automatic deletion after a configurable period, seven days by default,
+- visibly pinned entries exempt from automatic expiry until unpinned,
 - full operation through the CLI.
+
+MVP entries are plain text only, and manual deletion is immediately permanent.
+Retention continues while the application is disabled. Direct conversion into
+knowledge pages or tasks is deferred.
 
 The Scratchpad is deliberately not a knowledge base, an operating-system
 clipboard synchronizer, or a permanent archive. Content worth keeping is moved
@@ -184,9 +195,14 @@ Initially, it should support:
 - maintaining knowledge equally well through an agent or a human,
 - exporting content without a proprietary format.
 
-The exact page hierarchy, editing experience, linking, and role of tags will be
-decided separately before implementation. The vision calls for a good personal
-knowledge base, not a clone of Confluence or Notion.
+Pages store Markdown and use a comfortable source editor with formatting tools
+and preview, adopting the existing editor and library choices from planaffe
+and hostingaffe. Pages have a manageable hierarchy and stable links that
+survive renaming and moving. Pages can link to existing files; there is no
+separate attachment store. A simple revision history allows previous page
+content to be recovered. Exact hierarchy limits and any additional tagging or
+backlink behavior remain implementation details; they are not additional MVP
+commitments.
 
 ### 6.4 Tasks
 
@@ -198,13 +214,14 @@ Core features include:
 
 - multiple named lists,
 - quickly capturing, editing, completing, and deleting tasks,
+- a title, optional description, optional due date, and manual task ordering,
 - clearly separating open and completed tasks,
 - optional due dates where useful for the dashboard and everyday use,
 - showing open and upcoming tasks on the home page,
 - full day-to-day operation through the CLI.
 
 Sprints, teams, assignments, dependency graphs, time tracking, and extensive
-project planning are outside the core scope.
+project planning are outside the core scope. Recurring tasks are deferred.
 
 ### 6.5 Files
 
@@ -218,6 +235,10 @@ Core features include:
 - renaming, moving, and deleting files and folders,
 - displaying basic metadata such as name, size, and modification date,
 - secure, authenticated file operations through the web interface and CLI.
+
+File content is stored on a local server volume, with metadata in PostgreSQL
+and configurable size limits. Object storage is deferred. Deleted files and
+folders enter Trash with a recovery period.
 
 The MVP is neither a document editor nor a media library: no PDF or Office
 previews, collaborative editing, comments, sharing links, or complex versioning.
@@ -247,12 +268,17 @@ The CLI makes the following commitments:
 - Agent credentials can be named and revoked individually. Actions can be
   attributed to the credentials used.
 
-Agents do not automatically receive access to administrative or particularly
-destructive functions. These include changing human sign-in credentials,
-managing two-factor authentication, issuing additional credentials, and
-clearing or resetting the entire instance. Which content deletion operations
-agents may perform and which need additional safeguards will be decided
-deliberately for each application.
+Each agent access has no access, read access, or read/write access separately
+for each application. The owner creates and revokes agent tokens in the web
+interface. Write access includes ordinary deletion under the application's
+rules: immediately permanent in Scratchpad, recoverable in Trash for permanent
+content. Emptying Trash, managing credentials, changing security settings, and
+clearing or resetting the instance remain owner-only operations.
+
+Knowledge, Tasks, and Files have a Trash recovery period. Knowledge pages also
+have a simple revision history. Conflicting edits based on an outdated state
+are rejected rather than silently overwriting newer work; the caller must
+re-read the current state before retrying.
 
 MCP access is a natural future interface, but is not part of the MVP. The HTTP
 API and CLI must be clear enough for an MCP server to build on them later
@@ -262,7 +288,9 @@ without introducing a second set of domain behavior.
 
 The instance has exactly one human account: its owner and administrator.
 At minimum, the person signs in with an email address and password and can set
-up two-factor authentication. Agents are technical identities of this owner,
+up TOTP two-factor authentication with recovery codes. No mail server is
+required: a documented recovery procedure using direct server access handles
+lost owner access. Agents are technical identities of this owner,
 not additional people or separate data spaces.
 
 For a publicly accessible instance, this means:
@@ -293,11 +321,16 @@ certification.
 
 - A production instance starts with Docker Compose and needs only a few clearly
   identified persistent data stores.
-- The preferred basic setup is one application with PostgreSQL and persistent
-  storage for uploaded files. Additional infrastructure such as a queue,
-  separate search cluster, or mandatory object storage is outside the MVP.
+- The application uses a .NET backend, React with TypeScript, and a Go CLI.
+  One application container serves the web interface and HTTP API; PostgreSQL
+  runs alongside it. Internal domain modules are clearly separated.
+- Uploaded file content lives on a local persistent volume. Background work,
+  including expiry and Trash purging, runs inside the application. Additional
+  infrastructure such as a queue, separate search cluster, or object storage
+  is outside the MVP.
 - The database and file storage together form the backup. Backup and restore
-  are documented and tested in practice.
+  are documented and tested in practice. A short maintenance pause is accepted
+  to obtain a consistent backup of both stores.
 - Upgrades are reproducible; schema changes are controlled, and recovery using
   a previous backup is documented.
 - The application does not provide its own public TLS endpoint. It runs
@@ -305,10 +338,17 @@ certification.
   a documented configuration.
 - The basic structure and interaction conventions of the existing products
   planaffe, vaultaffe, and hostingaffe are reused where appropriate.
+  Editor and library choices specifically follow planaffe and hostingaffe;
+  existing implementations are inspected and adapted instead of repeating the
+  selection process. A shared cross-product library is deferred until needed.
   Differences inherent to this personal, modular product are not hidden for
   the sake of forced uniformity.
 - The MIT license, reproducible builds, and a clear local development setup
   make outside contributions practical.
+
+CI checks the backend, web interface, CLI, and shared API contract. Fresh
+installation, upgrade, and complete restore are exercised before the first
+release.
 
 ## 10. MVP Scope
 
@@ -326,14 +366,21 @@ It includes:
    provided it does not require a disproportionate external service.
 4. A Scratchpad with quick text entry, copying, manual deletion, and
    configurable automatic retention.
-5. A knowledge base with pages, basic structure, editing, search, and an open
-   export format.
+5. A Markdown knowledge base with a page hierarchy, stable links, editing and
+   preview, simple revision history, search, and an open export format.
 6. Simple to-do lists with task status and optional due dates.
 7. File storage with folders, upload, download, move, rename, and delete.
 8. An HTTP API and CLI for ordinary content workflows, plus separate,
-   revocable agent credentials.
+   revocable agent credentials with per-application access levels.
+   Permanent content has Trash recovery, and stale edits are rejected.
 9. Docker Compose deployment, secure configuration for operation behind a
    reverse proxy, and a proven backup and restore process.
+10. Global search over knowledge pages, tasks, Scratchpad text, and file names,
+    plus automatic refresh of changes made by other devices and agents.
+
+The ideas in IDEAS.md remain outside the MVP, including the notification center
+and standardized data submission. Module boundaries should allow future
+applications without implementing these ideas in advance.
 
 ## 11. Deliberate Non-Goals
 
@@ -362,10 +409,10 @@ Natural but deliberately deferred directions include:
 - an MCP server built on the same HTTP API,
 - a native mobile app that connects to the owner's instance,
 - additional focused personal applications,
-- stronger cross-application search and quick actions,
+- richer cross-application search and quick actions,
 - more flexible dashboard layouts and additional widgets,
 - import and export paths for common note, task, and file formats,
-- optional finer-grained permissions per agent credential,
+- optional permissions beyond the MVP's per-application access levels,
 - links between areas, such as turning a Scratchpad entry into a knowledge page
   or task.
 
@@ -394,32 +441,33 @@ The first release fulfills the vision when:
 - the web application is secure enough for its intended operation on the open
   internet without requiring a private network in front of it.
 
-## 14. Open Product Questions
+## 14. Remaining Implementation Details
 
-These questions do not change the core vision but must be answered before or
-during specification of the MVP:
+The major product and architecture decisions above are agreed. The following
+details can be settled within their owning epics without reopening the scope:
 
-1. **Knowledge model:** How deep can the page hierarchy go? Do pages need tags,
-   internal links, backlinks, or attachments? Which editing model combines
-   ease of use with an open export format?
-2. **Scratchpad:** Are MVP entries text-only? What is the default retention
-   period, and how is an entry exempted from automatic deletion or transferred
-   into Knowledge?
-3. **Tasks:** Which fields are really needed beyond text, list, status, and an
-   optional due date? Do ordering or recurring tasks already belong in the MVP?
-4. **Files:** What are the maximum individual file size and total quota? Must
-   files live on a local volume, or should compatible object storage be an
-   option from the start?
-5. **Dashboard:** Which widgets are fixed, which are selectable, and how much
-   freedom to arrange them is justified in the MVP?
-6. **Agent permissions:** Which content deletion operations are allowed by
-   default, and which need additional approval or a recovery period?
-7. **Search:** Is search within each application sufficient initially, or is
-   global search necessary for the first release?
-8. **Modularity:** Are applications built in at build time and merely
-   disableable, or are stronger internal module boundaries already needed?
-9. **Weather:** Which data provider fits self-hosting, privacy, and simple
-   configuration, and how does the widget behave without network or API access?
-10. **Deletion and recovery:** Which permanent content gets a trash bin, which
-    is deleted immediately, and how clearly does this differ from the
-    deliberately temporary Scratchpad?
+1. **Knowledge:** exact hierarchy limit, stable address syntax, revision
+   retention, and export packaging. Use the existing affe Markdown components.
+2. **Scratchpad:** configuration ranges and the precise expiry behavior after
+   unpinning an entry.
+3. **Tasks:** due-date display conventions, description presentation, and
+   ordering interactions.
+4. **Files:** default size limits and total quota, filename collision handling,
+   and folder restoration behavior.
+5. **Dashboard and search:** initial tile selection, ranking, pagination, and
+   freshness targets.
+6. **Recovery and concurrency:** Trash duration, restore collision handling,
+   concurrency token representation, and treatment of concurrent structural
+   changes. Ordinary stale updates must be rejected.
+7. **Authentication:** setup and server-side recovery mechanics, session and
+   token lifetimes, and TOTP enrollment details.
+8. **Weather:** provider, caching, attribution, and behavior when unavailable;
+   retain the vision's proportional-effort condition.
+9. **Operations:** backup commands, maintenance coordination, purge scheduling,
+   supported release platforms, and exact CI checks.
+10. **CLI:** short executable name, configuration details, and command spelling
+    following the established affe conventions.
+
+Module deactivation blocks content access through web, API, and CLI, while
+retention deadlines and cleanup continue. Re-enabling restores access to the
+remaining data. These are settled rules, not open questions.
