@@ -20,9 +20,10 @@ the Go CLI with two verbs (PERSONAL-5), the image with its Compose topology
 PERSONAL-E2 is under way: the owner, the one-time setup and the password
 material (PERSONAL-9), the door in front of the `/api` group with the browser's
 sign-in behind it (PERSONAL-10), and the second factor, the recovery codes and
-the owner's sessions (PERSONAL-11), and agent access with a permission per
-application (PERSONAL-12). What is not there yet is the two clients' halves and
-the owner's recovery on the server.
+the owner's sessions (PERSONAL-11), agent access with a permission per
+application (PERSONAL-12), and the credential half of `pea` (PERSONAL-13). What
+is not there yet is the web application's screens and the owner's recovery on
+the server.
 
 ## Where this comes from
 
@@ -240,6 +241,7 @@ internal/config     which instance, and as whom
 internal/exit       the exit codes
 internal/problem    the problem document as `pea` reads it
 internal/render     how it prints for a person, and as JSON
+internal/keychain   where a machine keeps a token, through the tool it ships
 internal/version    what this build calls itself
 internal/api        the generated client — not committed
 ```
@@ -264,8 +266,15 @@ Operational verbs that need the database are **not** here: migrations and
 backups belong to the .NET binary that has the connection string.
 
 *PERSONAL-5 built the module, the two ladders, the exit table, the text input
-and two verbs — `version` and `status`. `internal/keychain` and the sign-in that
-fills it are PERSONAL-E2's; the content verbs arrive with their applications.*
+and two verbs — `version` and `status`. PERSONAL-13 added the keychain rung and
+`login`, `whoami` and `logout`; the content verbs arrive with their
+applications.*
+
+**What `pea` holds is an agent token, and there is no password in it.** A
+browser signs the owner in; a console is an agent acting on the owner's behalf,
+which is what `CONTEXT.md` calls it. So `pea` cannot manage agents or security
+settings, and no token can be given permission to
+([`docs/cli.md`](./cli.md)).
 
 ## The frontend is built separately and joined once
 
