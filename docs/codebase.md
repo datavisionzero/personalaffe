@@ -12,9 +12,9 @@ is wrong.
 
 Status: the four .NET projects, the two test projects, the self-applying
 migrator, the health endpoints (PERSONAL-2), the checked-in contract and the
-problem document (PERSONAL-3), and the web workspace with one screen
-(PERSONAL-4) exist. The CLI, the image and CI do not yet; PERSONAL-5 through
-PERSONAL-8 fill them in the order their blockers allow.
+problem document (PERSONAL-3), the web workspace with one screen (PERSONAL-4)
+and the Go CLI with two verbs (PERSONAL-5) exist. The image and CI do not yet;
+PERSONAL-6 through PERSONAL-8 fill them in the order their blockers allow.
 
 ## Where this comes from
 
@@ -241,6 +241,10 @@ the precedence, with nothing in the keychain yet.*
 
 Operational verbs that need the database are **not** here: migrations and
 backups belong to the .NET binary that has the connection string.
+
+*PERSONAL-5 built the module, the two ladders, the exit table, the text input
+and two verbs — `version` and `status`. `internal/keychain` and the sign-in that
+fills it are PERSONAL-E2's; the content verbs arrive with their applications.*
 
 ## The frontend is built separately and joined once
 

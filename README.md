@@ -8,8 +8,9 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 
 > **It is not a workspace yet.** What exists today is the foundation of
 > PERSONAL-E1: a .NET host, a PostgreSQL schema that migrates itself, a checked-in
-> HTTP contract, three operations — a version and two health checks — and one web
-> page that reads them. There is no authentication, no owner, and no content —
+> HTTP contract, three operations — a version and two health checks — and a web
+> page and a CLI that read them. There is no authentication, no owner, and no
+> content —
 > **do not put anything personal in an instance of it.** Authentication is
 > PERSONAL-E2's, the content safeguards PERSONAL-E3's.
 
@@ -85,6 +86,23 @@ npm run build
 
 Each of those generates the API layer from the contract first, which is why
 `src/web/src/api/schema.d.ts` is not committed.
+
+## Running the CLI
+
+`pea` is a client of the public API and nothing else. It is built from its own
+module and needs no part of the .NET build.
+
+```sh
+cd src/cli
+go generate ./...        # the client of the contract; not committed
+go vet ./... && go test ./...
+go build -o pea ./cmd/pea
+
+PERSONALAFFE_URL=http://localhost:5000 ./pea version
+```
+
+[`docs/cli.md`](docs/cli.md) has the configuration ladders, the input rules and
+the exit codes.
 
 ## The contract
 
