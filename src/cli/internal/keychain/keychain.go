@@ -81,15 +81,20 @@ func (none) Where() string               { return "" }
 // would put the token in the argument list of a process, where `ps` shows it to
 // whoever is on the machine — which is exactly the exposure this rung exists to
 // avoid.
-type macOS struct{ tool string }
+type macOS struct {
+	tool string
+	// run is the tool, or a test's stand-in. What it answers is what the tool
+	// answers: its output, its complaint, and whether it exited non-zero.
+	run func(command string) (out, complaint string, err error)
+}
 
 func (m *macOS) Where() string { return "the login keychain" }
 
 func (m *macOS) Load(instance string) (string, error) {
-	out, err := m.run(fmt.Sprintf(
+	out, complaint, err := m.ask(fmt.Sprintf(
 		"find-generic-password -s %s -a %s -w", quoted(Service), quoted(instance)))
 	if err != nil {
-		return "", notFound(err)
+		return "", classified(complaint, err)
 	}
 
 	token := strings.TrimSpace(out)
@@ -102,44 +107,50 @@ func (m *macOS) Load(instance string) (string, error) {
 
 func (m *macOS) Save(instance, token string) error {
 	// -U updates an entry that is already there rather than refusing.
-	_, err := m.run(fmt.Sprintf(
+	_, complaint, err := m.ask(fmt.Sprintf(
 		"add-generic-password -U -s %s -a %s -l %s -w %s",
 		quoted(Service), quoted(instance), quoted("personalaffe: "+instance), quoted(token)))
-
-	return err
-}
-
-func (m *macOS) Delete(instance string) error {
-	if _, err := m.run(fmt.Sprintf(
-		"delete-generic-password -s %s -a %s", quoted(Service), quoted(instance))); err != nil {
-		if errors.Is(notFound(err), ErrNotFound) {
-			return nil
-		}
-		return err
+	if err != nil {
+		return classified(complaint, err)
 	}
 
 	return nil
 }
 
-func (m *macOS) run(command string) (string, error) {
-	var out, errs bytes.Buffer
+func (m *macOS) Delete(instance string) error {
+	// A successful delete says "password has been deleted." on standard error
+	// and exits 0. The exit code is the signal; what is written is a remark.
+	_, complaint, err := m.ask(fmt.Sprintf(
+		"delete-generic-password -s %s -a %s", quoted(Service), quoted(instance)))
+	if err == nil {
+		return nil
+	}
+
+	// Deleting nothing is the state that was asked for.
+	failure := classified(complaint, err)
+
+	if errors.Is(failure, ErrNotFound) {
+		return nil
+	}
+
+	return failure
+}
+
+func (m *macOS) ask(command string) (string, string, error) {
+	if m.run != nil {
+		return m.run(command)
+	}
+
+	var out, complaint bytes.Buffer
 
 	cmd := exec.Command(m.tool, "-i")
 	cmd.Stdin = strings.NewReader(command + "\n")
 	cmd.Stdout = &out
-	cmd.Stderr = &errs
+	cmd.Stderr = &complaint
 
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("%s: %s", err, strings.TrimSpace(errs.String()))
-	}
+	err := cmd.Run()
 
-	// Interactive mode echoes nothing of its own, but it does report a failed
-	// command on stderr while exiting 0 for the session.
-	if message := strings.TrimSpace(errs.String()); message != "" {
-		return "", errors.New(message)
-	}
-
-	return out.String(), nil
+	return out.String(), complaint.String(), err
 }
 
 // libsecret talks to whatever answers the Secret Service API — GNOME Keyring,
@@ -183,12 +194,18 @@ func (l *libsecret) Delete(instance string) error {
 	return nil
 }
 
-// notFound turns "the tool said no" into the one answer a caller branches on.
-func notFound(err error) error {
-	if strings.Contains(err.Error(), "could not be found") ||
-		strings.Contains(err.Error(), "SecKeychainSearchCopyNext") ||
-		strings.Contains(err.Error(), "-25300") {
+// classified turns "the tool exited non-zero" into the one answer a caller
+// branches on: nothing is stored, or something else went wrong and is worth
+// saying out loud — a locked keychain, a denied prompt.
+func classified(complaint string, err error) error {
+	if strings.Contains(complaint, "could not be found") ||
+		strings.Contains(complaint, "SecKeychainSearchCopyNext") ||
+		strings.Contains(complaint, "-25300") {
 		return ErrNotFound
+	}
+
+	if trimmed := strings.TrimSpace(complaint); trimmed != "" {
+		return fmt.Errorf("%w: %s", err, trimmed)
 	}
 
 	return err

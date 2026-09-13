@@ -214,7 +214,7 @@ jobs:
           PERSONALAFFE_IMAGE: personalaffe:ci
         run: docker compose -f deploy/docker-compose.yml up -d
 
-      - name: It becomes ready, and serves both halves from one container
+      - name: It becomes ready, serves both halves, and keeps its door shut
         env:
           PERSONALAFFE_IMAGE: personalaffe:ci
         run: |
@@ -248,6 +248,20 @@ jobs:
           # endpoint took is an API error, not the page.
           refused=$(curl --silent --output /dev/null --write-out '%{http_code} %{content_type}' http://127.0.0.1:8080/api/nothing-here)
           case "$refused" in "404 application/problem+json"*) ;; *) echo "/api/nothing-here answered $refused"; exit 1;; esac
+
+          # The door, on the real image: everything but the five operations
+          # outside it needs a credential, and the refusal is the same document
+          # every other refusal is. The suite proves this against the whole
+          # contract; this proves it against the artifact that ships.
+          shut=$(curl --silent --output /tmp/refusal.json --write-out '%{http_code} %{content_type}' http://127.0.0.1:8080/api/me)
+          case "$shut" in "401 application/problem+json"*) ;; *) echo "/api/me answered $shut"; exit 1;; esac
+          grep -q '"/problems/unauthenticated"' /tmp/refusal.json || { echo "/api/me refused without saying which refusal"; exit 1; }
+
+          # And an instance nobody has claimed says that it needs an owner, and
+          # nothing else: this answers to whoever can reach the port.
+          setup=$(curl --fail --silent http://127.0.0.1:8080/api/setup)
+          test "$setup" = '{"required":true}' || { echo "/api/setup answered $setup"; exit 1; }
+          echo "the door is shut, and the instance is unclaimed"
 
       # The useful half of a failure. `up -d` says nothing about why a container
       # is unhealthy; its log does.

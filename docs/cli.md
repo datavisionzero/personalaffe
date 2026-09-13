@@ -88,7 +88,8 @@ takes the secret on standard input.
 
 A machine with neither is a machine with no keychain — an answer, not a failure.
 The two rungs above still work, and that is what CI and an agent's container
-use.
+use. A keychain that is there and says something else — locked, or a prompt
+somebody denied — is said out loud rather than passed off as "no credential".
 
 ### The configuration file
 

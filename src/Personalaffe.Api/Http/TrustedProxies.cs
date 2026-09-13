@@ -18,7 +18,7 @@ namespace Personalaffe.Api.Http;
 /// behind a proxy that is the proxy's own address for every request — which is
 /// honest, if unhelpful, and is the safe half of the trade. Trusting the header
 /// by default would let anyone who can reach the port claim to be anyone, and
-/// the rate limits and the log lines of PERSONAL-E2 are built on that address.
+/// the throttle on failed sign-ins and the log lines are built on that address.
 /// </para>
 /// <para>
 /// The value is a comma-separated list of addresses and CIDR networks, or

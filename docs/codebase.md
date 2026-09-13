@@ -5,10 +5,9 @@ is built. This one says where that lives: how the repository is laid out, which
 project holds what, which way the dependencies point, and which toolchain builds
 what.
 
-**This document is a blueprint for PERSONAL-E1 and is kept accurate as the epic
-lands.** Every section below marks what already exists and what is still only
-planned. A file that lands somewhere this does not describe means one of the two
-is wrong.
+**This document is kept accurate as each epic lands.** Every section below
+marks what already exists and what is still only planned. A file that lands
+somewhere this does not describe means one of the two is wrong.
 
 Status: the four .NET projects, the two test projects, the self-applying
 migrator, the health endpoints (PERSONAL-2), the checked-in contract and the
@@ -17,13 +16,17 @@ the Go CLI with two verbs (PERSONAL-5), the image with its Compose topology
 (PERSONAL-6), the CI gate (PERSONAL-7) and the fresh-checkout verification
 (PERSONAL-8) all exist. **PERSONAL-E1 is complete.**
 
-PERSONAL-E2 is under way: the owner, the one-time setup and the password
-material (PERSONAL-9), the door in front of the `/api` group with the browser's
-sign-in behind it (PERSONAL-10), and the second factor, the recovery codes and
-the owner's sessions (PERSONAL-11), agent access with a permission per
-application (PERSONAL-12), the credential half of `pea` (PERSONAL-13) and the
-web application's door (PERSONAL-14) and the owner's recovery on the server
-(PERSONAL-15).
+**PERSONAL-E2 is complete**: the owner and the one-time setup (PERSONAL-9), the
+door in front of the `/api` group (PERSONAL-10), the second factor and the
+recovery codes (PERSONAL-11), agent access with a permission per application
+(PERSONAL-12), the credential half of `pea` (PERSONAL-13), the browser's door
+and the owner's two screens (PERSONAL-14), the recovery on the server
+(PERSONAL-15), and the suite that proves the door holds (PERSONAL-16). What the
+epic decided is
+[ADR 0002](./adr/0002-one-owner-with-a-browser-and-agents-with-tokens.md).
+
+What the rest of `docs/mvp-plan.md` describes is not started: **there is no
+content of any kind yet**, and no safeguards over content either.
 
 ## Where this comes from
 
@@ -267,8 +270,8 @@ concept to resolve: one instance belongs to one owner.
 The instance is `--url`, then `PERSONALAFFE_URL`, then the instance on disk. The
 credential is `PERSONALAFFE_TOKEN`, then a token file the owner named, then the
 keychain — the environment first, because that is how an agent receives its own
-token. *The credential half is PERSONAL-E2's; PERSONAL-5 builds the ladder and
-the precedence, with nothing in the keychain yet.*
+token. The keychain is reached through the tool the system already ships, and a
+machine with none still has the two rungs above it.
 
 Operational verbs that need the database are **not** here: migrations and
 backups belong to the .NET binary that has the connection string.
@@ -486,8 +489,9 @@ acceptance criteria will need.
 The foundation was built to be extended in specific places, and this is the list
 so that no epic has to find them again.
 
-**PERSONAL-E2, authentication.** The door is `Http/Authentication.cs`, in front
-of the `/api` group and nowhere else: the group asks for an authenticated caller
+**PERSONAL-E2, authentication — landed.** The door is
+`Http/Authentication.cs`, in front of the `/api` group and nowhere else: the
+group asks for an authenticated caller
 and only what says `AllowAnonymous` is outside it, which is the way round that
 fails safe. What comes through is a `Caller` on the request, answered to the
 acts by `ICallerIdentity`; an act asks for it rather than taking one as an
@@ -498,7 +502,9 @@ keychain — left to the sign-in that fills it, and
 `client.New(address, token, …)` already sends the bearer header when there is a
 token to send.
 
-**PERSONAL-E3, content safeguards.** `RefusalCode.Stale` and its 412 are
+**PERSONAL-E3, content safeguards.** `Caller.RequireRead` and `RequireWrite`
+are what a content operation asks before it does anything, and they are waiting
+for their first caller. `RefusalCode.Stale` and its 412 are
 settled; what a write sends to say which version it is replacing is spelled in
 `docs/api.md` as the object's `updated_at`, in the one timestamp format
 `Rfc3339` writes. `deleted` is the code that joins the set, and the table in

@@ -40,9 +40,17 @@ internal sealed class AnInstance(
     /// What the instance logged at warning or above — the reason behind a
     /// readiness answer, which the answer itself deliberately does not carry.
     /// </summary>
-    public IReadOnlyList<string> Warnings => _warnings;
+    public IReadOnlyList<string> Warnings =>
+        [.. _logged.Where(line => line.Warning).Select(line => line.Text)];
 
-    private readonly List<string> _warnings = [];
+    /// <summary>
+    /// Everything the instance logged, at every level. What this is for is the
+    /// one assertion that cannot be made from the outside: that no secret the
+    /// owner or an agent holds is written down anywhere.
+    /// </summary>
+    public IReadOnlyList<string> Logged => [.. _logged.Select(line => line.Text)];
+
+    private readonly List<(bool Warning, string Text)> _logged = [];
 
     public static PersonalaffeDbContext ContextFor(string connectionString) =>
         new(new DbContextOptionsBuilder<PersonalaffeDbContext>().UseNpgsql(connectionString).Options);
@@ -71,18 +79,26 @@ internal sealed class AnInstance(
             settings.AddInMemoryCollection(values);
         });
 
-        builder.ConfigureLogging(logging => logging.AddProvider(new Capture(_warnings)));
+        builder.ConfigureLogging(logging =>
+        {
+            logging.AddProvider(new Capture(_logged));
+
+            // Everything, so that the hygiene assertion has everything to look
+            // through. The instance's own level is what an operator sets; this
+            // is the test listening.
+            logging.SetMinimumLevel(LogLevel.Trace);
+        });
 
         return base.CreateHost(builder);
     }
 
-    private sealed class Capture(List<string> warnings) : ILoggerProvider, ILogger
+    private sealed class Capture(List<(bool Warning, string Text)> logged) : ILoggerProvider, ILogger
     {
         public ILogger CreateLogger(string categoryName) => this;
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
-        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Trace;
 
         public void Log<TState>(
             LogLevel logLevel,
@@ -91,12 +107,9 @@ internal sealed class AnInstance(
             Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            if (IsEnabled(logLevel))
+            lock (logged)
             {
-                lock (warnings)
-                {
-                    warnings.Add($"{formatter(state, exception)}\n{exception}");
-                }
+                logged.Add((logLevel >= LogLevel.Warning, $"{formatter(state, exception)}\n{exception}"));
             }
         }
 

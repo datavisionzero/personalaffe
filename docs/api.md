@@ -329,8 +329,8 @@ is what decides that, not a read taken a moment earlier.
 the instance is simply already somebody's. There is one owner, there is no
 invitation and no second account, and an owner who has lost their password
 recovers on the machine that runs the instance rather than through a second
-account — the procedure is written down with the recovery it describes, later in
-PERSONAL-E2.
+account ([`docs/operations.md`](./operations.md), When the owner is locked
+out).
 
 The email address is the **login identifier** and nothing else: personalaffe
 sends no mail, has no SMTP setting and needs none. A password is 12 to 200

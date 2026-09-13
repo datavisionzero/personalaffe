@@ -178,9 +178,10 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
-// Before anything reads a scheme or an address: the log line wants the caller's,
-// not the proxy's — and so will the rate limits of PERSONAL-E2. Only when an
-// operator has named the proxy; an unnamed one is a client with a header.
+// Before anything reads a scheme or an address: the log line wants the caller's
+// and so does the throttle on failed sign-ins, and the cookie's strictness
+// follows the scheme. Only when an operator has named the proxy; an unnamed one
+// is a client with a header.
 if (trustedProxies.Configured)
 {
     app.UseForwardedHeaders(trustedProxies.Options());

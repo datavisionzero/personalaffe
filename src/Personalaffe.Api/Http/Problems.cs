@@ -107,8 +107,8 @@ public static class Problems
 
     /// <summary>
     /// Writes a refusal's document straight to the response, for the refusals
-    /// that happen before or instead of an endpoint — the fallback below, and
-    /// the challenge and the forbid once there is a door (PERSONAL-E2).
+    /// that happen before or instead of an endpoint — the group's not-found,
+    /// and the door's challenge and forbid.
     /// </summary>
     public static async Task WriteAsync(HttpContext context, RefusalCode code, string? detail)
     {

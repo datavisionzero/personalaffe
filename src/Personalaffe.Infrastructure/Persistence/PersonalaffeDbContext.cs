@@ -9,10 +9,10 @@ namespace Personalaffe.Infrastructure.Persistence;
 /// <remarks>
 /// EF Core owns every table and the migrations that apply themselves on
 /// startup. What it declares is what something already stores rows in: the
-/// owner, from PERSONAL-E2. The content safeguards are PERSONAL-E3's and the
-/// four applications bring their own tables with them — a table invented here
-/// before something stores rows in it would be a shape nobody has had to live
-/// with.
+/// owner and what gets them in, from PERSONAL-E2. The content safeguards are
+/// PERSONAL-E3's and the four applications bring their own tables with them — a
+/// table invented here before something stores rows in it would be a shape
+/// nobody has had to live with.
 /// </remarks>
 public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext> options) : DbContext(options)
 {
