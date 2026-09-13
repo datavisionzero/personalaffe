@@ -10,8 +10,10 @@ lands.** Every section below marks what already exists and what is still only
 planned. A file that lands somewhere this does not describe means one of the two
 is wrong.
 
-Status at the time of writing: nothing but documentation exists. PERSONAL-2
-through PERSONAL-8 fill the tree in the order their blockers allow.
+Status: the four .NET projects, the two test projects, the self-applying
+migrator and the health endpoints exist (PERSONAL-2). The contract, the web
+application, the CLI, the image and CI do not yet; PERSONAL-3 through
+PERSONAL-8 fill them in the order their blockers allow.
 
 ## Where this comes from
 
@@ -162,8 +164,13 @@ PERSONAL-3: `Problems` writing every refusal as one document, `VersionHeader`,
 migration, and later the owner bootstrap, in that order. `Program.cs` is the only
 file that knows all four layers.
 
-Planned, not implemented: `Acts/`, `Ports/`, `Configurations/`, `Files/`,
-`Security/` and every endpoint but the two of PERSONAL-3.
+Implemented: `Hosting/`, `Http/Routes.cs`, `Http/HealthEndpoints.cs`,
+`Persistence/` with the context, the migrator and the first migration, and
+`Application/Ports/` with the two settings records the host validates at
+startup.
+
+Planned, not implemented: `Acts/`, `Configurations/`, `Files/`, `Security/`, and
+every endpoint but the two health checks and the two of PERSONAL-3.
 
 ## Where an application lives
 
@@ -192,8 +199,9 @@ Identity — the owner, agent access and their permissions — is not an
 application. It lives at the root of each layer, because every application asks
 it the same question.
 
-*Planned. PERSONAL-2 creates the folders that have something to put in them and
-no others; an empty folder claiming a future module is a lie the tree tells.*
+*Planned. PERSONAL-2 created the folders that had something to put in them and
+no others — which is none of these: an empty folder claiming a future module is
+a lie the tree tells.*
 
 ## The CLI is a client, not a layer
 

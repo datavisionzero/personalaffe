@@ -1,1 +1,48 @@
-.planaffe
+# Personal, machine-local agent instructions.
+CLAUDE.local.md
+
+# The project file: points this repository at the private planaffe backlog.
+/.planaffe
+
+# Working material, deliberately not part of the repository.
+/scratchpad/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+artifacts/
+
+# The SPA is built into the image, never committed.
+src/Personalaffe.Api/wwwroot/
+
+# The web client's API layer is generated from docs/api/openapi.json before
+# every build. The contract is the artifact; its output is not.
+src/web/src/api/schema.d.ts
+
+# The Go client of the contract, generated before every build.
+src/cli/internal/api/client.gen.go
+
+# Go
+/dist/
+/personalaffe
+/pea
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+
+# Local secrets and the host volume of a development installation
+.env
+deploy/.env
+volume/
+
+# macOS
+.DS_Store
+
+# The local instance on this machine: what only this host needs.
+deploy/docker-compose.local.yml
