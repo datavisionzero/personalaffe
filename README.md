@@ -6,13 +6,18 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 [`CONTEXT.md`](CONTEXT.md) is the language it uses;
 [`docs/mvp-plan.md`](docs/mvp-plan.md) says in what order it is built.
 
-> **It is not a workspace yet.** What exists today is the foundation of
-> PERSONAL-E1: a .NET host, a PostgreSQL schema that migrates itself, a checked-in
-> HTTP contract, three operations — a version and two health checks — and a web
-> page and a CLI that read them. There is no authentication, no owner, and no
-> content —
-> **do not put anything personal in an instance of it.** Authentication is
-> PERSONAL-E2's, the content safeguards PERSONAL-E3's.
+> **It is not a workspace yet.** What exists is the foundation of PERSONAL-E1 —
+> a .NET host, a PostgreSQL schema that migrates itself, a checked-in HTTP
+> contract, and a web page and a CLI that read it — and the door of
+> PERSONAL-E2: an instance is claimed once by its one owner, who signs in with
+> an email address, a password and, if they want one, a code from an
+> authenticator; agents are let in with named tokens and a permission per
+> application; and everything but five operations is behind that door.
+>
+> **There is still no content of any kind**, and none of the safeguards over it:
+> no Scratchpad, no Knowledge, no Tasks, no Files, no Trash and no guard against
+> a stale write. Those are PERSONAL-E3 and the epics after it, so
+> **do not put anything personal in an instance of it yet.**
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
@@ -193,14 +198,14 @@ writes nothing into the repository and needs no credential.
 
 ## Known limits
 
-Everything here is the foundation of PERSONAL-E1 and nothing more.
+Everything here is PERSONAL-E1 and PERSONAL-E2, and nothing more.
 
-- **There is no authentication and no owner.** Every address is open to whoever
-  can reach the port. This is PERSONAL-E2's, and until it lands an instance
-  belongs on a machine you own, published on loopback.
 - **There is no content.** No scratchpad, no knowledge pages, no tasks, no
-  files: the database carries one migration and it creates no table. The four
-  applications are PERSONAL-E5 through PERSONAL-E8.
+  files: what the database carries is an owner, their sessions, their recovery
+  codes and the agents they let in. The four applications are PERSONAL-E5
+  through PERSONAL-E8.
+- **Nothing an agent is given reaches anything yet.** The permissions are real
+  and enforced, and the applications they guard do not exist.
 - **Nothing is recoverable, because nothing is stored.** Trash, revision
   history and the guard against stale writes are PERSONAL-E3's; the codes they
   will use are already in the contract.

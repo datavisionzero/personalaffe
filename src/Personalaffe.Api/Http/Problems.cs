@@ -28,7 +28,7 @@ public static class Problems
     public static int StatusOf(RefusalCode code) => code switch
     {
         RefusalCode.Validation or RefusalCode.UnknownField => StatusCodes.Status400BadRequest,
-        RefusalCode.Unauthenticated => StatusCodes.Status401Unauthorized,
+        RefusalCode.Unauthenticated or RefusalCode.SecondFactor => StatusCodes.Status401Unauthorized,
         RefusalCode.Forbidden => StatusCodes.Status403Forbidden,
         RefusalCode.NotFound => StatusCodes.Status404NotFound,
         RefusalCode.Conflict => StatusCodes.Status409Conflict,
@@ -42,6 +42,7 @@ public static class Problems
         RefusalCode.Validation => "A field is missing, malformed or over its limit",
         RefusalCode.UnknownField => "The request contains a field this object does not define",
         RefusalCode.Unauthenticated => "No credential, an unknown one, or a revoked one",
+        RefusalCode.SecondFactor => "A code from the authenticator is wanted as well",
         RefusalCode.Forbidden => "The caller may not do this",
         RefusalCode.NotFound => "Nothing at that address",
         RefusalCode.Stale => "The object has changed since it was read",
@@ -81,22 +82,33 @@ public static class Problems
     /// The document as an endpoint's result, for the refusals an endpoint makes
     /// itself rather than lets out of an act.
     /// </summary>
+    /// <remarks>
+    /// Written as JSON rather than through <c>Results.Problem</c>, which would
+    /// hand it to the problem-details service and have a <c>trace_id</c> added
+    /// on the way out. Every refusal is one document with the members its code
+    /// calls for and no others — and two refusals that are meant to be
+    /// indistinguishable, as sign-in's are, have to be indistinguishable to the
+    /// byte.
+    /// </remarks>
     public static IResult Result(
         RefusalCode code, string? detail, IReadOnlyDictionary<string, object?>? extensions = null) =>
-        Results.Problem(Document(code, detail, instance: null, extensions));
+        Written(Document(code, detail, instance: null, extensions));
 
     /// <summary>The <c>validation</c> document: <c>errors</c> maps field to messages.</summary>
     public static IResult Validation(IReadOnlyDictionary<string, string[]> errors) =>
-        Results.Problem(Document(Refusal.Validation(errors)));
+        Written(Document(Refusal.Validation(errors)));
 
     /// <inheritdoc cref="Validation(IReadOnlyDictionary{string, string[]})"/>
     public static IResult Validation(string field, string message) =>
-        Results.Problem(Document(Refusal.Validation(field, message)));
+        Written(Document(Refusal.Validation(field, message)));
+
+    private static IResult Written(ProblemDetails document) =>
+        Results.Json(document, options: null, ContentType, document.Status);
 
     /// <summary>
     /// Writes a refusal's document straight to the response, for the refusals
-    /// that happen before or instead of an endpoint — the fallback below, and
-    /// the challenge and the forbid once there is a door (PERSONAL-E2).
+    /// that happen before or instead of an endpoint — the group's not-found,
+    /// and the door's challenge and forbid.
     /// </summary>
     public static async Task WriteAsync(HttpContext context, RefusalCode code, string? detail)
     {
@@ -112,19 +124,42 @@ public static class Problems
     /// <summary>
     /// A body or a parameter the framework could not read at all — a closed set
     /// given a word outside it, a number where a string was sent, malformed
-    /// JSON. It is the caller's mistake and answers as <c>validation</c>, named
-    /// after the field where the reader gave up.
+    /// JSON, or a field the object does not define. All of them are the
+    /// caller's mistake, and each answers as the code that says which mistake
+    /// it was, named after the field where the reader gave up.
     /// </summary>
     private static Refusal Unreadable(BadHttpRequestException exception)
     {
-        var path = (exception.InnerException as JsonException)?.Path;
+        if (exception.InnerException is not JsonException unreadable)
+        {
+            return Refusal.Validation("body", "The request body is not the JSON object this endpoint takes.");
+        }
 
-        return path is null or "$"
-            ? Refusal.Validation("body", "The request body is not the JSON object this endpoint takes.")
+        var field = FieldOf(unreadable.Path);
+
+        if (field is null)
+        {
+            return Refusal.Validation("body", "The request body is not the JSON object this endpoint takes.");
+        }
+
+        // `UnmappedMemberHandling.Disallow` is what raises this, and the reader
+        // says so in the one way it says it. The test that sends an undefined
+        // field is what keeps this true: a runtime that changes the sentence
+        // turns that test red rather than turning the refusal quietly back into
+        // `validation`.
+        return unreadable.Message.Contains("could not be mapped", StringComparison.Ordinal)
+            ? new Refusal(
+                RefusalCode.UnknownField,
+                $"{field}: this object does not define that field.",
+                new Dictionary<string, object?> { ["field"] = field })
             : Refusal.Validation(
-                path.Split('.', '[')[^1].TrimEnd(']'),
+                field,
                 "The value is not of the type this field takes; a closed set takes one of its words.");
     }
+
+    /// <summary>The last segment of a JSON path — <c>$.owner.email</c> is <c>email</c>.</summary>
+    private static string? FieldOf(string? path) =>
+        path is null or "$" ? null : path.Split('.', '[')[^1].TrimEnd(']');
 
     /// <summary>
     /// What turns a <see cref="Refusal"/> thrown by an act into its document,

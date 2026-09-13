@@ -14,9 +14,7 @@ namespace Personalaffe.Domain;
 /// <para>
 /// The set grows with the epics that need it — <c>deleted</c> with recoverable
 /// deletion, <c>disabled</c> with the application switch — and each addition is
-/// a line in <c>docs/api.md</c> in the same commit. What is here is what the
-/// foundation can already refuse, plus the two that the shape of every later
-/// write depends on: <see cref="Unauthenticated"/> and <see cref="Stale"/>.
+/// a line in <c>docs/api.md</c> in the same commit.
 /// </para>
 /// </remarks>
 public enum RefusalCode
@@ -29,6 +27,11 @@ public enum RefusalCode
 
     /// <summary>No credential, an unknown one, or a revoked one.</summary>
     Unauthenticated,
+
+    /// <summary>
+    /// The password was right and the authenticator's code is still wanted.
+    /// </summary>
+    SecondFactor,
 
     /// <summary>The caller may not do this.</summary>
     Forbidden,

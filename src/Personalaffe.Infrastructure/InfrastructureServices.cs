@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Personalaffe.Application.Ports;
 using Personalaffe.Infrastructure.Persistence;
+using Personalaffe.Infrastructure.Security;
 
 namespace Personalaffe.Infrastructure;
 
@@ -34,6 +35,15 @@ public static class InfrastructureServices
             // reported by the exception it raised, where it is caught.
             .ConfigureWarnings(warnings => warnings.Log((RelationalEventId.CommandError, LogLevel.Debug))));
         services.AddScoped<SchemaMigrator>();
+
+        // One store per port, beside the context that answers it.
+        services.AddScoped<IOwners, Owners>();
+        services.AddScoped<IBrowserSessions, BrowserSessions>();
+        services.AddScoped<IRecoveryCodes, RecoveryCodes>();
+        services.AddScoped<IAgentAccessStore, AgentAccessStore>();
+
+        // Argon2id, and the only place that knows it is (docs/codebase.md).
+        services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();
 
         return services;
     }

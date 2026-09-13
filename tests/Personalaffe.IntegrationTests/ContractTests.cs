@@ -40,11 +40,45 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Null(document["servers"]);
 
         var paths = document["paths"]!.AsObject().Select(path => path.Key).Order(StringComparer.Ordinal);
-        Assert.Equal(["/api/health/live", "/api/health/ready", "/api/version"], paths);
+        Assert.Equal(
+            [
+                "/api/agents",
+                "/api/agents/{id}",
+                "/api/agents/{id}/token",
+                "/api/health/live",
+                "/api/health/ready",
+                "/api/me",
+                "/api/security",
+                "/api/security/password",
+                "/api/security/recovery-codes",
+                "/api/security/second-factor",
+                "/api/security/second-factor/confirm",
+                "/api/security/second-factor/off",
+                "/api/session",
+                "/api/sessions",
+                "/api/sessions/{id}",
+                "/api/setup",
+                "/api/version",
+            ],
+            paths);
 
         var schemas = document["components"]!["schemas"]!.AsObject().Select(schema => schema.Key).ToHashSet();
         Assert.Contains("VersionResponse", schemas);
         Assert.Contains("HealthResponse", schemas);
+        Assert.Contains("SetupStateResponse", schemas);
+        Assert.Contains("SetupRequest", schemas);
+        Assert.Contains("SignInRequest", schemas);
+        Assert.Contains("MeResponse", schemas);
+        Assert.Contains("SecurityResponse", schemas);
+        Assert.Contains("RecoveryCodesResponse", schemas);
+        Assert.Contains("SessionResponse", schemas);
+        Assert.Contains("AgentResponse", schemas);
+        Assert.Contains("AgentTokenResponse", schemas);
+        // `PermissionsShape` is the contract's shape of the Domain type of the
+        // same name, and the suffix is dropped from the schema id
+        // (OpenApiDocument). This is the first type to use that rule.
+        Assert.Contains("Permissions", schemas);
+        Assert.Contains("Permission", schemas);
     }
 
     [Fact]

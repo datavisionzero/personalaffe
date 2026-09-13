@@ -4,13 +4,12 @@ One instance, one address, one API. The web application and `pea` are both
 clients of it and there is no second way in
 ([`docs/codebase.md`](./codebase.md)).
 
-**Three operations exist today.** They are the foundation's, they carry no
-personal content, and they are listed under *Operations* below. Everything else
-on this page is the shape every later operation is written to — the conventions,
-the error document, the codes — and it is here because it was settled in
-PERSONAL-3, before there was a second endpoint to settle it differently.
-Sections that describe something not yet implemented say so in their first
-line.
+**There is a door now.** Five operations are outside it — the version, the two
+health checks and the two setup operations — and everything else needs a
+credential. What the door takes and what it answers is *The door* below; the
+conventions, the error document and the codes were settled in PERSONAL-3, before
+there was a second endpoint to settle them differently. Sections that describe
+something not yet implemented say so in their first line.
 
 ## The contract is the artifact
 
@@ -59,6 +58,11 @@ generators by hand, and both were run against it when it was first captured.*
 - **A closed set travels as its word**, never as a number: `read_write`, not
   `2`. A value outside the set is refused at the door as `validation` rather
   than stored as a row nobody can read.
+- **An object takes the fields it defines and no others.** A field it does not
+  define is `unknown-field` rather than a value quietly dropped: an agent
+  writing `passwrd` has no screen to notice the omission on. The one shape that
+  is deliberately open is the problem document, which carries what its code
+  needs.
 - **Timestamps are RFC 3339 in UTC with microseconds** —
   `2026-09-13T14:03:07.123456Z` — one spelling everywhere, so that the value a
   client reads is the value it can send back.
@@ -88,8 +92,9 @@ instead would collapse distinctions the product makes — `deleted` and
 `not-found` are both 404 once recoverable deletion lands.
 
 A document may carry more than the five members of RFC 9457. What it carries
-depends on the code: `validation` carries `errors`, a field to its messages. A
-client that does not know an extension member ignores it.
+depends on the code: `validation` carries `errors`, a field to its messages, and
+`unknown-field` carries `field`. A client that does not know an extension member
+ignores it.
 
 **A bug is not a refusal.** Anything that is not a deliberate refusal answers
 `/problems/internal` with a title, a status and nothing else — no message, no
@@ -103,6 +108,7 @@ instance's log.
 | `validation` | 400 | A field is missing, malformed or over its limit. Carries `errors`. |
 | `unknown-field` | 400 | The request names a field the object does not define. |
 | `unauthenticated` | 401 | No credential, an unknown one, or a revoked one. |
+| `second-factor` | 401 | The password was right and the authenticator's code is wanted as well. |
 | `forbidden` | 403 | The caller may not do this. |
 | `not-found` | 404 | Nothing at that address. |
 | `stale` | 412 | The object has changed since it was read. |
@@ -114,10 +120,8 @@ grows with the epics that need it — `deleted` with recoverable deletion
 (PERSONAL-E3), `disabled` with the application switch (PERSONAL-E4). **Each
 addition is a row in this table in the same commit.**
 
-Of the eight, the foundation can raise `not-found` and `internal`. The other
-six are the shape their epics are written to; `unauthenticated`, `forbidden` and
-`stale` in particular are here because the shape of every later write depends on
-them being decided already.
+Of the nine, eight can be raised today. Only `stale` cannot: it is the shape
+PERSONAL-E3's writes are written to.
 
 ### Exit codes
 
@@ -125,15 +129,121 @@ them being decided already.
 branches without parsing anything. The table lives in
 [`docs/cli.md`](./cli.md) with the CLI that implements it (PERSONAL-5).
 
+## The door
+
+**Everything but the five operations under *Operations* needs a credential**,
+and absence is `unauthenticated`, never `not-found`. Which endpoints an instance
+has is not a secret — the contract says so to anybody — so an address no
+endpoint took is still `not-found` rather than a challenge, and a client can
+tell "your credential is wrong" from "this instance is older than you think".
+
+There are two credentials and the instance tells them apart itself:
+
+- **A browser session**, in an `HttpOnly` cookie the instance sets at sign-in.
+  It is a row on the server, so revoking one means something; the cookie holds a
+  secret and nothing else, and no script on the page can read it.
+- **`Authorization: Bearer <token>`**, for agents and for `pea`. A token belongs
+  to one **agent access** — a named, revocable authorization the owner hands out
+  — and the instance tells whose it is from the row it already holds. A token
+  starts with `pea_` so that whoever finds one in a log or a shell history knows
+  what they have found.
+
+The cookie's strictness follows the request's own scheme. Over HTTPS it is
+`__Host-personalaffe_session`, bound to this host and to `/`; over plain HTTP it
+is `personalaffe_session` without the prefix and without `secure`, because a
+prefixed or `secure` cookie is not stored at all there and the first sign-in of
+a new installation often happens over `http://127.0.0.1:8080/`. A session over
+plain HTTP travels in the clear: put TLS in front of anything that is not a
+trial ([`docs/operations.md`](./operations.md)).
+
+### A browser write proves where it came from
+
+A request that is authenticated **by the cookie** and is not `GET`, `HEAD` or
+`OPTIONS` carries two things, or it is `forbidden`:
+
+```
+X-Personalaffe-CSRF: 1
+Origin: https://workspace.example.com
+```
+
+The header is what no cross-site form can set; the origin is compared against
+`PERSONALAFFE_PUBLIC_URL` when the operator has set one, and against the host
+otherwise — the scheme is left out there, because behind a proxy that terminates
+TLS the request arrives as `http` unless the proxy is trusted to say otherwise.
+
+**A request carrying a bearer token never sees this check.** Nothing attaches
+that header but the client that holds the token, so `pea` and an agent are
+unaffected.
+
+### Sign-in says nothing about why it failed
+
+An instance with no owner, an address that is not the owner's and a password
+that is not theirs are one answer, to the byte. Failed attempts are throttled
+per address and per caller, in a fifteen-minute window, and a throttled attempt
+answers exactly what a wrong one answers: telling a guesser they are being
+throttled tells them they have found something worth guessing at.
+
+**`second-factor` is the one exception**, and it says nothing the caller has not
+already proved: they have the password. Without it a client could not tell "that
+was wrong" from "now the code".
+
+### The second factor
+
+Optional, and off until the owner turns it on. It is a time-based one-time
+password to RFC 6238 — SHA-1, six digits, thirty-second steps — which is what
+every authenticator app on a phone already speaks; one step either side of now
+is accepted, and **a code that has been used cannot be used again**, so a code
+read over somebody's shoulder is not good for the rest of its thirty seconds.
+
+Enrolling takes two operations. The first offers a secret and changes nothing;
+the second confirms it with a code made from it and turns it on. A secret that
+took effect the moment it was shown would lock the owner out of their own
+instance on the day they mistyped it into the app — and the way back would be
+the procedure on the server, for a mistake made in ten seconds. An offer nobody
+confirms goes stale after fifteen minutes.
+
+Turning it on issues ten **recovery codes**, shown once. They are for the day
+the phone is lost: personalaffe has no mail server to send a link through, and
+these are what stands between that and the procedure on the server. Each works
+once, and `second_factor` at sign-in takes either kind — an authenticator's code
+or one of these. Which one somebody has to hand is not the instance's business.
+
+### What an agent may do
+
+Agent access is **not a second human account and never becomes one.** It has no
+password, no session and no way to sign in; what it has is a token and one
+answer per application — `none`, `read` or `read_write`, for `scratchpad`,
+`knowledge`, `tasks` and `files`.
+
+`read` reads and changes nothing; `read_write` includes deletion, which for
+Scratchpad is permanent and for lasting content is into the Trash. `none` is
+refused as `forbidden`.
+
+**Everything under `/api/agents` and `/api/security`, and the session list, is
+the owner's alone** — not by a permission that could be granted, but because no
+permission for them exists. An agent that could issue a credential could issue
+itself a better one. The refusal happens before the request body is read, so an
+agent asking for one of these hears "not yours" rather than a remark about a
+field it was never going to be allowed to send.
+
+### Changing how the owner signs in
+
+Every operation under `/api/security` that changes something asks for the
+password again, however recently the caller signed in. A browser left open is
+enough to take an instance over otherwise, and none of these should be one click
+away from a screen somebody walked away from. It refuses with `forbidden` rather
+than `unauthenticated`: the caller is signed in and stays signed in, and a
+client that treated this as a dead session would sign them out over a typo.
+
+Changing the password and turning the second factor off each **sign every other
+browser out**. The point of changing a password is that whoever else was in is
+now out.
+
 ## Extension points, not yet implemented
 
 These are named so that the operations of later epics do not each invent their
 own spelling. **None of them is implemented.**
 
-- **Authentication** (PERSONAL-E2) is `Authorization: Bearer <token>` for the
-  CLI and for agents, and an opaque session cookie for the browser. Everything
-  but the three operations below requires one, and absence is
-  `unauthenticated`, never `not-found`.
 - **Stale-update handling** (PERSONAL-E3): a write that replaces something says
   which version it read, and a write based on an older one is refused as
   `stale` rather than silently winning. The value is the object's `updated_at`
@@ -145,11 +255,13 @@ own spelling. **None of them is implemented.**
 
 ## Operations
 
-Three, and they are the whole of what an instance answers today. All three are
-outside the door — there is no door yet — and all three are held to carrying
-**no owner data, no credential, and nothing about the host**: an instance on the
-public internet with nobody signed in answers exactly these, and a test asserts
-their answers stay short and say nothing else.
+Five outside the door, and the rest behind it.
+
+The five are held to carrying **no owner data, no credential, and nothing about
+the host**: an instance on the public internet with nobody signed in answers
+exactly these, and a test asserts their answers stay short and say nothing else.
+They are also the last five: everything the epics after this add is behind the
+door.
 
 ### `GET /api/version`
 
@@ -186,6 +298,181 @@ remembering that the start went well.
 
 The answer is a word. **Why** readiness failed goes to the instance's log at
 warning, where the operator is — not to whatever can reach the port.
+
+### `GET /api/setup`
+
+```json
+{ "required": true }
+```
+
+Whether this instance still needs its one-time setup. It is outside the door
+because it has to be: a browser arriving at a fresh installation cannot sign in,
+and something has to tell it to set up instead.
+
+It is also the whole of what it says. **Who** the owner is, when they were set
+up and what address they use are not in the answer — an instance on the public
+internet answers this to whoever asks, and `required: false` is the most it will
+ever tell them.
+
+### `POST /api/setup`
+
+```json
+{ "email": "owner@example.com", "password": "correct horse battery staple" }
+```
+
+Claims an instance that has no owner, and answers `204`. **It works exactly
+once**: a second attempt is `conflict`, whichever surface it comes from and
+however many arrive at the same moment — the unique index on the owner's table
+is what decides that, not a read taken a moment earlier.
+
+`conflict` rather than `forbidden`, because nothing about the caller is wrong:
+the instance is simply already somebody's. There is one owner, there is no
+invitation and no second account, and an owner who has lost their password
+recovers on the machine that runs the instance rather than through a second
+account ([`docs/operations.md`](./operations.md), When the owner is locked
+out).
+
+The email address is the **login identifier** and nothing else: personalaffe
+sends no mail, has no SMTP setting and needs none. A password is 12 to 200
+characters and has no other rule — length, a slow hash and a throttle on failed
+attempts are what protect one owner's workspace, and a character-class rule
+mostly buys a short password with a digit stuck on the end.
+
+Nothing comes back, and nothing about the password is ever readable again: what
+is stored is an Argon2id value that carries the parameters it was made with, so
+raising the cost later does not lock the owner out.
+
+### `POST /api/session`
+
+```json
+{ "email": "owner@example.com", "password": "correct horse battery staple" }
+```
+
+Signs the owner in and answers `204` with the session cookie set. Wrong in any
+way, it is `unauthenticated` and says no more than that.
+
+With a second factor enrolled, the password alone answers `second-factor`, and
+the same request is sent again with the code beside it:
+
+```json
+{ "email": "…", "password": "…", "second_factor": "123456" }
+```
+
+`second_factor` takes an authenticator's code or one of the recovery codes.
+
+### `DELETE /api/session`
+
+Ends the session this request came in on and takes the cookie out of the
+browser — both names of it, because an instance that gained a TLS proxy after
+somebody signed in over plain HTTP still has the other one in that browser.
+
+A caller holding a token has no session to end and is told so: a token is
+revoked where it was issued, and answering `204` would say something had been
+taken away that is still working.
+
+### `GET /api/me`
+
+```json
+{
+  "kind": "owner",
+  "email": "owner@example.com",
+  "name": null,
+  "permissions": { "scratchpad": "read_write", "knowledge": "read_write", "tasks": "read_write", "files": "read_write" },
+  "since": "2026-09-13T12:00:00.000000Z"
+}
+```
+
+Who the presented credential admits, and the cheapest way for a client to find
+out that it still works — which is what both clients do with it. An agent
+answers with its own name and exactly what it reaches, and `email` is `null`:
+the owner's address is not an agent's to know.
+
+### `GET /api/sessions`, `DELETE /api/sessions/{id}`, `DELETE /api/sessions`
+
+Where this instance is signed in — with what each browser called itself, when it
+began and when it was last used, and which one is asking — then ending one of
+them, or all of them but this one. The list carries only sessions that still
+admit somebody; an expired or revoked one is not a thing the owner can do
+anything about.
+
+### `GET /api/security`
+
+```json
+{ "second_factor_enabled": false, "enrolled_at": null, "recovery_codes_remaining": 0 }
+```
+
+### `POST /api/security/second-factor`
+
+`{ "password": "…" }` → the offer, which is not yet in force:
+
+```json
+{ "secret": "JBSWY3DPEHPK3PXP", "uri": "otpauth://totp/personalaffe:owner%40example.com?secret=…" }
+```
+
+The URI is what a phone usually reads as a QR code; the secret is the same thing
+for an app that is being typed into.
+
+### `POST /api/security/second-factor/confirm`
+
+`{ "code": "123456" }` → the ten recovery codes, shown once and never again. A
+wrong code leaves the instance exactly as it was, and the offer still standing.
+
+### `POST /api/security/second-factor/off`
+
+`{ "password": "…" }` → `204`. The recovery codes go with it, and every other
+browser is signed out.
+
+### `POST /api/security/recovery-codes`
+
+`{ "password": "…" }` → ten fresh codes. The old set stops working, because two
+sets in force at once would mean a sheet of paper somebody threw away still
+gets in.
+
+### `POST /api/security/password`
+
+`{ "current_password": "…", "password": "…" }` → `204`, and every other browser
+signed out.
+
+### `GET /api/agents`
+
+Everything the owner has let in, revoked ones included — a revoked access still
+names the agent everywhere it ever acted, and "what did I hand out" wants the
+whole answer. Each carries its permissions, the head of its current token
+(`pea_` and the characters after it, never the rest), when it was let in, when
+its token was issued, and roughly when it was last used.
+
+### `POST /api/agents`
+
+```json
+{
+  "name": "the deploy agent",
+  "permissions": { "scratchpad": "read_write", "knowledge": "read", "tasks": "none", "files": "none" }
+}
+```
+
+`201`, with the access and **the token, which is in this answer and in no
+other.** What the row keeps is a digest and the head; an owner who loses the
+token reissues rather than recovers, which is the only honest thing a store of
+digests can offer.
+
+Names are unique, case-insensitively: two agents called the same thing are two
+things nobody can tell apart at the moment of revoking one.
+
+### `PATCH /api/agents/{id}`
+
+`{ "name": …, "permissions": … }`, either or both. What is not sent is not
+changed, and a change takes effect on the agent's next request.
+
+### `POST /api/agents/{id}/token`
+
+A new token, which is also how the old one stops working. There is one token
+per access that works, and this is it.
+
+### `DELETE /api/agents/{id}`
+
+Shuts the agent out at once, and answers the access as it now stands. **A
+timestamp, not a deletion**: the row stays and the list keeps it. Revoking a
+revoked access changes nothing and is not an error.
 
 ### Anything else under `/api`
 

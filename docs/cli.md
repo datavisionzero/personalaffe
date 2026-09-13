@@ -6,14 +6,18 @@ reaches no database, no file volume and no other affe product, and it knows an
 instance only through the client generated from
 [`docs/api/openapi.json`](./api/openapi.json).
 
-**Two verbs exist today**, `version` and `status`, and they are the foundation's.
-Everything else on this page — the ladders, the input rules, the exit codes — is
-the shape every later verb is written to, and it is here because it was settled
-in PERSONAL-5, before there was a second verb to settle it differently.
+**Five verbs exist today.** Two are the foundation's and three are the
+credential's; the content verbs arrive with their applications. Everything else
+on this page — the ladders, the input rules, the exit codes — is the shape every
+later verb is written to, and it is here because it was settled in PERSONAL-5,
+before there was a second verb to settle it differently.
 
 ```sh
 pea version    # what pea is, what the instance is
 pea status     # which instance, and where the credential is coming from
+pea login      # check a token and keep it in this machine's keychain
+pea whoami     # who the credential admits, and what it reaches
+pea logout     # take it out again
 ```
 
 ## What it promises
@@ -28,7 +32,8 @@ pea status     # which instance, and where the credential is coming from
   on a request; Ctrl-C and SIGINT cancel where the command is.
 - **A credential is never an argument.** There is no `--token`: a flag stands in
   the shell history, in `ps`, and in whatever a CI runner logs about the command
-  it ran. The two ways in are an environment variable and a file with a mode.
+  it ran. The three ways in are an environment variable, a file with a mode, and
+  this machine's keychain.
 - **The credential is never printed.** `pea status` says where it came from,
   which is the question worth asking, and never what it is.
 
@@ -49,13 +54,42 @@ rung that has an answer wins.
    receives its own credential and how CI holds one
 2. the file named by `token_file` in the configuration, which must not be
    readable by anybody else on the machine (`chmod 600`)
-
-*A third rung — the operating system's keychain, where a browser sign-in leaves
-a session — arrives with the sign-in that fills it in PERSONAL-E2. The ladder is
-built with two so that adding the third is an insertion rather than a redesign.*
+3. this machine's keychain, which `pea login` fills and `pea logout` empties
 
 There is no project and no tenant: one instance belongs to one owner
 ([`CONTEXT.md`](../CONTEXT.md)), and there is nothing else to select.
+
+### The credential is an agent token
+
+`pea` holds **agent access**: a named, revocable authorization the owner hands
+out, with no access, read access or read/write access to each of the four
+applications ([`CONTEXT.md`](../CONTEXT.md)). The owner creates one in the
+browser and the token is shown once.
+
+There is no password here and there will not be. A browser signs the owner in;
+a console is an agent acting on the owner's behalf, which is what CONTEXT.md
+already calls it. What follows from that is worth saying plainly: **`pea`
+cannot manage agents, change security settings or reset the instance**, and no
+token can be given permission to — an agent that could issue a credential could
+issue itself a better one.
+
+### The keychain
+
+macOS's login keychain, or whatever answers the Secret Service API on Linux —
+GNOME Keyring, KWallet — reached through the tool the system already ships
+(`security`, `secret-tool`). What that buys over a file is the thing a file
+cannot: the secret is held by something with its own access control and screen
+lock, and `pea` keeps no copy on disk.
+
+**Neither tool is ever given the token as an argument.** An argument stands in
+`ps` for anybody on the machine to read, which is the whole thing this rung
+exists to avoid: macOS takes the command on standard input, and `secret-tool`
+takes the secret on standard input.
+
+A machine with neither is a machine with no keychain — an answer, not a failure.
+The two rungs above still work, and that is what CI and an agent's container
+use. A keychain that is there and says something else — locked, or a prompt
+somebody denied — is said out loud rather than passed off as "no credential".
 
 ### The configuration file
 
@@ -163,13 +197,54 @@ exits 2.
 $ pea status
 instance   https://workspace.example.com
 version    pea 1.4.0, instance 1.4.0
-token      from PERSONALAFFE_TOKEN
+token      from the keychain
 ```
 
 The two questions worth asking before a write, with the rung that answered each.
 Nothing here stops at the first failure: `status` is the command somebody runs
 *because* something is wrong, and a missing credential must not take the
 instance's version down with it.
+
+### `pea login --token-file FILE`
+
+```sh
+pea login --url https://workspace.example.com --token-file token.txt
+cat token.txt | pea login --token-file -
+```
+
+Reads the token from a file or from stdin, asks `GET /api/me` with it, and — if
+the instance admits it — keeps it in this machine's keychain and writes the
+instance into the configuration, so that nothing afterwards needs the flag or
+the variable.
+
+**Checked before it is stored.** A token that does not work is exit 7 now rather
+than a puzzle at the next command. Nothing is written when the instance refuses.
+
+There is no `--token`: a credential is never an argument.
+
+### `pea whoami`
+
+```
+$ pea whoami
+kind         agent
+name         the deploy agent
+scratchpad   read_write
+knowledge    read
+tasks        none
+files        none
+```
+
+Who the credential admits, and exactly what it reaches. It is the cheapest way
+to find out that a credential still works; a revoked token and one that never
+existed answer the same way, which is exit 7.
+
+### `pea logout`
+
+Takes this machine's token out of the keychain, and does nothing else.
+**The token itself keeps working** — revoking agent access is the owner's doing,
+in the browser, and an agent that could revoke its own credential would be
+deciding something about the instance. A machine with nothing stored is left as
+it is, because that is the state that was asked for.
 
 ## Building it
 

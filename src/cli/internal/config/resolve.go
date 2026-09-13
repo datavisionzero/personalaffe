@@ -1,8 +1,11 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/datavisionzero/personalaffe/src/cli/internal/keychain"
 )
 
 // Resolved is what a command runs with, and where the credential came from. The
@@ -16,12 +19,13 @@ type Resolved struct {
 }
 
 // Input is everything Resolve reads, so that a test supplies all of it and
-// nothing reaches around it to the real machine.
+// nothing reaches around it to the real machine — the keychain included.
 type Input struct {
 	Getenv         func(string) string
 	File           File
 	Address        string
 	AllowPlainHTTP bool
+	Keychain       keychain.Keychain
 }
 
 // ResolveAddress answers which instance this invocation talks to: the flag,
@@ -52,9 +56,12 @@ func (in Input) ResolveAddress() (string, error) {
 
 // ResolveToken answers the credential and where it came from. The environment
 // wins, because that is how an agent receives its own and how CI holds one; a
-// file somebody chose is next, because they chose it. The keychain is the third
-// rung and arrives with the sign-in that fills it (PERSONAL-E2).
-func (in Input) ResolveToken() (string, string, error) {
+// file somebody chose is next, because they chose it; and this machine's
+// keychain is last, because it is the one rung nobody had to arrange.
+//
+// The address is what the keychain is keyed by: one machine talks to one
+// instance at a time, but nothing says it always talked to this one.
+func (in Input) ResolveToken(address string) (string, string, error) {
 	if token := strings.TrimSpace(in.getenv(EnvToken)); token != "" {
 		return token, EnvToken, nil
 	}
@@ -67,8 +74,21 @@ func (in Input) ResolveToken() (string, string, error) {
 		return token, path, nil
 	}
 
+	if in.Keychain != nil && address != "" {
+		token, err := in.Keychain.Load(address)
+		switch {
+		case err == nil && strings.TrimSpace(token) != "":
+			return strings.TrimSpace(token), Keychain, nil
+		case err != nil && !errors.Is(err, keychain.ErrNotFound) && !errors.Is(err, keychain.ErrNoKeychain):
+			// The store is there and said something else — a locked keychain,
+			// a denied prompt. That is worth saying rather than passing off as
+			// "no credential".
+			return "", "", &UsageError{Message: fmt.Sprintf("the keychain could not be read: %v", err)}
+		}
+	}
+
 	return "", "", &UsageError{Message: fmt.Sprintf(
-		"no token: put an owner or agent token in %s.", EnvToken)}
+		"no token: put an agent token in %s, or keep one on this machine with `pea login`.", EnvToken)}
 }
 
 // Resolve is both at once: what every command that talks to the instance as
@@ -79,7 +99,7 @@ func Resolve(in Input) (Resolved, error) {
 		return Resolved{}, err
 	}
 
-	token, from, err := in.ResolveToken()
+	token, from, err := in.ResolveToken(address)
 	if err != nil {
 		return Resolved{Address: address}, err
 	}

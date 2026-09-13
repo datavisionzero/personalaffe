@@ -1,78 +1,113 @@
+import { api } from "@/api/client";
+import { Agents } from "@/agents/Agents";
+import { Security } from "@/security/Security";
+import { Setup } from "@/session/Setup";
+import { SignIn } from "@/session/SignIn";
+import { useSession } from "@/session/useSession";
+import { Button } from "@/shared/Form";
 import { useInstance } from "@/shell/useInstance";
 
 /**
- * The frame, and today the frame is the whole screen.
+ * The frame, and today the frame is the door and what is behind it.
  *
- * What it draws is the one thing the foundation can honestly show: that this
- * browser, this application and this instance are talking to each other over
- * the API both clients use. It reads the answer rather than claiming it — a
- * screen that says "connected" without having asked is worth nothing on the
- * day it is wrong.
+ * What is behind it is the owner's own settings and nothing else: the
+ * workspace — the home page, the switcher, the four applications and the
+ * Markdown editor — is PERSONAL-E4 and later. Their screens land in a folder
+ * each beside `shell/`, and `shell/` grows the routes and the navigation that
+ * reach them (`docs/codebase.md`).
  *
- * The application this becomes — the home page, the switcher, the four
- * applications and the Markdown editor — is PERSONAL-E4 and later. Their
- * screens land in a folder each beside `shell/`, and `shell/` grows the routes
- * and the navigation that reach them (`docs/codebase.md`).
+ * Nothing is drawn until the instance has said whether it has an owner and
+ * whether this browser is signed in. Drawing a sign-in form at a fresh
+ * installation would be offering a door with no lock and no key.
  */
 export function App() {
-  const { instance, ask } = useInstance();
+  const { session, signedIn, signedOut } = useSession();
+
+  async function signOut() {
+    await api.DELETE("/api/session");
+    signedOut();
+  }
+
+  if (session.state === "asking") {
+    return (
+      <Frame>
+        <p className="text-muted" role="status">
+          Asking the instance…
+        </p>
+      </Frame>
+    );
+  }
+
+  if (session.state === "unreachable") {
+    return (
+      <Frame>
+        <p role="alert" className="text-balance">
+          Nothing answered at this address. The instance may not be running: {session.reason}
+        </p>
+      </Frame>
+    );
+  }
+
+  if (session.state === "setup") {
+    return (
+      <Frame>
+        <Setup onSignedIn={signedIn} />
+      </Frame>
+    );
+  }
+
+  if (session.state === "signed-out") {
+    return (
+      <Frame>
+        <SignIn onSignedIn={signedIn} />
+      </Frame>
+    );
+  }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center gap-8 px-5 py-12">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight">personalaffe</h1>
-        <p className="text-muted text-balance">
-          A private workspace belonging to one person. This is the foundation: there is no owner, no
-          sign-in and nothing stored yet.
-        </p>
+    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-10 px-5 py-12">
+      <header className="flex flex-wrap items-baseline justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">personalaffe</h1>
+          <p className="text-muted text-sm">{session.me.email}</p>
+        </div>
+
+        <Button type="button" onClick={() => void signOut()}>
+          Sign out
+        </Button>
       </header>
 
-      <section aria-labelledby="instance" className="border-line flex flex-col gap-3 rounded-lg border p-5">
-        <h2 id="instance" className="text-sm font-medium tracking-wide uppercase">
-          The instance
-        </h2>
+      <p className="text-muted text-sm text-balance">
+        There is nothing in this workspace yet. The Scratchpad, the Knowledge base, Tasks and Files
+        arrive in the epics after this one; what is here is who may reach them.
+      </p>
 
-        {instance.state === "asking" && (
-          <p className="text-muted" role="status">
-            Asking the instance…
-          </p>
-        )}
+      <Security />
+      <Agents />
+    </main>
+  );
+}
 
+/** The screens somebody sees before they are in: centred, and nothing else on them. */
+function Frame({ children }: { children: React.ReactNode }) {
+  const { instance } = useInstance();
+
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-5 py-12">
+      <header className="flex flex-col gap-2">
+        <h1 className="text-3xl font-semibold tracking-tight">personalaffe</h1>
+        <p className="text-muted text-balance">A private workspace belonging to one person.</p>
+      </header>
+
+      {children}
+
+      <footer className="text-muted text-sm">
         {instance.state === "answered" && (
-          <p role="status">
-            It answered, and it is version{" "}
-            <span className="text-accent font-mono font-medium">{instance.version}</span>.
-          </p>
+          <span>
+            This instance is version{" "}
+            <span className="text-accent font-mono">{instance.version}</span>.
+          </span>
         )}
-
-        {instance.state === "refused" && (
-          <p role="alert" className="text-balance">
-            The instance refused: {instance.reason}
-          </p>
-        )}
-
-        {instance.state === "unreachable" && (
-          <p role="alert" className="text-balance">
-            Nothing answered at this address. The instance may not be running: {instance.reason}
-          </p>
-        )}
-
-        {instance.state !== "asking" && (
-          <div>
-            <button
-              type="button"
-              onClick={ask}
-              className="border-line hover:border-accent focus-visible:outline-accent rounded-md border px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              Ask again
-            </button>
-          </div>
-        )}
-      </section>
-
-      <footer className="text-muted text-sm text-balance">
-        Both this page and the <code className="font-mono">pea</code> command reach the same HTTP API,
-        and the contract they are generated from is <code className="font-mono">docs/api/openapi.json</code>.
       </footer>
     </main>
   );

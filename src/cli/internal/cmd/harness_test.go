@@ -6,13 +6,48 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/datavisionzero/personalaffe/src/cli/internal/client"
 	"github.com/datavisionzero/personalaffe/src/cli/internal/cmd"
 	"github.com/datavisionzero/personalaffe/src/cli/internal/config"
+	"github.com/datavisionzero/personalaffe/src/cli/internal/keychain"
 )
+
+// held is a keychain in memory. No test ever touches the keychain of the
+// machine it runs on, and a machine with none is `held(nil)` — which is what
+// CI and an agent's container actually are.
+type held map[string]string
+
+func (h held) Load(instance string) (string, error) {
+	if h == nil {
+		return "", keychain.ErrNoKeychain
+	}
+	if token, ok := h[instance]; ok {
+		return token, nil
+	}
+	return "", keychain.ErrNotFound
+}
+
+func (h held) Save(instance, token string) error {
+	if h == nil {
+		return keychain.ErrNoKeychain
+	}
+	h[instance] = token
+	return nil
+}
+
+func (h held) Delete(instance string) error {
+	if h == nil {
+		return keychain.ErrNoKeychain
+	}
+	delete(h, instance)
+	return nil
+}
+
+func (held) Where() string { return "a keychain in a test" }
 
 // run executes pea the way main does, with everything it reads supplied by the
 // test: no command ever reads this machine's environment, its home directory or
@@ -83,16 +118,31 @@ func run(t *testing.T, getenv func(string) string, args ...string) result {
 
 func runWith(t *testing.T, stdin io.Reader, getenv func(string) string, args ...string) result {
 	t.Helper()
+	return runHolding(t, held{}, stdin, getenv, args...)
+}
+
+func runHolding(
+	t *testing.T, store keychain.Keychain, stdin io.Reader, getenv func(string) string, args ...string,
+) result {
+	t.Helper()
 
 	var stdout, stderr bytes.Buffer
 	code := cmd.Run(context.Background(), args, cmd.Env{
-		Getenv: getenv,
-		Stdin:  stdin,
-		Stdout: &stdout,
-		Stderr: &stderr,
+		Getenv:   getenv,
+		Stdin:    stdin,
+		Stdout:   &stdout,
+		Stderr:   &stderr,
+		Keychain: store,
 	})
 
 	return result{code: code, stdout: stdout.String(), stderr: stderr.String()}
+}
+
+// readFile is what a test reads the configuration back with, so that no test
+// has to reach for os itself.
+func readFile(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	return string(content), err
 }
 
 // blocking is a stdin nothing ever writes to. A command that read it without

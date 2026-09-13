@@ -19,6 +19,13 @@ export const api = createClient<paths>({
   baseUrl: window.location.origin,
   credentials: "same-origin",
 
+  // A write from a browser proves it came from this application, with a header
+  // no cross-site form can set (`docs/api.md`, The door). The other half of the
+  // proof is `Origin`, which the browser sets on every request that is not a
+  // GET and which no script can forge. Sent on reads too: it costs a header and
+  // saves every call site from remembering which of them writes.
+  headers: { "X-Personalaffe-CSRF": "1" },
+
   // Reached through `globalThis` when a request is made rather than captured
   // when this module loads, so that a test can stand an instance in front of
   // the generated client rather than in place of it.

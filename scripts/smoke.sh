@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # Does this foundation actually hang together?
 #
-# Six checks against a running instance, and they are the ones nothing else
-# proves from the outside: that the API answers, that the web application is
-# served from the same origin, that the line between them holds, that the
-# contract the instance serves is the one that is checked in, and that both
-# clients can still be generated from it — with `pea`, built here from that
-# document, asking the instance the same question the browser asks.
+# Eight checks against a running instance, and they are the ones nothing else
+# proves from the outside: that the API answers, that the door in front of it is
+# shut, that the web application is served from the same origin, that the line
+# between them holds, that the contract the instance serves is the one that is
+# checked in, and that both clients can still be generated from it — with `pea`,
+# built here from that document, asking the instance the same question the
+# browser asks.
 #
 #   scripts/smoke.sh [url]        # default http://localhost:5000
 #
 # It writes nothing into the repository and needs no credential: every operation
-# it calls is one of the three that answer before anything has authenticated
-# (docs/api.md).
+# it calls is one of the five that answer before anything has authenticated, and
+# the one check about the door asks it for a refusal (docs/api.md).
 #
 # Needs: curl, python3, go. The TypeScript check also needs `npm ci` to have
 # been run in src/web; it says so and fails rather than passing quietly.
@@ -51,6 +52,25 @@ curl --fail --silent --max-time 10 "$instance/api/health/live" \
 curl --fail --silent --max-time 10 "$instance/api/health/ready" \
   | grep -q '"ready"' || fail "/api/health/ready did not say ready — is PostgreSQL up and migrated?"
 printf '    live, and ready\n'
+
+# ------------------------------------------------------------- the door ----
+step "Everything but the five operations outside the door needs a credential"
+answer="$(curl --silent --max-time 10 --output "$work/refusal.json" \
+  --write-out '%{http_code} %{content_type}' "$instance/api/me")"
+case "$answer" in
+  "401 application/problem+json"*) ;;
+  *) fail "/api/me answered $answer, and everything but the five is behind the door" ;;
+esac
+grep -q '"/problems/unauthenticated"' "$work/refusal.json" \
+  || fail "/api/me refused without saying which refusal it was"
+printf '    %s\n' "$answer"
+
+step "The instance says whether it has an owner, and says nothing else"
+curl --fail --silent --max-time 10 "$instance/api/setup" --output "$work/setup.json" \
+  || fail "/api/setup did not answer"
+grep -Eq '^\{"required":(true|false)\}$' "$work/setup.json" \
+  || fail "/api/setup answered more than whether setup is needed: $(cat "$work/setup.json")"
+printf '    %s\n' "$(cat "$work/setup.json")"
 
 # ------------------------------------------------------ the web application ----
 step "The web application is served from the same origin as the API"

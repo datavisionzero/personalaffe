@@ -8,9 +8,10 @@
 # migrations apply themselves on start, only ever forward, so take a `pg_dump`
 # before it — that is the way back.
 #
-# WARNING. This foundation has no authentication: PERSONAL-E2 has not landed,
-# and every address this serves is open to whoever can reach the port. Run it on
-# a machine you own, published on loopback, and put nothing personal in it.
+# WARNING. There is a door — an instance is claimed once by its owner, and
+# everything but five operations then needs a credential — but the second
+# factor, agent access and the four applications are still being built. Run it
+# on a machine you own, published on loopback, and put nothing personal in it.
 # Every variable is documented in docs/operations.md.
 
 name: personalaffe
@@ -36,6 +37,7 @@ services:
       # scheme are the caller's: an address, a CIDR network, or `all`. Unset,
       # every request looks as if it came from whatever spoke to the socket.
       PERSONALAFFE_TRUSTED_PROXY: "${PERSONALAFFE_TRUSTED_PROXY:-}"
+      PERSONALAFFE_PUBLIC_URL: "${PERSONALAFFE_PUBLIC_URL:-}"
       PERSONALAFFE_LOG_LEVEL: "${PERSONALAFFE_LOG_LEVEL:-Information}"
     ports:
       # Loopback by default, and that is not a formality while there is no

@@ -16,17 +16,19 @@ import (
 	"github.com/datavisionzero/personalaffe/src/cli/internal/client"
 	"github.com/datavisionzero/personalaffe/src/cli/internal/config"
 	"github.com/datavisionzero/personalaffe/src/cli/internal/exit"
+	"github.com/datavisionzero/personalaffe/src/cli/internal/keychain"
 	"github.com/datavisionzero/personalaffe/src/cli/internal/version"
 )
 
 // Env is what a command runs in, so that a test can supply all of it and no
 // test ever reads the machine's own environment or writes its files.
 type Env struct {
-	Getenv func(string) string
-	Stdin  io.Reader
-	Stdout io.Writer
-	Stderr io.Writer
-	HTTP   *http.Client
+	Getenv   func(string) string
+	Stdin    io.Reader
+	Stdout   io.Writer
+	Stderr   io.Writer
+	HTTP     *http.Client
+	Keychain keychain.Keychain
 }
 
 // Run executes args and returns the exit code. Nothing here is ever
@@ -115,7 +117,7 @@ func newRoot(env Env) *cobra.Command {
 		return &config.UsageError{Message: err.Error()}
 	})
 
-	root.AddCommand(newVersion(g), newStatus(g))
+	root.AddCommand(newVersion(g), newStatus(g), newLogin(g), newLogout(g), newWhoami(g))
 
 	usageMistakes(root)
 	return root
@@ -172,6 +174,7 @@ func (g *globals) input() (config.Input, error) {
 		File:           file,
 		Address:        g.address,
 		AllowPlainHTTP: g.insecureHTTP,
+		Keychain:       g.keychain(),
 	}, nil
 }
 
@@ -197,6 +200,32 @@ func (g *globals) getenv(name string) string {
 		return os.Getenv(name)
 	}
 	return g.env.Getenv(name)
+}
+
+// keychain is this machine's store, or the test's. A command never reaches for
+// the real one itself.
+func (g *globals) keychain() keychain.Keychain {
+	if g.env.Keychain == nil {
+		return keychain.OfThisMachine()
+	}
+	return g.env.Keychain
+}
+
+// asSomebody is the instance with a credential: everything but the five
+// operations outside the door.
+func (g *globals) asSomebody() (config.Resolved, *client.Client, error) {
+	in, err := g.input()
+	if err != nil {
+		return config.Resolved{}, nil, err
+	}
+
+	resolved, err := config.Resolve(in)
+	if err != nil {
+		return config.Resolved{}, nil, err
+	}
+
+	c, err := client.New(resolved.Address, resolved.Token, g.httpClient())
+	return resolved, c, err
 }
 
 func (g *globals) httpClient() *http.Client {

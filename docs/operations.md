@@ -4,11 +4,12 @@ One application container and one PostgreSQL, beside two volumes that are the
 whole of what has to be backed up. Nothing else: no other affe product has to be
 running, no message broker, no object store, no mail server.
 
-> **This foundation has no authentication.** PERSONAL-E2 has not landed, so
-> every address this serves is open to whoever can reach the port. Run it on a
-> machine you own, published on loopback, and put nothing personal in it. Public
-> production use waits for the security epic and the release epic
-> ([`docs/mvp-plan.md`](./mvp-plan.md)).
+> **There is a door, and there is nothing behind it yet.** An instance is
+> claimed once by its owner and everything but five operations then needs a
+> credential — but the second factor, agent access and the four applications are
+> still being built. Run it on a machine you own, published on loopback, and put
+> nothing personal in it. Public production use waits for the rest of the
+> security epic and the release epic ([`docs/mvp-plan.md`](./mvp-plan.md)).
 
 ## Starting it
 
@@ -29,8 +30,75 @@ that could not do one of those does not start and says which in its log.
 ```sh
 curl http://127.0.0.1:8080/api/health/ready     # {"status":"ready"}
 curl http://127.0.0.1:8080/api/version
+curl http://127.0.0.1:8080/api/setup           # {"required":true} until somebody claims it
 open  http://127.0.0.1:8080/
 ```
+
+### Claiming it
+
+A fresh instance belongs to nobody, and the first thing done with it is the
+one-time setup: an email address, which is the login identifier and nothing to
+do with sending mail, and a password of at least twelve characters.
+
+```sh
+curl -X POST http://127.0.0.1:8080/api/setup \
+  -H 'content-type: application/json' \
+  -d '{"email": "owner@example.com", "password": "correct horse battery staple"}'
+```
+
+**It works exactly once.** There is one owner, there is no second account, and a
+second attempt is refused. An owner who has lost their password gets back in
+through the machine this runs on ([`docs/api.md`](./api.md)); there is no
+password-reset mail, because there is no mail.
+
+## When the owner is locked out
+
+The password is gone, the phone with the authenticator on it is gone, and the
+recovery codes are on a piece of paper nobody can find. **personalaffe sends no
+mail**, so there is no link to click and no address to send one to. What stands
+where that would be is a verb on the machine this runs on:
+
+```sh
+docker compose -f deploy/docker-compose.yml exec -T personalaffe \
+  personalaffe recover-owner --password-file -
+```
+
+It reads the new password from standard input, which is what `-` means. Type it,
+press Enter, then Ctrl-D. **It is never an argument**: an argument stands in the
+shell history of the machine you are standing at, which is the one machine a
+locked-out owner is least able to clean up afterwards. A file works too, if the
+password is already in one:
+
+```sh
+docker compose -f deploy/docker-compose.yml exec -T personalaffe \
+  personalaffe recover-owner --password-file /run/secrets/new-password
+```
+
+It answers what it did, and what it did is exactly this:
+
+| | |
+| --- | --- |
+| The password | replaced with the one you gave it |
+| The second factor | turned off, and the recovery codes with it |
+| Every signed-in browser | signed out |
+| Agent access | **untouched** |
+| Everything in the workspace | **untouched** |
+
+A new password alone would be no use behind an authenticator that is in a river,
+which is why the factor goes too — sign in and enrol one again if you want one.
+This is a way back in and not a reset: nothing the owner stored is touched, and
+no agent is shut out.
+
+Nothing was changed if it refuses: a password under twelve characters, an
+instance nobody has claimed, or a database this build has not migrated each stop
+it before it writes anything.
+
+**Its authorization is that you are standing at the machine**, and that is the
+whole of it. There is no endpoint, no permission and no token that reaches this —
+whoever has the host has the database, which is the same authorization
+`pg_dump` has. The owner is shown afterwards, on their security screen, that a
+recovery happened and when: a recovery nobody performed is a recovery somebody
+else performed.
 
 ## The two health checks
 
@@ -49,6 +117,7 @@ failed is in the instance's log at warning, where the operator is.
 | `ConnectionStrings__Postgres` | — | Required. The database. The instance refuses to start without it, and never writes it to the log: what is printed is the same string with every credential replaced by `***`. |
 | `PERSONALAFFE_STORAGE_ROOT` | `/var/lib/personalaffe/files` in the image | Where the owner's files go. Must be writable by the user the container runs as, and must not be under the static web root. |
 | `PERSONALAFFE_TRUSTED_PROXY` | unset | Which peers may speak for the caller. See below. |
+| `PERSONALAFFE_PUBLIC_URL` | unset | Where this instance is reached, like `https://workspace.example.com`. Optional: what it buys is a stricter check on writes made from a browser, which without it are checked against the host alone. It is never used to build a link. |
 | `PERSONALAFFE_LOG_LEVEL` | `Information` | `Verbose`, `Debug`, `Information`, `Warning`, `Error` or `Fatal`. |
 | `PERSONALAFFE_PORT` | `127.0.0.1:8080` | Compose only: the whole left half of the published port, so an address in front of it binds there and nowhere else. |
 
@@ -65,7 +134,7 @@ front of it, give the proxy the certificate, and let it talk to
 `X-Forwarded-For` is a header any client can write, so **nothing is believed
 until you name the proxy**. Unset, every request looks as if it came from
 whatever spoke to the socket — honest, if unhelpful, and the safe half of the
-trade: the rate limits and the log lines of PERSONAL-E2 are built on that
+trade: the throttle on failed sign-ins and the log lines are built on that
 address.
 
 ```sh
@@ -136,6 +205,13 @@ serve rather than guessing, and says which migrations it has never heard of.
 Two containers starting at once do not migrate against each other — the
 migration takes a Postgres advisory lock, and the second waits and then finds
 nothing to do.
+
+## The one verb this image has
+
+`personalaffe recover-owner` above, and nothing else. Migrations apply
+themselves and backups are `pg_dump` beside the container; a word this binary
+does not know stops it with a line saying where to look, rather than starting a
+second server on a port that is taken.
 
 ## The CLI is not in the image
 

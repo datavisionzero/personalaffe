@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/datavisionzero/personalaffe/src/cli/internal/config"
+	"github.com/datavisionzero/personalaffe/src/cli/internal/keychain"
 )
 
 func environment(values map[string]string) func(string) string {
@@ -103,7 +104,7 @@ func TestTheEnvironmentBeatsTheTokenFile(t *testing.T) {
 		File:   config.File{TokenFile: path},
 	}
 
-	token, from, err := in.ResolveToken()
+	token, from, err := in.ResolveToken("https://workspace.example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,12 +113,90 @@ func TestTheEnvironmentBeatsTheTokenFile(t *testing.T) {
 	}
 
 	in.Getenv = environment(nil)
-	token, from, err = in.ResolveToken()
+	token, from, err = in.ResolveToken("https://workspace.example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if token != "from-the-file" || from != path {
 		t.Fatalf("the file did not answer: %q from %q", token, from)
+	}
+}
+
+// held is a keychain in memory: the tests never touch the one on the machine
+// running them.
+type held map[string]string
+
+func (h held) Load(instance string) (string, error) {
+	if token, ok := h[instance]; ok {
+		return token, nil
+	}
+	return "", keychain.ErrNotFound
+}
+
+func (h held) Save(instance, token string) error { h[instance] = token; return nil }
+
+func (h held) Delete(instance string) error { delete(h, instance); return nil }
+
+func (held) Where() string { return "a keychain in a test" }
+
+func TestTheKeychainIsTheLastRungAndTheOthersComeFirst(t *testing.T) {
+	const address = "https://workspace.example.com"
+
+	path := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(path, []byte("from-the-file\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	in := config.Input{
+		Getenv:   environment(map[string]string{config.EnvToken: "from-the-environment"}),
+		File:     config.File{TokenFile: path},
+		Keychain: held{address: "from-the-keychain"},
+	}
+
+	// The environment first, because that is how an agent receives its own and
+	// how CI holds one.
+	if token, from, _ := in.ResolveToken(address); token != "from-the-environment" || from != config.EnvToken {
+		t.Fatalf("the environment did not win: %q from %q", token, from)
+	}
+
+	// Then the file somebody chose, because they chose it.
+	in.Getenv = environment(nil)
+	if token, from, _ := in.ResolveToken(address); token != "from-the-file" || from != path {
+		t.Fatalf("the file did not answer: %q from %q", token, from)
+	}
+
+	// And only then the keychain, which nobody had to arrange.
+	in.File = config.File{}
+	token, from, err := in.ResolveToken(address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if token != "from-the-keychain" || from != config.Keychain {
+		t.Fatalf("the keychain did not answer: %q from %q", token, from)
+	}
+}
+
+func TestAnEmptyKeychainIsNoCredentialAndNotAFailure(t *testing.T) {
+	in := config.Input{Getenv: environment(nil), Keychain: held{}}
+
+	_, _, err := in.ResolveToken("https://workspace.example.com")
+
+	if err == nil {
+		t.Fatal("want a usage error")
+	}
+	if !strings.Contains(err.Error(), config.EnvToken) {
+		t.Fatalf("the message does not name %s: %v", config.EnvToken, err)
+	}
+}
+
+func TestAMachineWithNoKeychainStillResolvesTheOtherRungs(t *testing.T) {
+	in := config.Input{
+		Getenv:   environment(map[string]string{config.EnvToken: "from-the-environment"}),
+		Keychain: nil,
+	}
+
+	if token, _, err := in.ResolveToken("https://workspace.example.com"); err != nil || token != "from-the-environment" {
+		t.Fatalf("a machine with no keychain broke the ladder: %q, %v", token, err)
 	}
 }
 
@@ -137,7 +216,7 @@ func TestATokenFileAnybodyCanReadIsRefused(t *testing.T) {
 }
 
 func TestNoTokenAnywhereNamesTheVariableAndNotAFlag(t *testing.T) {
-	_, _, err := config.Input{Getenv: environment(nil)}.ResolveToken()
+	_, _, err := config.Input{Getenv: environment(nil)}.ResolveToken("https://workspace.example.com")
 
 	if err == nil {
 		t.Fatal("want a usage error")

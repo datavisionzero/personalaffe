@@ -5,18 +5,28 @@ is built. This one says where that lives: how the repository is laid out, which
 project holds what, which way the dependencies point, and which toolchain builds
 what.
 
-**This document is a blueprint for PERSONAL-E1 and is kept accurate as the epic
-lands.** Every section below marks what already exists and what is still only
-planned. A file that lands somewhere this does not describe means one of the two
-is wrong.
+**This document is kept accurate as each epic lands.** Every section below
+marks what already exists and what is still only planned. A file that lands
+somewhere this does not describe means one of the two is wrong.
 
 Status: the four .NET projects, the two test projects, the self-applying
 migrator, the health endpoints (PERSONAL-2), the checked-in contract and the
 problem document (PERSONAL-3), the web workspace with one screen (PERSONAL-4)
 the Go CLI with two verbs (PERSONAL-5), the image with its Compose topology
 (PERSONAL-6), the CI gate (PERSONAL-7) and the fresh-checkout verification
-(PERSONAL-8) all exist. **PERSONAL-E1 is complete**; what the rest of
-`docs/mvp-plan.md` describes is not started.
+(PERSONAL-8) all exist. **PERSONAL-E1 is complete.**
+
+**PERSONAL-E2 is complete**: the owner and the one-time setup (PERSONAL-9), the
+door in front of the `/api` group (PERSONAL-10), the second factor and the
+recovery codes (PERSONAL-11), agent access with a permission per application
+(PERSONAL-12), the credential half of `pea` (PERSONAL-13), the browser's door
+and the owner's two screens (PERSONAL-14), the recovery on the server
+(PERSONAL-15), and the suite that proves the door holds (PERSONAL-16). What the
+epic decided is
+[ADR 0002](./adr/0002-one-owner-with-a-browser-and-agents-with-tokens.md).
+
+What the rest of `docs/mvp-plan.md` describes is not started: **there is no
+content of any kind yet**, and no safeguards over content either.
 
 ## Where this comes from
 
@@ -158,8 +168,18 @@ a port of ours.
 **`Personalaffe.Infrastructure` answers those ports.** `Persistence/` is EF
 Core: the context, one `IEntityTypeConfiguration` per table under
 `Configurations/`, one store per port beside it, and `Migrations/` — every schema
-change arrives as another one on top, only ever forward. Later epics add
-`Files/`, the local file store, and `Security/`, the password hasher.
+change arrives as another one on top, only ever forward. `Security/` is the
+password hasher: Argon2id in a value that carries the parameters it was made
+with, so that raising the cost later does not lock out the owner who exists. A
+later epic adds `Files/`, the local file store.
+
+**The one thing that is not HTTP** is `Hosting/OwnerRecovery.cs`: the verb an
+operator runs on the machine when the password, the authenticator and the
+recovery codes are all gone. It is not an endpoint and cannot become one — its
+authorization is that somebody is standing at the host, which is the same
+authorization `pg_dump` has. It goes through the same act the browser's password
+change goes through, so the two cannot drift
+([`docs/operations.md`](./operations.md)).
 
 **`Personalaffe.Api` is HTTP and the composition root.** `Http/` maps the
 endpoints, one file per object, plus the cross-cutting pieces that arrive in
@@ -168,14 +188,23 @@ PERSONAL-3: `Problems` writing every refusal as one document, `VersionHeader`,
 migration, and later the owner bootstrap, in that order. `Program.cs` is the only
 file that knows all four layers.
 
-Implemented: `Domain/` with `Refusal` and `RefusalCode`; `Application/Ports/`
-with the two settings records the host validates at startup; `Persistence/` with
-the context, the migrator and the first migration; `Hosting/`; and `Http/` with
-`Routes`, `Problems`, `Rfc3339`, `VersionHeader`, `OpenApiDocument`,
-`InstanceEndpoints` and `HealthEndpoints`.
+Implemented: `Domain/` with `Refusal`, `RefusalCode`, `Owner`, `Password`,
+`Caller`, `BrowserSession`, `Totp`, `Base32`, `RecoveryCode`,
+`WorkspaceApplication`, `Permission`, `Permissions`, `TokenSecret` and
+`AgentAccess`;
+`Application/Ports/` with the settings records the host validates at startup,
+`IOwners`, `IPasswordHasher`, `IBrowserSessions`, `IRecoveryCodes`,
+`IAgentAccessStore` and `ICallerIdentity`; `Application/Acts/` with the setup,
+sign-in, session, security and agent-access acts; `Persistence/` with the
+context, the migrator, four tables and their stores, and five migrations; `Security/` with the Argon2id hasher;
+`Hosting/`; and `Http/` with `Routes`, `Problems`, `Rfc3339`, `VersionHeader`,
+`OpenApiDocument`, `Authentication`, `BrowserSecurity`, `InstanceEndpoints`,
+`HealthEndpoints`, `SetupEndpoints`, `SessionEndpoints`, `MeEndpoints`,
+`SecurityEndpoints` and `AgentEndpoints`.
 
-Planned, not implemented: `Acts/`, `Configurations/`, `Files/`, `Security/`, and
-every endpoint but the three the foundation answers.
+Planned, not implemented: `Files/`, and every endpoint of the four
+applications — an instance answers the five outside the
+door and the owner's own, and nothing of the workspace itself.
 
 ## Where an application lives
 
@@ -202,11 +231,12 @@ what is wanted.
 
 Identity — the owner, agent access and their permissions — is not an
 application. It lives at the root of each layer, because every application asks
-it the same question.
+it the same question: `Owner`, `AgentAccess`, `Permissions` and `Caller` in
+Domain, the acts beside the others, and one store each.
 
-*Planned. PERSONAL-2 created the folders that had something to put in them and
-no others — which is none of these: an empty folder claiming a future module is
-a lie the tree tells.*
+*The application folders are still planned. PERSONAL-2 created the folders that
+had something to put in them and no others — which is none of these: an empty
+folder claiming a future module is a lie the tree tells.*
 
 ## The CLI is a client, not a layer
 
@@ -222,6 +252,7 @@ internal/config     which instance, and as whom
 internal/exit       the exit codes
 internal/problem    the problem document as `pea` reads it
 internal/render     how it prints for a person, and as JSON
+internal/keychain   where a machine keeps a token, through the tool it ships
 internal/version    what this build calls itself
 internal/api        the generated client — not committed
 ```
@@ -239,15 +270,22 @@ concept to resolve: one instance belongs to one owner.
 The instance is `--url`, then `PERSONALAFFE_URL`, then the instance on disk. The
 credential is `PERSONALAFFE_TOKEN`, then a token file the owner named, then the
 keychain — the environment first, because that is how an agent receives its own
-token. *The credential half is PERSONAL-E2's; PERSONAL-5 builds the ladder and
-the precedence, with nothing in the keychain yet.*
+token. The keychain is reached through the tool the system already ships, and a
+machine with none still has the two rungs above it.
 
 Operational verbs that need the database are **not** here: migrations and
 backups belong to the .NET binary that has the connection string.
 
 *PERSONAL-5 built the module, the two ladders, the exit table, the text input
-and two verbs — `version` and `status`. `internal/keychain` and the sign-in that
-fills it are PERSONAL-E2's; the content verbs arrive with their applications.*
+and two verbs — `version` and `status`. PERSONAL-13 added the keychain rung and
+`login`, `whoami` and `logout`; the content verbs arrive with their
+applications.*
+
+**What `pea` holds is an agent token, and there is no password in it.** A
+browser signs the owner in; a console is an agent acting on the owner's behalf,
+which is what `CONTEXT.md` calls it. So `pea` cannot manage agents or security
+settings, and no token can be given permission to
+([`docs/cli.md`](./cli.md)).
 
 ## The frontend is built separately and joined once
 
@@ -264,9 +302,21 @@ and the routes, `shared` the Markdown field and the editor behind it, `api` the
 generated client and its wrapper, `components/ui` the owned primitives. The four
 applications get a folder each when they arrive.
 
-*PERSONAL-4 created `api/`, `shell/`, `shared/` and one screen. The four
-application folders, the navigation, the settings and the editor are
-PERSONAL-E4's and later.*
+*PERSONAL-4 created `api/`, `shell/`, `shared/` and one screen. PERSONAL-14
+added `session/`, `security/` and `agents/` — the door and the owner's own
+settings — and turned `shell/App.tsx` into what decides between them. The four
+application folders, the navigation and the editor are PERSONAL-E4's and
+later.*
+
+**Nothing is drawn until the instance has said whether it has an owner and
+whether this browser is signed in.** `session/useSession.ts` asks the two
+questions in that order, and the three answers a screen has to be able to draw —
+no owner yet, nobody signed in, signed in — are separate states: a sign-in form
+at a fresh installation is a door with no lock and no key.
+
+Every write carries `X-Personalaffe-CSRF` (`api/client.ts`), which is half of
+what a browser write proves; the other half is `Origin`, which the browser sets
+itself on anything that is not a GET.
 
 Two libraries the blueprint names are **not installed yet**: Base UI and
 CodeMirror, with `react-markdown` and its two remark plugins. Nothing on the
@@ -331,8 +381,9 @@ a stranger should not have.
 ## Tests are split by what they need
 
 **`Personalaffe.UnitTests`** runs in seconds and needs nothing installed: the
-rules of Domain and the acts of Application against substituted ports, plus the
-layering test.
+rules of Domain and the acts of Application against substituted ports, the
+layering test, and the parts of Infrastructure that need nothing installed
+either — the password hasher is a function, and a function is a unit test.
 
 **`Personalaffe.IntegrationTests`** brings up Postgres with Testcontainers,
 because the parts no substitute can vouch for — that the migrations apply to an
@@ -438,18 +489,22 @@ acceptance criteria will need.
 The foundation was built to be extended in specific places, and this is the list
 so that no epic has to find them again.
 
-**PERSONAL-E2, authentication.** `Program.cs` maps every endpoint into the
-`/api` group; authentication goes in front of that group and nowhere else.
-`RefusalCode.Unauthenticated` and `Forbidden` already exist with their statuses
-and titles, and `Problems.WriteAsync` is what a challenge or a forbid writes
-with — it is there for exactly this and is otherwise used only by the group's
-not-found. The owner's table is the first migration after `TheEmptySchema`. On
-the CLI side, `config.Input.ResolveToken` is a two-rung ladder with the third —
-the keychain — left to the sign-in that fills it, and
+**PERSONAL-E2, authentication — landed.** The door is
+`Http/Authentication.cs`, in front of the `/api` group and nowhere else: the
+group asks for an authenticated caller
+and only what says `AllowAnonymous` is outside it, which is the way round that
+fails safe. What comes through is a `Caller` on the request, answered to the
+acts by `ICallerIdentity`; an act asks for it rather than taking one as an
+argument, so no endpoint can forget to pass one. A token path is already cut
+into `AuthenticateCaller` and admits nobody until agent access fills it. On the
+CLI side, `config.Input.ResolveToken` is a two-rung ladder with the third — the
+keychain — left to the sign-in that fills it, and
 `client.New(address, token, …)` already sends the bearer header when there is a
 token to send.
 
-**PERSONAL-E3, content safeguards.** `RefusalCode.Stale` and its 412 are
+**PERSONAL-E3, content safeguards.** `Caller.RequireRead` and `RequireWrite`
+are what a content operation asks before it does anything, and they are waiting
+for their first caller. `RefusalCode.Stale` and its 412 are
 settled; what a write sends to say which version it is replacing is spelled in
 `docs/api.md` as the object's `updated_at`, in the one timestamp format
 `Rfc3339` writes. `deleted` is the code that joins the set, and the table in

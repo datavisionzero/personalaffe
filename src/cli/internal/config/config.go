@@ -10,10 +10,8 @@
 // (CONTEXT.md). What is on disk is the instance and the path of a token file
 // where one was named, and it holds no credential of its own.
 //
-// The third rung of the credential ladder — the operating system's keychain,
-// where a browser sign-in would leave a session — is PERSONAL-E2's, along with
-// the sign-in itself. The ladder is built with two rungs so that adding the
-// third is an insertion rather than a redesign.
+// The third rung of the credential ladder is the operating system's keychain,
+// which `pea login` fills and `pea logout` empties (internal/keychain).
 package config
 
 import (
@@ -35,6 +33,11 @@ const (
 	EnvInsecureHTTP = "PERSONALAFFE_INSECURE_HTTP"
 	EnvConfig       = "PERSONALAFFE_CONFIG"
 )
+
+// Keychain is what `pea status` prints as the provenance of a credential that
+// came off this machine's own store rather than out of the environment or a
+// file.
+const Keychain = "the keychain"
 
 // UsageError is a mistake in the environment or the arguments: exit 2.
 //

@@ -38,7 +38,7 @@ func (g *globals) status(ctx context.Context) error {
 	// Nothing here stops at the first failure: status is the command somebody
 	// runs *because* something is wrong, and one broken answer must not take the
 	// other one down with it.
-	_, from, tokenErr := in.ResolveToken()
+	_, from, tokenErr := in.ResolveToken(address)
 
 	served := ""
 	var versionErr error
