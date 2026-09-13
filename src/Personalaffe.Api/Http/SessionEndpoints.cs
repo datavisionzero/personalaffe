@@ -4,7 +4,21 @@ using Personalaffe.Domain;
 namespace Personalaffe.Api.Http;
 
 /// <summary>What <c>POST /api/session</c> takes.</summary>
-public sealed record SignInRequest(string? Email, string? Password);
+/// <param name="SecondFactor">
+/// A code from the authenticator, or one of the owner's recovery codes. One
+/// field takes either: both answer the same question, and which one somebody
+/// has to hand is not the instance's business.
+/// </param>
+public sealed record SignInRequest(string? Email, string? Password, string? SecondFactor);
+
+/// <summary>One signed-in browser, as <c>GET /api/sessions</c> lists it.</summary>
+public sealed record SessionResponse(
+    Guid Id,
+    string? Description,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset LastUsedAt,
+    DateTimeOffset ExpiresAt,
+    bool Current);
 
 /// <summary>
 /// The browser's way in and out (<c>docs/api.md</c>).
@@ -37,13 +51,26 @@ public static class SessionEndpoints
                     return Wrong();
                 }
 
-                var issued = await act.ExecuteAsync(
+                var signedIn = await act.ExecuteAsync(
                     request.Email,
                     request.Password,
+                    request.SecondFactor,
                     http.Request.Headers.UserAgent.ToString(),
                     cancellationToken);
 
-                if (issued is not { } session)
+                if (signedIn.Outcome == SignInOutcome.SecondFactorRequired)
+                {
+                    // Its own code, because a client has to be able to tell
+                    // "that was wrong" from "now the code" — and the caller has
+                    // already proved they have the password, so this says
+                    // nothing they did not know.
+                    return Problems.Result(
+                        RefusalCode.SecondFactor,
+                        "Send the same request again with `second_factor`: a code from the authenticator, "
+                        + "or one of the recovery codes.");
+                }
+
+                if (signedIn is not { Outcome: SignInOutcome.SignedIn, Session: { } session, Secret: { } secret })
                 {
                     throttle.Failed(account, source);
                     return Wrong();
@@ -52,8 +79,7 @@ public static class SessionEndpoints
                 throttle.Succeeded(account);
 
                 var cookie = BrowserCookie.For(http.Request);
-                http.Response.Cookies.Append(
-                    cookie.Name, session.Secret, cookie.Options(session.Session.ExpiresAt));
+                http.Response.Cookies.Append(cookie.Name, secret, cookie.Options(session.ExpiresAt));
 
                 return Results.NoContent();
             })
@@ -77,6 +103,48 @@ public static class SessionEndpoints
             .WithSummary("End the session this request came in on.")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        endpoints.MapGet("/sessions", async (ListSessions act, CancellationToken cancellationToken) =>
+            {
+                var live = await act.ExecuteAsync(cancellationToken);
+
+                return Results.Ok(live.Select(session => new SessionResponse(
+                    session.Id,
+                    session.Description,
+                    session.CreatedAt,
+                    session.LastUsedAt,
+                    session.ExpiresAt,
+                    session.Current)));
+            })
+            .WithName("ListSessions")
+            .WithSummary("Where this instance is signed in.")
+            .Produces<IReadOnlyList<SessionResponse>>()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        endpoints.MapDelete("/sessions/{id:guid}", async (
+                Guid id, RevokeSession act, CancellationToken cancellationToken) =>
+            {
+                await act.ExecuteAsync(id, cancellationToken);
+
+                return Results.NoContent();
+            })
+            .WithName("RevokeSession")
+            .WithSummary("End one signed-in browser, which may be this one.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapDelete("/sessions", async (
+                RevokeOtherSessions act, CancellationToken cancellationToken) =>
+            {
+                await act.ExecuteAsync(cancellationToken);
+
+                return Results.NoContent();
+            })
+            .WithName("RevokeOtherSessions")
+            .WithSummary("End every signed-in browser but this one.")
+            .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         return endpoints;

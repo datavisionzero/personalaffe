@@ -10,9 +10,9 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > PERSONAL-E1 — a .NET host, a PostgreSQL schema that migrates itself, a
 > checked-in HTTP contract, and a web page and a CLI that read it — and the
 > first half of PERSONAL-E2: an instance is claimed once by its one owner, who
-> signs in with an email address and a password, and everything but five
-> operations is behind that door. There is still no second factor, no agent
-> access and no content of any kind —
+> signs in with an email address and a password and, if they want one, a code
+> from an authenticator, and everything but five operations is behind that door.
+> There is still no agent access and no content of any kind —
 > **do not put anything personal in an instance of it.** The rest of the door is
 > PERSONAL-E2's, the content safeguards PERSONAL-E3's.
 

@@ -18,9 +18,10 @@ the Go CLI with two verbs (PERSONAL-5), the image with its Compose topology
 (PERSONAL-8) all exist. **PERSONAL-E1 is complete.**
 
 PERSONAL-E2 is under way: the owner, the one-time setup and the password
-material (PERSONAL-9), and the door in front of the `/api` group with the
-browser's sign-in behind it (PERSONAL-10). What is not there yet is the second
-factor, agent access and its tokens, and the two clients' halves.
+material (PERSONAL-9), the door in front of the `/api` group with the browser's
+sign-in behind it (PERSONAL-10), and the second factor, the recovery codes and
+the owner's sessions (PERSONAL-11). What is not there yet is agent access and
+its tokens, and the two clients' halves.
 
 ## Where this comes from
 
@@ -175,18 +176,20 @@ migration, and later the owner bootstrap, in that order. `Program.cs` is the onl
 file that knows all four layers.
 
 Implemented: `Domain/` with `Refusal`, `RefusalCode`, `Owner`, `Password`,
-`Caller` and `BrowserSession`; `Application/Ports/` with the settings records
-the host validates at startup, `IOwners`, `IPasswordHasher`, `IBrowserSessions`
-and `ICallerIdentity`; `Application/Acts/` with `ReadSetupState`,
-`SetUpTheInstance`, `AuthenticateCaller`, `SignIn`, `SignOut` and `ReadMe`;
-`Persistence/` with the context, the migrator, two tables and their stores, and
-three migrations; `Security/` with the Argon2id hasher; `Hosting/`; and `Http/`
-with `Routes`, `Problems`, `Rfc3339`, `VersionHeader`, `OpenApiDocument`,
-`Authentication`, `BrowserSecurity`, `InstanceEndpoints`, `HealthEndpoints`,
-`SetupEndpoints`, `SessionEndpoints` and `MeEndpoints`.
+`Caller`, `BrowserSession`, `Totp`, `Base32` and `RecoveryCode`;
+`Application/Ports/` with the settings records the host validates at startup,
+`IOwners`, `IPasswordHasher`, `IBrowserSessions`, `IRecoveryCodes` and
+`ICallerIdentity`; `Application/Acts/` with the setup, sign-in, session and
+security acts; `Persistence/` with the context, the migrator, three tables and
+their stores, and four migrations; `Security/` with the Argon2id hasher;
+`Hosting/`; and `Http/` with `Routes`, `Problems`, `Rfc3339`, `VersionHeader`,
+`OpenApiDocument`, `Authentication`, `BrowserSecurity`, `InstanceEndpoints`,
+`HealthEndpoints`, `SetupEndpoints`, `SessionEndpoints`, `MeEndpoints` and
+`SecurityEndpoints`.
 
-Planned, not implemented: `Files/`, agent access and its tokens, the second
-factor, and every endpoint but the eight an instance answers today.
+Planned, not implemented: `Files/`, agent access and its tokens, and every
+endpoint of the four applications — an instance answers the five outside the
+door and the owner's own, and nothing of the workspace itself.
 
 ## Where an application lives
 

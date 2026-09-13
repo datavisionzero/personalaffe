@@ -108,6 +108,7 @@ instance's log.
 | `validation` | 400 | A field is missing, malformed or over its limit. Carries `errors`. |
 | `unknown-field` | 400 | The request names a field the object does not define. |
 | `unauthenticated` | 401 | No credential, an unknown one, or a revoked one. |
+| `second-factor` | 401 | The password was right and the authenticator's code is wanted as well. |
 | `forbidden` | 403 | The caller may not do this. |
 | `not-found` | 404 | Nothing at that address. |
 | `stale` | 412 | The object has changed since it was read. |
@@ -119,10 +120,8 @@ grows with the epics that need it — `deleted` with recoverable deletion
 (PERSONAL-E3), `disabled` with the application switch (PERSONAL-E4). **Each
 addition is a row in this table in the same commit.**
 
-Of the eight, seven can be raised today: `validation` and `unknown-field` by
-anything that takes a body, `unauthenticated` and `forbidden` by the door,
-`conflict` by the one-time setup, and `not-found` and `internal` by the host.
-`stale` is the shape PERSONAL-E3's writes are written to.
+Of the nine, eight can be raised today. Only `stale` cannot: it is the shape
+PERSONAL-E3's writes are written to.
 
 ### Exit codes
 
@@ -182,6 +181,44 @@ per address and per caller, in a fifteen-minute window, and a throttled attempt
 answers exactly what a wrong one answers: telling a guesser they are being
 throttled tells them they have found something worth guessing at.
 
+**`second-factor` is the one exception**, and it says nothing the caller has not
+already proved: they have the password. Without it a client could not tell "that
+was wrong" from "now the code".
+
+### The second factor
+
+Optional, and off until the owner turns it on. It is a time-based one-time
+password to RFC 6238 — SHA-1, six digits, thirty-second steps — which is what
+every authenticator app on a phone already speaks; one step either side of now
+is accepted, and **a code that has been used cannot be used again**, so a code
+read over somebody's shoulder is not good for the rest of its thirty seconds.
+
+Enrolling takes two operations. The first offers a secret and changes nothing;
+the second confirms it with a code made from it and turns it on. A secret that
+took effect the moment it was shown would lock the owner out of their own
+instance on the day they mistyped it into the app — and the way back would be
+the procedure on the server, for a mistake made in ten seconds. An offer nobody
+confirms goes stale after fifteen minutes.
+
+Turning it on issues ten **recovery codes**, shown once. They are for the day
+the phone is lost: personalaffe has no mail server to send a link through, and
+these are what stands between that and the procedure on the server. Each works
+once, and `second_factor` at sign-in takes either kind — an authenticator's code
+or one of these. Which one somebody has to hand is not the instance's business.
+
+### Changing how the owner signs in
+
+Every operation under `/api/security` that changes something asks for the
+password again, however recently the caller signed in. A browser left open is
+enough to take an instance over otherwise, and none of these should be one click
+away from a screen somebody walked away from. It refuses with `forbidden` rather
+than `unauthenticated`: the caller is signed in and stays signed in, and a
+client that treated this as a dead session would sign them out over a typo.
+
+Changing the password and turning the second factor off each **sign every other
+browser out**. The point of changing a password is that whoever else was in is
+now out.
+
 ## Extension points, not yet implemented
 
 These are named so that the operations of later epics do not each invent their
@@ -198,7 +235,7 @@ own spelling. **None of them is implemented.**
 
 ## Operations
 
-Five outside the door, and three behind it.
+Five outside the door, and the rest behind it.
 
 The five are held to carrying **no owner data, no credential, and nothing about
 the host**: an instance on the public internet with nobody signed in answers
@@ -294,6 +331,15 @@ raising the cost later does not lock the owner out.
 Signs the owner in and answers `204` with the session cookie set. Wrong in any
 way, it is `unauthenticated` and says no more than that.
 
+With a second factor enrolled, the password alone answers `second-factor`, and
+the same request is sent again with the code beside it:
+
+```json
+{ "email": "…", "password": "…", "second_factor": "123456" }
+```
+
+`second_factor` takes an authenticator's code or one of the recovery codes.
+
 ### `DELETE /api/session`
 
 Ends the session this request came in on and takes the cookie out of the
@@ -314,6 +360,52 @@ Who the presented credential admits, and the cheapest way for a client to find
 out that it still works — which is what both clients do with it. `kind` is
 `owner` or `agent`; an agent answers with its name and its permissions instead
 of an address once agent access exists.
+
+### `GET /api/sessions`, `DELETE /api/sessions/{id}`, `DELETE /api/sessions`
+
+Where this instance is signed in — with what each browser called itself, when it
+began and when it was last used, and which one is asking — then ending one of
+them, or all of them but this one. The list carries only sessions that still
+admit somebody; an expired or revoked one is not a thing the owner can do
+anything about.
+
+### `GET /api/security`
+
+```json
+{ "second_factor_enabled": false, "enrolled_at": null, "recovery_codes_remaining": 0 }
+```
+
+### `POST /api/security/second-factor`
+
+`{ "password": "…" }` → the offer, which is not yet in force:
+
+```json
+{ "secret": "JBSWY3DPEHPK3PXP", "uri": "otpauth://totp/personalaffe:owner%40example.com?secret=…" }
+```
+
+The URI is what a phone usually reads as a QR code; the secret is the same thing
+for an app that is being typed into.
+
+### `POST /api/security/second-factor/confirm`
+
+`{ "code": "123456" }` → the ten recovery codes, shown once and never again. A
+wrong code leaves the instance exactly as it was, and the offer still standing.
+
+### `POST /api/security/second-factor/off`
+
+`{ "password": "…" }` → `204`. The recovery codes go with it, and every other
+browser is signed out.
+
+### `POST /api/security/recovery-codes`
+
+`{ "password": "…" }` → ten fresh codes. The old set stops working, because two
+sets in force at once would mean a sheet of paper somebody threw away still
+gets in.
+
+### `POST /api/security/password`
+
+`{ "current_password": "…", "password": "…" }` → `204`, and every other browser
+signed out.
 
 ### Anything else under `/api`
 

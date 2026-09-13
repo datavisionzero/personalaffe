@@ -29,6 +29,12 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// </summary>
     public DbSet<BrowserSession> BrowserSessions => Set<BrowserSession>();
 
+    /// <summary>
+    /// What gets the owner in when the authenticator is gone, one code at a
+    /// time (<see cref="RecoveryCode"/>).
+    /// </summary>
+    public DbSet<RecoveryCode> RecoveryCodes => Set<RecoveryCode>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // One IEntityTypeConfiguration per table, found rather than listed, so

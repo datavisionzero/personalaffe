@@ -103,6 +103,16 @@ builder.Services.AddScoped<AuthenticateCaller>();
 builder.Services.AddScoped<SignIn>();
 builder.Services.AddScoped<SignOut>();
 builder.Services.AddScoped<ReadMe>();
+builder.Services.AddScoped<OwnerConfirmation>();
+builder.Services.AddScoped<ReadSecurity>();
+builder.Services.AddScoped<BeginSecondFactorEnrolment>();
+builder.Services.AddScoped<ConfirmSecondFactorEnrolment>();
+builder.Services.AddScoped<DisableSecondFactor>();
+builder.Services.AddScoped<ReissueRecoveryCodes>();
+builder.Services.AddScoped<ChangePassword>();
+builder.Services.AddScoped<ListSessions>();
+builder.Services.AddScoped<RevokeSession>();
+builder.Services.AddScoped<RevokeOtherSessions>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();
@@ -194,6 +204,7 @@ api.MapHealth();
 api.MapSetup();
 api.MapSession();
 api.MapMe();
+api.MapSecurity();
 
 // An address under the prefix that no endpoint took is an API mistake and
 // answers as one. Without this it would fall through to the web application's

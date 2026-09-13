@@ -3,9 +3,26 @@ using Personalaffe.Domain;
 
 namespace Personalaffe.Application.Acts;
 
+/// <summary>What happened at the door.</summary>
+public enum SignInOutcome
+{
+    /// <summary>Wrong, in some way that is deliberately not said.</summary>
+    Wrong,
+
+    /// <summary>The password was right and an authenticator's code is still wanted.</summary>
+    SecondFactorRequired,
+
+    /// <summary>In.</summary>
+    SignedIn,
+}
+
+/// <summary>What sign-in answers: the outcome, and a session when there is one.</summary>
+public sealed record SignedIn(SignInOutcome Outcome, BrowserSession? Session = null, string? Secret = null);
+
 /// <summary>
-/// The owner, an email address and a password, and the browser session that
-/// comes back when the three agree.
+/// The owner, an email address and a password — and, when they have enrolled an
+/// authenticator, a code from it — and the browser session that comes back when
+/// they all agree.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,6 +42,7 @@ namespace Personalaffe.Application.Acts;
 public sealed class SignIn(
     IOwners owners,
     IBrowserSessions sessions,
+    IRecoveryCodes recoveryCodes,
     IPasswordHasher passwords,
     TimeProvider clock)
 {
@@ -37,11 +55,15 @@ public sealed class SignIn(
         + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
     /// <summary>
-    /// The session and its secret, or <c>null</c> — which is every way of being
-    /// wrong, told apart nowhere.
+    /// The outcome, and a session when there is one. Every way of being wrong
+    /// is one outcome, told apart nowhere.
     /// </summary>
-    public async Task<(BrowserSession Session, string Secret)?> ExecuteAsync(
-        string? email, string? password, string? description, CancellationToken cancellationToken)
+    public async Task<SignedIn> ExecuteAsync(
+        string? email,
+        string? password,
+        string? secondFactor,
+        string? description,
+        CancellationToken cancellationToken)
     {
         var owner = await owners.FindAsync(cancellationToken);
 
@@ -57,13 +79,53 @@ public sealed class SignIn(
 
         if (owner is null || !addressMatches || !correct)
         {
-            return null;
+            return new SignedIn(SignInOutcome.Wrong);
+        }
+
+        if (owner.SecondFactorEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(secondFactor))
+            {
+                // Saying this out loud tells the caller nothing they did not
+                // already prove: they have the password. What it saves is a
+                // client that cannot tell "wrong password" from "now the code".
+                return new SignedIn(SignInOutcome.SecondFactorRequired);
+            }
+
+            if (!await SecondFactorAcceptedAsync(owner, secondFactor, cancellationToken))
+            {
+                return new SignedIn(SignInOutcome.Wrong);
+            }
         }
 
         var begun = BrowserSession.Begin(owner.Id, description, clock.GetUtcNow());
         await sessions.AddAsync(begun.Session, cancellationToken);
 
-        return begun;
+        return new SignedIn(SignInOutcome.SignedIn, begun.Session, begun.Secret);
+    }
+
+    /// <summary>
+    /// A code from the authenticator, or one of the codes on the owner's piece
+    /// of paper. One field takes either: both answer the same question, and
+    /// which one somebody has to hand is not the instance's business.
+    /// </summary>
+    private async Task<bool> SecondFactorAcceptedAsync(
+        Owner owner, string presented, CancellationToken cancellationToken)
+    {
+        var now = clock.GetUtcNow();
+
+        if (Totp.Verify(owner.TotpSecret, presented, now, owner.LastTotpStep, out var step))
+        {
+            // The step is remembered, so that a code seen over a shoulder is
+            // not good for the rest of its thirty seconds.
+            owner.RecordSecondFactorStep(step);
+            await owners.SaveAsync(cancellationToken);
+
+            return true;
+        }
+
+        return await recoveryCodes.ConsumeAsync(
+            owner.Id, RecoveryCode.Hash(presented), now, cancellationToken);
     }
 
     private static bool TheOwners(string? email, Owner owner)

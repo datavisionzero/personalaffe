@@ -15,6 +15,10 @@ public interface IBrowserSessions
     /// </summary>
     Task<BrowserSession?> AdmitAsync(byte[] secretHash, DateTimeOffset now, CancellationToken cancellationToken);
 
+    /// <summary>The owner's sessions that still admit anybody, newest first.</summary>
+    Task<IReadOnlyList<BrowserSession>> ListAsync(
+        Guid ownerId, DateTimeOffset now, CancellationToken cancellationToken);
+
     /// <summary>Revokes one session of the owner's. A session that is not theirs is not found.</summary>
     Task RevokeAsync(Guid id, Guid ownerId, DateTimeOffset now, CancellationToken cancellationToken);
 

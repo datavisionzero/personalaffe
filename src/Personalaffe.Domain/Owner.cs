@@ -29,6 +29,13 @@ public sealed class Owner
 {
     public const int EmailMaxLength = 100;
 
+    /// <summary>
+    /// How long an offered second-factor secret can still be confirmed. Long
+    /// enough to find the phone, short enough that a secret shown on a screen
+    /// somebody walked away from is not an enrolment waiting to happen.
+    /// </summary>
+    public static readonly TimeSpan EnrolmentOfferLifetime = TimeSpan.FromMinutes(15);
+
     private Owner()
     {
         // EF Core materializes through this; every other route goes through Claim.
@@ -65,8 +72,35 @@ public sealed class Owner
 
     public DateTimeOffset CreatedAt { get; private init; }
 
-    /// <summary>When the owner last changed: the address, or the password.</summary>
+    /// <summary>When the owner last changed: the address, the password, or the second factor.</summary>
     public DateTimeOffset UpdatedAt { get; private set; }
+
+    /// <summary>
+    /// The confirmed shared secret of the second factor, or nothing. Set only
+    /// once a code made from it has been shown to work — an unconfirmed secret
+    /// that was already in force is how an owner locks themselves out of their
+    /// own instance with a mistyped app.
+    /// </summary>
+    public string? TotpSecret { get; private set; }
+
+    /// <summary>When the second factor was confirmed.</summary>
+    public DateTimeOffset? TotpEnrolledAt { get; private set; }
+
+    /// <summary>An enrolment that has been offered and not yet proven.</summary>
+    public string? PendingTotpSecret { get; private set; }
+
+    /// <summary>When it was offered; an offer nobody confirmed goes stale.</summary>
+    public DateTimeOffset? PendingTotpSecretAt { get; private set; }
+
+    /// <summary>
+    /// The last step a code was accepted for. Anything at or below it is
+    /// refused however correct it is, so that a code read over somebody's
+    /// shoulder is not good for the rest of its thirty seconds.
+    /// </summary>
+    public long? LastTotpStep { get; private set; }
+
+    /// <summary>Whether a code is asked for after the password.</summary>
+    public bool SecondFactorEnabled => TotpSecret is not null;
 
     /// <summary>
     /// The owner of an instance that had none, from an address and a hash that
@@ -89,6 +123,54 @@ public sealed class Owner
             : passwordHash;
         UpdatedAt = at;
     }
+
+    /// <summary>Offers a secret for enrolment, replacing any offer not yet confirmed.</summary>
+    public void OfferSecondFactor(string secret, DateTimeOffset at)
+    {
+        PendingTotpSecret = string.IsNullOrWhiteSpace(secret)
+            ? throw new ArgumentException("A shared secret is required.", nameof(secret))
+            : secret;
+        PendingTotpSecretAt = at;
+    }
+
+    /// <summary>
+    /// Turns the offer into the second factor, on the strength of a code made
+    /// from it.
+    /// </summary>
+    /// <exception cref="Refusal">Nothing has been offered.</exception>
+    public void ConfirmSecondFactor(long step, DateTimeOffset at)
+    {
+        if (PendingTotpSecret is not { } offered
+            || PendingTotpSecretAt is not { } offeredAt
+            || at - offeredAt > EnrolmentOfferLifetime)
+        {
+            throw Refusal.Conflict(
+                "There is no enrolment to confirm, or the one that was offered has gone stale. "
+                + "Begin one again.");
+        }
+
+        TotpSecret = offered;
+        TotpEnrolledAt = at;
+        LastTotpStep = step;
+        PendingTotpSecret = null;
+        PendingTotpSecretAt = null;
+        UpdatedAt = at;
+    }
+
+    /// <summary>Takes the second factor off, and any offer with it.</summary>
+    public void DisableSecondFactor(DateTimeOffset at)
+    {
+        TotpSecret = null;
+        TotpEnrolledAt = null;
+        LastTotpStep = null;
+        PendingTotpSecret = null;
+        PendingTotpSecretAt = null;
+        UpdatedAt = at;
+    }
+
+    /// <summary>Remembers the step a code was accepted for, so that it cannot be used twice.</summary>
+    public void RecordSecondFactorStep(long step) =>
+        LastTotpStep = LastTotpStep is { } last && last >= step ? last : step;
 
     public void ChangeEmail(string email, DateTimeOffset at)
     {

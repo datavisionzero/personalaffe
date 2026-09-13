@@ -40,6 +40,18 @@ public sealed class OwnerConfiguration : IEntityTypeConfiguration<Owner>
         builder.Property(owner => owner.Singleton).HasColumnName("singleton").IsRequired();
         builder.HasIndex(owner => owner.Singleton).IsUnique().HasDatabaseName("owner_singleton");
 
+        // The second factor, where there is one. The confirmed secret and the
+        // offer that is not yet one are separate columns, because an offer that
+        // was already in force is how an owner locks themselves out with a
+        // mistyped app.
+        builder.Property(owner => owner.TotpSecret).HasColumnName("totp_secret");
+        builder.Property(owner => owner.TotpEnrolledAt).HasColumnName("totp_enrolled_at");
+        builder.Property(owner => owner.PendingTotpSecret).HasColumnName("pending_totp_secret");
+        builder.Property(owner => owner.PendingTotpSecretAt).HasColumnName("pending_totp_secret_at");
+        builder.Property(owner => owner.LastTotpStep).HasColumnName("last_totp_step");
+
+        builder.Ignore(owner => owner.SecondFactorEnabled);
+
         builder.Property(owner => owner.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(owner => owner.UpdatedAt).HasColumnName("updated_at").IsRequired();
     }

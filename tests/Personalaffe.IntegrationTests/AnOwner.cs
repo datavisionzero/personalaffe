@@ -40,10 +40,22 @@ internal static class AnOwner
     {
         await SetUpAsync(instance, cancellationToken);
 
+        return await SignInAgainAsync(instance, cancellationToken);
+    }
+
+    /// <summary>
+    /// Another browser of the same owner's, for the tests about what happens to
+    /// the sessions somebody else is holding.
+    /// </summary>
+    public static async Task<HttpClient> SignInAgainAsync(
+        AnInstance instance, CancellationToken cancellationToken, string? secondFactor = null)
+    {
         var client = AsABrowser(instance);
 
         using var response = await client.PostAsJsonAsync(
-            "/api/session", new { email = Address, password = Secret }, cancellationToken);
+            "/api/session",
+            new { email = Address, password = Secret, second_factor = secondFactor },
+            cancellationToken);
 
         if (response.StatusCode != HttpStatusCode.NoContent)
         {

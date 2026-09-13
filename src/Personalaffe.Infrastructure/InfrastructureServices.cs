@@ -39,6 +39,7 @@ public static class InfrastructureServices
         // One store per port, beside the context that answers it.
         services.AddScoped<IOwners, Owners>();
         services.AddScoped<IBrowserSessions, BrowserSessions>();
+        services.AddScoped<IRecoveryCodes, RecoveryCodes>();
 
         // Argon2id, and the only place that knows it is (docs/codebase.md).
         services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();

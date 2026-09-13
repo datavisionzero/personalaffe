@@ -45,7 +45,15 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/health/live",
                 "/api/health/ready",
                 "/api/me",
+                "/api/security",
+                "/api/security/password",
+                "/api/security/recovery-codes",
+                "/api/security/second-factor",
+                "/api/security/second-factor/confirm",
+                "/api/security/second-factor/off",
                 "/api/session",
+                "/api/sessions",
+                "/api/sessions/{id}",
                 "/api/setup",
                 "/api/version",
             ],
@@ -58,6 +66,9 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Contains("SetupRequest", schemas);
         Assert.Contains("SignInRequest", schemas);
         Assert.Contains("MeResponse", schemas);
+        Assert.Contains("SecurityResponse", schemas);
+        Assert.Contains("RecoveryCodesResponse", schemas);
+        Assert.Contains("SessionResponse", schemas);
     }
 
     [Fact]

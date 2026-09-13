@@ -28,7 +28,7 @@ public static class Problems
     public static int StatusOf(RefusalCode code) => code switch
     {
         RefusalCode.Validation or RefusalCode.UnknownField => StatusCodes.Status400BadRequest,
-        RefusalCode.Unauthenticated => StatusCodes.Status401Unauthorized,
+        RefusalCode.Unauthenticated or RefusalCode.SecondFactor => StatusCodes.Status401Unauthorized,
         RefusalCode.Forbidden => StatusCodes.Status403Forbidden,
         RefusalCode.NotFound => StatusCodes.Status404NotFound,
         RefusalCode.Conflict => StatusCodes.Status409Conflict,
@@ -42,6 +42,7 @@ public static class Problems
         RefusalCode.Validation => "A field is missing, malformed or over its limit",
         RefusalCode.UnknownField => "The request contains a field this object does not define",
         RefusalCode.Unauthenticated => "No credential, an unknown one, or a revoked one",
+        RefusalCode.SecondFactor => "A code from the authenticator is wanted as well",
         RefusalCode.Forbidden => "The caller may not do this",
         RefusalCode.NotFound => "Nothing at that address",
         RefusalCode.Stale => "The object has changed since it was read",

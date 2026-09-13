@@ -36,6 +36,16 @@ public sealed class BrowserSessions(PersonalaffeDbContext context) : IBrowserSes
         return session;
     }
 
+    public async Task<IReadOnlyList<BrowserSession>> ListAsync(
+        Guid ownerId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        await context.BrowserSessions
+            .Where(session => session.OwnerId == ownerId
+                && session.RevokedAt == null
+                && session.ExpiresAt > now
+                && session.LastUsedAt > now - BrowserSession.IdleLifetime)
+            .OrderByDescending(session => session.LastUsedAt)
+            .ToListAsync(cancellationToken);
+
     public async Task RevokeAsync(
         Guid id, Guid ownerId, DateTimeOffset now, CancellationToken cancellationToken)
     {
