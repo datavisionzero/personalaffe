@@ -15,8 +15,11 @@ migrator, the health endpoints (PERSONAL-2), the checked-in contract and the
 problem document (PERSONAL-3), the web workspace with one screen (PERSONAL-4)
 the Go CLI with two verbs (PERSONAL-5), the image with its Compose topology
 (PERSONAL-6), the CI gate (PERSONAL-7) and the fresh-checkout verification
-(PERSONAL-8) all exist. **PERSONAL-E1 is complete**; what the rest of
-`docs/mvp-plan.md` describes is not started.
+(PERSONAL-8) all exist. **PERSONAL-E1 is complete.**
+
+PERSONAL-E2 is under way: the owner, the one-time setup and the password
+material are in (PERSONAL-9). The door itself is not — everything an instance
+answers is still answered to whoever can reach the port.
 
 ## Where this comes from
 
@@ -158,8 +161,10 @@ a port of ours.
 **`Personalaffe.Infrastructure` answers those ports.** `Persistence/` is EF
 Core: the context, one `IEntityTypeConfiguration` per table under
 `Configurations/`, one store per port beside it, and `Migrations/` — every schema
-change arrives as another one on top, only ever forward. Later epics add
-`Files/`, the local file store, and `Security/`, the password hasher.
+change arrives as another one on top, only ever forward. `Security/` is the
+password hasher: Argon2id in a value that carries the parameters it was made
+with, so that raising the cost later does not lock out the owner who exists. A
+later epic adds `Files/`, the local file store.
 
 **`Personalaffe.Api` is HTTP and the composition root.** `Http/` maps the
 endpoints, one file per object, plus the cross-cutting pieces that arrive in
@@ -168,14 +173,16 @@ PERSONAL-3: `Problems` writing every refusal as one document, `VersionHeader`,
 migration, and later the owner bootstrap, in that order. `Program.cs` is the only
 file that knows all four layers.
 
-Implemented: `Domain/` with `Refusal` and `RefusalCode`; `Application/Ports/`
-with the two settings records the host validates at startup; `Persistence/` with
-the context, the migrator and the first migration; `Hosting/`; and `Http/` with
-`Routes`, `Problems`, `Rfc3339`, `VersionHeader`, `OpenApiDocument`,
-`InstanceEndpoints` and `HealthEndpoints`.
+Implemented: `Domain/` with `Refusal`, `RefusalCode`, `Owner` and `Password`;
+`Application/Ports/` with the settings records the host validates at startup,
+`IOwners` and `IPasswordHasher`; `Application/Acts/` with `ReadSetupState` and
+`SetUpTheInstance`; `Persistence/` with the context, the migrator, the owner's
+table and store, and two migrations; `Security/` with the Argon2id hasher;
+`Hosting/`; and `Http/` with `Routes`, `Problems`, `Rfc3339`, `VersionHeader`,
+`OpenApiDocument`, `InstanceEndpoints`, `HealthEndpoints` and `SetupEndpoints`.
 
-Planned, not implemented: `Acts/`, `Configurations/`, `Files/`, `Security/`, and
-every endpoint but the three the foundation answers.
+Planned, not implemented: `Files/`, the door in front of the `/api` group, and
+every endpoint but the five an instance answers today.
 
 ## Where an application lives
 
@@ -331,8 +338,9 @@ a stranger should not have.
 ## Tests are split by what they need
 
 **`Personalaffe.UnitTests`** runs in seconds and needs nothing installed: the
-rules of Domain and the acts of Application against substituted ports, plus the
-layering test.
+rules of Domain and the acts of Application against substituted ports, the
+layering test, and the parts of Infrastructure that need nothing installed
+either — the password hasher is a function, and a function is a unit test.
 
 **`Personalaffe.IntegrationTests`** brings up Postgres with Testcontainers,
 because the parts no substitute can vouch for — that the migrations apply to an
@@ -443,9 +451,9 @@ so that no epic has to find them again.
 `RefusalCode.Unauthenticated` and `Forbidden` already exist with their statuses
 and titles, and `Problems.WriteAsync` is what a challenge or a forbid writes
 with — it is there for exactly this and is otherwise used only by the group's
-not-found. The owner's table is the first migration after `TheEmptySchema`. On
-the CLI side, `config.Input.ResolveToken` is a two-rung ladder with the third —
-the keychain — left to the sign-in that fills it, and
+not-found. The owner's table is `TheOwner`, the first migration after
+`TheEmptySchema`. On the CLI side, `config.Input.ResolveToken` is a two-rung
+ladder with the third — the keychain — left to the sign-in that fills it, and
 `client.New(address, token, …)` already sends the bearer header when there is a
 token to send.
 

@@ -4,13 +4,13 @@ One instance, one address, one API. The web application and `pea` are both
 clients of it and there is no second way in
 ([`docs/codebase.md`](./codebase.md)).
 
-**Three operations exist today.** They are the foundation's, they carry no
-personal content, and they are listed under *Operations* below. Everything else
-on this page is the shape every later operation is written to — the conventions,
-the error document, the codes — and it is here because it was settled in
-PERSONAL-3, before there was a second endpoint to settle it differently.
-Sections that describe something not yet implemented say so in their first
-line.
+**Five operations exist today.** Three are the foundation's and two are the
+one-time setup; none of them carries personal content, and all five are listed
+under *Operations* below. Everything else on this page is the shape every later
+operation is written to — the conventions, the error document, the codes — and
+it is here because it was settled in PERSONAL-3, before there was a second
+endpoint to settle it differently. Sections that describe something not yet
+implemented say so in their first line.
 
 ## The contract is the artifact
 
@@ -59,6 +59,11 @@ generators by hand, and both were run against it when it was first captured.*
 - **A closed set travels as its word**, never as a number: `read_write`, not
   `2`. A value outside the set is refused at the door as `validation` rather
   than stored as a row nobody can read.
+- **An object takes the fields it defines and no others.** A field it does not
+  define is `unknown-field` rather than a value quietly dropped: an agent
+  writing `passwrd` has no screen to notice the omission on. The one shape that
+  is deliberately open is the problem document, which carries what its code
+  needs.
 - **Timestamps are RFC 3339 in UTC with microseconds** —
   `2026-09-13T14:03:07.123456Z` — one spelling everywhere, so that the value a
   client reads is the value it can send back.
@@ -88,8 +93,9 @@ instead would collapse distinctions the product makes — `deleted` and
 `not-found` are both 404 once recoverable deletion lands.
 
 A document may carry more than the five members of RFC 9457. What it carries
-depends on the code: `validation` carries `errors`, a field to its messages. A
-client that does not know an extension member ignores it.
+depends on the code: `validation` carries `errors`, a field to its messages, and
+`unknown-field` carries `field`. A client that does not know an extension member
+ignores it.
 
 **A bug is not a refusal.** Anything that is not a deliberate refusal answers
 `/problems/internal` with a title, a status and nothing else — no message, no
@@ -114,10 +120,11 @@ grows with the epics that need it — `deleted` with recoverable deletion
 (PERSONAL-E3), `disabled` with the application switch (PERSONAL-E4). **Each
 addition is a row in this table in the same commit.**
 
-Of the eight, the foundation can raise `not-found` and `internal`. The other
-six are the shape their epics are written to; `unauthenticated`, `forbidden` and
-`stale` in particular are here because the shape of every later write depends on
-them being decided already.
+Of the eight, five can be raised today: `validation` and `unknown-field` by
+anything that takes a body, `conflict` by the one-time setup, and `not-found`
+and `internal` by the host. `unauthenticated` and `forbidden` arrive with the
+door in the ticket after setup; `stale` is the shape PERSONAL-E3's writes are
+written to.
 
 ### Exit codes
 
@@ -132,7 +139,7 @@ own spelling. **None of them is implemented.**
 
 - **Authentication** (PERSONAL-E2) is `Authorization: Bearer <token>` for the
   CLI and for agents, and an opaque session cookie for the browser. Everything
-  but the three operations below requires one, and absence is
+  but the five operations below requires one, and absence is
   `unauthenticated`, never `not-found`.
 - **Stale-update handling** (PERSONAL-E3): a write that replaces something says
   which version it read, and a write based on an older one is refused as
@@ -145,11 +152,14 @@ own spelling. **None of them is implemented.**
 
 ## Operations
 
-Three, and they are the whole of what an instance answers today. All three are
-outside the door — there is no door yet — and all three are held to carrying
+Five, and they are the whole of what an instance answers today. All five are
+outside the door — there is no door yet — and all five are held to carrying
 **no owner data, no credential, and nothing about the host**: an instance on the
 public internet with nobody signed in answers exactly these, and a test asserts
 their answers stay short and say nothing else.
+
+The two setup operations are the last ones that will ever be outside the door
+besides the three above. Everything the epics after this add is behind it.
 
 ### `GET /api/version`
 
@@ -186,6 +196,49 @@ remembering that the start went well.
 
 The answer is a word. **Why** readiness failed goes to the instance's log at
 warning, where the operator is — not to whatever can reach the port.
+
+### `GET /api/setup`
+
+```json
+{ "required": true }
+```
+
+Whether this instance still needs its one-time setup. It is outside the door
+because it has to be: a browser arriving at a fresh installation cannot sign in,
+and something has to tell it to set up instead.
+
+It is also the whole of what it says. **Who** the owner is, when they were set
+up and what address they use are not in the answer — an instance on the public
+internet answers this to whoever asks, and `required: false` is the most it will
+ever tell them.
+
+### `POST /api/setup`
+
+```json
+{ "email": "owner@example.com", "password": "correct horse battery staple" }
+```
+
+Claims an instance that has no owner, and answers `204`. **It works exactly
+once**: a second attempt is `conflict`, whichever surface it comes from and
+however many arrive at the same moment — the unique index on the owner's table
+is what decides that, not a read taken a moment earlier.
+
+`conflict` rather than `forbidden`, because nothing about the caller is wrong:
+the instance is simply already somebody's. There is one owner, there is no
+invitation and no second account, and an owner who has lost their password
+recovers on the machine that runs the instance rather than through a second
+account — the procedure is written down with the recovery it describes, later in
+PERSONAL-E2.
+
+The email address is the **login identifier** and nothing else: personalaffe
+sends no mail, has no SMTP setting and needs none. A password is 12 to 200
+characters and has no other rule — length, a slow hash and a throttle on failed
+attempts are what protect one owner's workspace, and a character-class rule
+mostly buys a short password with a digit stuck on the end.
+
+Nothing comes back, and nothing about the password is ever readable again: what
+is stored is an Argon2id value that carries the parameters it was made with, so
+raising the cost later does not lock the owner out.
 
 ### Anything else under `/api`
 

@@ -41,4 +41,10 @@ public sealed class Refusal(
 
     /// <summary>Nothing by that address.</summary>
     public static Refusal NotFound(string detail) => new(RefusalCode.NotFound, detail);
+
+    /// <summary>Something else already occupies that name or place.</summary>
+    public static Refusal Conflict(string detail) => new(RefusalCode.Conflict, detail);
+
+    /// <summary>The caller may not do this.</summary>
+    public static Refusal Forbidden(string detail) => new(RefusalCode.Forbidden, detail);
 }

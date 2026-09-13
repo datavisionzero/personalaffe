@@ -112,19 +112,42 @@ public static class Problems
     /// <summary>
     /// A body or a parameter the framework could not read at all — a closed set
     /// given a word outside it, a number where a string was sent, malformed
-    /// JSON. It is the caller's mistake and answers as <c>validation</c>, named
-    /// after the field where the reader gave up.
+    /// JSON, or a field the object does not define. All of them are the
+    /// caller's mistake, and each answers as the code that says which mistake
+    /// it was, named after the field where the reader gave up.
     /// </summary>
     private static Refusal Unreadable(BadHttpRequestException exception)
     {
-        var path = (exception.InnerException as JsonException)?.Path;
+        if (exception.InnerException is not JsonException unreadable)
+        {
+            return Refusal.Validation("body", "The request body is not the JSON object this endpoint takes.");
+        }
 
-        return path is null or "$"
-            ? Refusal.Validation("body", "The request body is not the JSON object this endpoint takes.")
+        var field = FieldOf(unreadable.Path);
+
+        if (field is null)
+        {
+            return Refusal.Validation("body", "The request body is not the JSON object this endpoint takes.");
+        }
+
+        // `UnmappedMemberHandling.Disallow` is what raises this, and the reader
+        // says so in the one way it says it. The test that sends an undefined
+        // field is what keeps this true: a runtime that changes the sentence
+        // turns that test red rather than turning the refusal quietly back into
+        // `validation`.
+        return unreadable.Message.Contains("could not be mapped", StringComparison.Ordinal)
+            ? new Refusal(
+                RefusalCode.UnknownField,
+                $"{field}: this object does not define that field.",
+                new Dictionary<string, object?> { ["field"] = field })
             : Refusal.Validation(
-                path.Split('.', '[')[^1].TrimEnd(']'),
+                field,
                 "The value is not of the type this field takes; a closed set takes one of its words.");
     }
+
+    /// <summary>The last segment of a JSON path — <c>$.owner.email</c> is <c>email</c>.</summary>
+    private static string? FieldOf(string? path) =>
+        path is null or "$" ? null : path.Split('.', '[')[^1].TrimEnd(']');
 
     /// <summary>
     /// What turns a <see cref="Refusal"/> thrown by an act into its document,

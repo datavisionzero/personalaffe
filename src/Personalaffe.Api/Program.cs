@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Personalaffe.Api.Hosting;
 using Personalaffe.Api.Http;
+using Personalaffe.Application.Acts;
 using Personalaffe.Application.Ports;
 using Personalaffe.Domain;
 using Personalaffe.Infrastructure;
@@ -88,6 +89,12 @@ catch (ArgumentException refusal)
 // about the container they are resolved from.
 builder.Services.AddSingleton(TimeProvider.System);
 
+// One line per act, named, rather than an assembly scan: what a caller can do
+// is a list somebody wrote, and an act that is not on it is not reachable by
+// accident.
+builder.Services.AddScoped<ReadSetupState>();
+builder.Services.AddScoped<SetUpTheInstance>();
+
 // Order is start order, and both run before anything is served, so that an
 // installation is `docker compose up` and nothing else. Storage first because it
 // is the cheaper of the two to get wrong and the faster to answer.
@@ -107,6 +114,13 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(
         new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower, allowIntegerValues: false));
     options.SerializerOptions.Converters.Add(new Rfc3339());
+
+    // A field the object does not define is the caller's mistake and is said
+    // out loud (docs/api.md, `unknown-field`). Ignoring it silently is how a
+    // misspelled `passwrd` becomes a setup with an empty password and a person
+    // who cannot tell why: an agent writing against this API has no screen to
+    // notice on.
+    options.SerializerOptions.UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow;
 });
 
 // Every refusal is one document (docs/api.md, Errors), and this is the one
@@ -151,6 +165,7 @@ app.MapOpenApi($"{Routes.Api}/openapi/{{documentName}}.json");
 
 api.MapInstance();
 api.MapHealth();
+api.MapSetup();
 
 // An address under the prefix that no endpoint took is an API mistake and
 // answers as one. Without this it would fall through to the web application's

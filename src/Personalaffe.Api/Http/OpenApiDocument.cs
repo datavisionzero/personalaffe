@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
 using Personalaffe.Api.Hosting;
@@ -56,6 +57,17 @@ public static class OpenApiDocument
                 {
                     schema.Type = nullable ? JsonSchemaType.String | JsonSchemaType.Null : JsonSchemaType.String;
                     schema.Format = "date-time";
+                }
+
+                // Every other shape is closed, because the reader is
+                // (`UnmappedMemberHandling.Disallow`): a field an object does
+                // not define is refused rather than ignored. A problem document
+                // is the exception and has to be — it carries `errors` on
+                // `validation` and `field` on `unknown-field`, and what it
+                // carries depends on the code (docs/api.md, Errors).
+                if (type == typeof(ProblemDetails) && schema is OpenApiSchema document)
+                {
+                    document.AdditionalPropertiesAllowed = true;
                 }
 
                 Plain(schema);

@@ -40,11 +40,14 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Null(document["servers"]);
 
         var paths = document["paths"]!.AsObject().Select(path => path.Key).Order(StringComparer.Ordinal);
-        Assert.Equal(["/api/health/live", "/api/health/ready", "/api/version"], paths);
+        Assert.Equal(
+            ["/api/health/live", "/api/health/ready", "/api/setup", "/api/version"], paths);
 
         var schemas = document["components"]!["schemas"]!.AsObject().Select(schema => schema.Key).ToHashSet();
         Assert.Contains("VersionResponse", schemas);
         Assert.Contains("HealthResponse", schemas);
+        Assert.Contains("SetupStateResponse", schemas);
+        Assert.Contains("SetupRequest", schemas);
     }
 
     [Fact]

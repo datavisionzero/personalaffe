@@ -29,6 +29,10 @@ src/cli/internal/api/client.gen.go
 /dist/
 /personalaffe
 /pea
+# `go build ./cmd/pea` in src/cli lands beside the module, which is where
+# docs/cli.md says to run it. Named with its path rather than as a bare `pea`,
+# because a bare one would also ignore the cmd/pea directory it is built from.
+/src/cli/pea
 
 # Node
 node_modules/
