@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The innermost layer. It carries no ProjectReference and no
+       PackageReference, and that emptiness is the cheapest check that nothing
+       has leaked into it (docs/codebase.md). Adding either is a decision, and
+       LayeringTests fails the build until it has been made deliberately.
+
+       It is also still empty of types: the rules arrive with the applications
+       that have them, and a folder claiming a future module is a lie the tree
+       tells. -->
+
+</Project>

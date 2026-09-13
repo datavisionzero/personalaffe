@@ -1,0 +1,267 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # So that a run can be started without inventing a commit to carry it.
+  workflow_dispatch:
+
+# Read the repository, and nothing else. This workflow validates; it publishes
+# nothing, deploys nothing and needs no credential of any kind.
+permissions:
+  contents: read
+
+# This workflow is the whole gate. `main` is the only long-lived branch and
+# there is no environment between a commit and a release, so what is here is
+# what stands between a mistake and the trunk. It has to stay fast enough that
+# nobody is tempted to push past it, which is why the four toolchains run beside
+# each other rather than in one job.
+#
+# Nothing is published, so an overtaken run has nothing to leave standing wrong:
+# a new push cancels the one it replaced.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Seconds, and nothing installed: the settings records, the refusal table, and
+  # the layering test that reads the four project files and fails a reference
+  # pointing outward.
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet restore Personalaffe.slnx
+      - run: dotnet build Personalaffe.slnx -c Release --no-restore
+      - run: dotnet test tests/Personalaffe.UnitTests -c Release --no-build
+
+  # The parts no substitute can vouch for: that the migrations apply to an empty
+  # database, that a second start finds nothing to do, that a schema this build
+  # does not know stops the start, that readiness follows the database.
+  # Testcontainers brings up the Postgres, so this job needs the Docker the
+  # runner already has and nothing else declared here.
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet restore Personalaffe.slnx
+      - run: dotnet build Personalaffe.slnx -c Release --no-restore
+      - run: dotnet test tests/Personalaffe.IntegrationTests -c Release --no-build
+
+  # No generation step here on purpose. The API layer is generated from
+  # docs/api/openapi.json before typecheck, test and build, and that belongs in
+  # the package's own scripts rather than in this file — otherwise CI runs
+  # against a freshly generated client and a contributor runs against whatever
+  # is in their working tree.
+  #
+  # `npm ci` and not `npm install`: the lockfile is the input, and a job that
+  # quietly resolved a newer dependency would be testing something nobody has.
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build -- --outDir dist --emptyOutDir
+
+  # `pea` is a client of the public API and references nothing in src/, so it is
+  # a plain Go module built by a plain Go job. The version comes from its own
+  # go.mod rather than from a number pinned here, which is the only way the two
+  # cannot disagree.
+  cli:
+    name: CLI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/cli
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: src/cli/go.mod
+          cache-dependency-path: src/cli/go.sum
+
+      # Go has no equivalent of npm's lifecycle scripts, so the generated client
+      # of the contract is produced by an explicit step here — and by
+      # `go generate ./...` locally, which is the same command. Nothing below
+      # would compile without it: the output is not committed, and no cache can
+      # stand in for it.
+      - run: go generate ./...
+
+      - run: go vet ./...
+      - run: go test ./...
+      # Compilation of every package, not the release binaries. Those are cut
+      # per platform from a tag, and a trunk build has no tag to be named after.
+      - run: go build ./...
+
+  # The contract is kept honest by a test rather than by a compiler, because the
+  # server shares no types with either of its two clients. This is that test
+  # against a real Postgres: the document the running installation serves has to
+  # be the one that is checked in, and a renamed field is a red trunk instead of
+  # a support question.
+  contract:
+    name: OpenAPI contract
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:18
+        env:
+          POSTGRES_DB: personalaffe
+          POSTGRES_USER: personalaffe
+          # A database that exists for ninety seconds on a runner nobody else can
+          # reach. It is not a secret and is not treated as one.
+          POSTGRES_PASSWORD: personalaffe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U personalaffe -d personalaffe"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # An empty database and no migration step: the installation applies its own
+      # migrations on start, so a schema this job had to prepare would be a
+      # second place that creates one.
+      - name: Start the installation
+        run: dotnet run --project src/Personalaffe.Api -c Release --no-launch-profile &
+        env:
+          ConnectionStrings__Postgres: Host=localhost;Port=5432;Database=personalaffe;Username=personalaffe;Password=personalaffe
+          ASPNETCORE_HTTP_PORTS: "5142"
+          PERSONALAFFE_STORAGE_ROOT: ${{ runner.temp }}/personalaffe-files
+
+      - name: Capture the contract
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 45); do
+            curl --fail --silent http://localhost:5142/api/openapi/v1.json -o /tmp/openapi.json && break
+            sleep 2
+          done
+          test -s /tmp/openapi.json || { echo "the installation never served a document"; exit 1; }
+          # Formatted by the json module rather than by json.tool, whose --indent
+          # flag is not in every Python the runner might carry. ensure_ascii off,
+          # so that a dash in a summary stays a dash, as ContractTests writes it.
+          python3 -c 'import json,pathlib; d=json.loads(pathlib.Path("/tmp/openapi.json").read_text(encoding="utf-8")); pathlib.Path("docs/api/openapi.json").write_text(json.dumps(d, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")'
+
+      - name: The checked-in contract is the one being served
+        run: git diff --exit-code -- docs/api/openapi.json
+
+  # One image, carrying the API and the built web application — the only place
+  # the two toolchains meet. It is built from the Dockerfile an operator builds
+  # from and started through the Compose file an operator starts, so what is
+  # smoke-tested is the artifact and not an approximation of it.
+  #
+  # Nothing is pushed anywhere. Publishing is the release epic's, and this
+  # workflow has no credential to do it with.
+  image:
+    name: Image and smoke test
+    needs: [unit, integration, web, cli, contract]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+
+      # No VERSION build argument, deliberately. Directory.Build.props keeps
+      # 0.0.0-dev for a build nobody released, and a trunk build is not a
+      # release. REVISION is passed for the same reason VERSION is not — every
+      # build between two releases calls itself 0.0.0-dev, so the commit is what
+      # tells them apart, and the container cannot work it out on its own:
+      # Dockerfile.dockerignore excludes .git/.
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          load: true
+          tags: personalaffe:ci
+          build-args: |
+            REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=image
+          cache-to: type=gha,mode=max,scope=image
+
+      # Generated rather than written down: a password in this file would be a
+      # string every secret scanner has to be told to ignore, for a database
+      # that exists for a minute on a runner nobody else can reach.
+      - name: A password for the minute this database lives
+        run: echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+
+      - name: Start it the way an operator would
+        env:
+          PERSONALAFFE_IMAGE: personalaffe:ci
+        run: docker compose -f deploy/docker-compose.yml up -d
+
+      - name: It becomes ready, and serves both halves from one container
+        env:
+          PERSONALAFFE_IMAGE: personalaffe:ci
+        run: |
+          set -euo pipefail
+
+          # Bounded: ninety seconds is generous for a migration against an empty
+          # database, and a job that waited forever would be a job nobody can
+          # read the failure of.
+          ready=""
+          for _ in $(seq 1 45); do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' personalaffe-personalaffe-1)" = "healthy" ]; then
+              ready=yes
+              break
+            fi
+            sleep 2
+          done
+          test -n "$ready" || { echo "the instance never reported ready"; exit 1; }
+
+          # The API. Its own answer, not a status code: a 200 of the web
+          # application's index.html would pass a status check.
+          version=$(curl --fail --silent http://127.0.0.1:8080/api/version)
+          echo "$version" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["version"], d'
+          echo "the instance says $version"
+
+          # The web application, from the same origin.
+          page=$(curl --fail --silent --show-error --write-out '%{content_type}' --output /tmp/index.html http://127.0.0.1:8080/)
+          case "$page" in text/html*) ;; *) echo "/ answered $page, not a page"; exit 1;; esac
+          grep -q '<div id="root">' /tmp/index.html || { echo "/ did not serve the application"; exit 1; }
+
+          # And the line between them holds: an address under the prefix that no
+          # endpoint took is an API error, not the page.
+          refused=$(curl --silent --output /dev/null --write-out '%{http_code} %{content_type}' http://127.0.0.1:8080/api/nothing-here)
+          case "$refused" in "404 application/problem+json"*) ;; *) echo "/api/nothing-here answered $refused"; exit 1;; esac
+
+      # The useful half of a failure. `up -d` says nothing about why a container
+      # is unhealthy; its log does.
+      - name: What the instance said, if any of that went wrong
+        if: failure()
+        env:
+          PERSONALAFFE_IMAGE: personalaffe:ci
+        run: docker compose -f deploy/docker-compose.yml logs --no-color
+
+      # Its own resources, taken away whatever happened — volumes included, so
+      # that a retried job starts from an empty database rather than from
+      # whatever the last attempt left.
+      - name: Take it down again
+        if: always()
+        env:
+          PERSONALAFFE_IMAGE: personalaffe:ci
+        run: docker compose -f deploy/docker-compose.yml down -v --remove-orphans

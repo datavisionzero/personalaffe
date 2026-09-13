@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Personalaffe.Api/Personalaffe.Api.csproj" />
+    <Project Path="src/Personalaffe.Application/Personalaffe.Application.csproj" />
+    <Project Path="src/Personalaffe.Domain/Personalaffe.Domain.csproj" />
+    <Project Path="src/Personalaffe.Infrastructure/Personalaffe.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Personalaffe.IntegrationTests/Personalaffe.IntegrationTests.csproj" />
+    <Project Path="tests/Personalaffe.UnitTests/Personalaffe.UnitTests.csproj" />
+  </Folder>
+</Solution>

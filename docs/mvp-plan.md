@@ -1,6 +1,11 @@
 # personalaffe — MVP Implementation Plan
 
-Status: agreed product and architecture direction; implementation not started.
+Status: agreed product and architecture direction. **PERSONAL-E1 is delivered**
+— the application, API, CLI and delivery foundation described below exist and
+are verified from a fresh checkout ([`docs/codebase.md`](codebase.md)). That is
+the foundation and nothing more: PERSONAL-E2 through PERSONAL-E10 are not
+started, so there is no authentication, no owner, and no content of any kind.
+Do not store anything personal in an instance of it yet.
 
 The plan implements the four core applications in VISION.md. IDEAS.md remains non-binding and outside the MVP. CONTEXT.md defines domain vocabulary. Epic descriptions are maintained in the PERSONAL project in planaffe; this document is the repository copy of their initial plan.
 

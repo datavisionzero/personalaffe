@@ -1,0 +1,84 @@
+# The way an instance is run: one application container and one PostgreSQL,
+# beside two volumes that are the whole of what has to be backed up.
+#
+#   cp deploy/.env.example deploy/.env   # and set POSTGRES_PASSWORD
+#   docker compose -f deploy/docker-compose.yml up -d
+#
+# Upgrading is `docker compose pull` followed by `docker compose up -d`:
+# migrations apply themselves on start, only ever forward, so take a `pg_dump`
+# before it — that is the way back.
+#
+# WARNING. This foundation has no authentication: PERSONAL-E2 has not landed,
+# and every address this serves is open to whoever can reach the port. Run it on
+# a machine you own, published on loopback, and put nothing personal in it.
+# Every variable is documented in docs/operations.md.
+
+name: personalaffe
+
+services:
+  personalaffe:
+    # An installation that does not build the image itself names a published one
+    # in deploy/.env. There is no release yet, so the default is what a local
+    # `docker build -f deploy/Dockerfile -t personalaffe:local .` produces.
+    image: ${PERSONALAFFE_IMAGE:-personalaffe:local}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Postgres: >-
+        Host=db;Port=5432;Database=personalaffe;Username=personalaffe;Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      # Where the owner's files go. The image's own default, said here as well
+      # because it is the path the volume below is mounted at and the two must
+      # not drift.
+      PERSONALAFFE_STORAGE_ROOT: /var/lib/personalaffe/files
+      # The reverse proxy in front of this, so that the caller's address and
+      # scheme are the caller's: an address, a CIDR network, or `all`. Unset,
+      # every request looks as if it came from whatever spoke to the socket.
+      PERSONALAFFE_TRUSTED_PROXY: "${PERSONALAFFE_TRUSTED_PROXY:-}"
+      PERSONALAFFE_LOG_LEVEL: "${PERSONALAFFE_LOG_LEVEL:-Information}"
+    ports:
+      # Loopback by default, and that is not a formality while there is no
+      # authentication: the whole value is the left half of the published port,
+      # so an address in front of it binds there and nowhere else. A reverse
+      # proxy on the same machine reaches it; the internet does not.
+      - "${PERSONALAFFE_PORT:-127.0.0.1:8080}:8080"
+    volumes:
+      # The owner's files. Everything the product stores is this and the database
+      # below, and a consistent backup of the two together is PERSONAL-E10's.
+      - personalaffe-files:/var/lib/personalaffe/files
+    healthcheck:
+      # Readiness, which answers once the migrations have run and while the
+      # database is still answering — not liveness, which would report healthy
+      # with no database at all. Under `/api` like everything else the instance
+      # answers as an API: outside it, this address is the web application's and
+      # the container would never report healthy.
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8080/api/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: personalaffe
+      POSTGRES_USER: personalaffe
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    # No `ports`. The application reaches it on the Compose network, and
+    # publishing it would put a database on the host for nothing.
+    volumes:
+      - personalaffe-db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U personalaffe -d personalaffe"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  # Two, and they are not the same thing. Recreating a container touches
+  # neither; `down -v` destroys both.
+  personalaffe-db:
+  personalaffe-files:
