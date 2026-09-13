@@ -7,13 +7,15 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 [`docs/mvp-plan.md`](docs/mvp-plan.md) says in what order it is built.
 
 > **It is not a workspace yet.** What exists today is the foundation of
-> PERSONAL-E1: a .NET host, a PostgreSQL schema that migrates itself, and two
-> health endpoints. There is no authentication, no owner, and no content —
+> PERSONAL-E1: a .NET host, a PostgreSQL schema that migrates itself, a checked-in
+> HTTP contract, and three operations — a version and two health checks. There
+> is no authentication, no owner, and no content —
 > **do not put anything personal in an instance of it.** Authentication is
 > PERSONAL-E2's, the content safeguards PERSONAL-E3's.
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
-its dependencies point. Read it before adding a file.
+its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
+conventions and its errors. Read them before adding a file or an endpoint.
 
 ## Running the backend
 
@@ -30,8 +32,10 @@ dotnet build Personalaffe.slnx -c Release
 # the instance, against the connection string in appsettings.Development.json
 dotnet run --project src/Personalaffe.Api
 
+curl http://localhost:5000/api/version         # what this build calls itself
 curl http://localhost:5000/api/health/live     # the process is up
 curl http://localhost:5000/api/health/ready    # …and the schema is current
+curl http://localhost:5000/api/openapi/v1.json # the contract it serves
 ```
 
 The migrations apply themselves on start, so a fresh database needs no step of
@@ -52,6 +56,21 @@ dotnet test tests/Personalaffe.IntegrationTests  # Testcontainers brings up Post
 
 The integration tests bring up their own PostgreSQL and do not use the
 development database, so the two never interfere.
+
+## The contract
+
+`docs/api/openapi.json` is checked in and captured from a running instance, and
+both API clients are generated from it. A change to an endpoint is a change to
+that document, in the same commit:
+
+```sh
+# rewrite it from a running instance, and pass
+PERSONALAFFE_CAPTURE_CONTRACT=1 dotnet test tests/Personalaffe.IntegrationTests --filter ContractTests
+```
+
+Without the variable the same test fails when the instance serves anything else.
+[`docs/api.md`](docs/api.md) has the conventions, the error document and the
+generation commands.
 
 ## Adding a migration
 

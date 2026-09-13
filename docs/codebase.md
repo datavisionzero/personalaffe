@@ -11,9 +11,10 @@ planned. A file that lands somewhere this does not describe means one of the two
 is wrong.
 
 Status: the four .NET projects, the two test projects, the self-applying
-migrator and the health endpoints exist (PERSONAL-2). The contract, the web
-application, the CLI, the image and CI do not yet; PERSONAL-3 through
-PERSONAL-8 fill them in the order their blockers allow.
+migrator, the health endpoints (PERSONAL-2), the checked-in contract and the
+problem document (PERSONAL-3) exist. The web application, the CLI, the image
+and CI do not yet; PERSONAL-4 through PERSONAL-8 fill them in the order their
+blockers allow.
 
 ## Where this comes from
 
@@ -164,13 +165,14 @@ PERSONAL-3: `Problems` writing every refusal as one document, `VersionHeader`,
 migration, and later the owner bootstrap, in that order. `Program.cs` is the only
 file that knows all four layers.
 
-Implemented: `Hosting/`, `Http/Routes.cs`, `Http/HealthEndpoints.cs`,
-`Persistence/` with the context, the migrator and the first migration, and
-`Application/Ports/` with the two settings records the host validates at
-startup.
+Implemented: `Domain/` with `Refusal` and `RefusalCode`; `Application/Ports/`
+with the two settings records the host validates at startup; `Persistence/` with
+the context, the migrator and the first migration; `Hosting/`; and `Http/` with
+`Routes`, `Problems`, `Rfc3339`, `VersionHeader`, `OpenApiDocument`,
+`InstanceEndpoints` and `HealthEndpoints`.
 
 Planned, not implemented: `Acts/`, `Configurations/`, `Files/`, `Security/`, and
-every endpoint but the two health checks and the two of PERSONAL-3.
+every endpoint but the three the foundation answers.
 
 ## Where an application lives
 
@@ -282,8 +284,7 @@ cd src/cli && go generate ./...     # internal/api/client.gen.go
 
 A change to an endpoint is a change to the document, in the same commit.
 
-Conventions the contract carries, settled here and written up in `docs/api.md`
-when PERSONAL-3 implements them: JSON in and JSON out, `snake_case` fields,
+Conventions the contract carries, written up in [`docs/api.md`](./api.md): JSON in and JSON out, `snake_case` fields,
 enums as the names the document spells, timestamps as RFC 3339 in UTC with
 microseconds, and every refusal as one `application/problem+json` document whose
 relative `type` ends in the code a client switches on. The instance's version is

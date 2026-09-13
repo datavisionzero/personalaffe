@@ -32,7 +32,8 @@ public static class HealthEndpoints
         endpoints.MapGet("/health/live", () => Results.Ok(new HealthResponse("live")))
             .AllowAnonymous()
             .WithName("ReadLiveness")
-            .WithSummary("Whether this process is running. It touches nothing else.");
+            .WithSummary("Whether this process is running. It touches nothing else.")
+            .Produces<HealthResponse>();
 
         endpoints.MapGet("/health/ready", async (
                 SchemaMigrator migrator,
@@ -59,7 +60,12 @@ public static class HealthEndpoints
             })
             .AllowAnonymous()
             .WithName("ReadReadiness")
-            .WithSummary("Whether the database answers and carries the schema this build knows.");
+            .WithSummary("Whether the database answers and carries the schema this build knows.")
+            // Both answers are the same shape and differ only in the word and
+            // the status, and the document has to say so or a generated client
+            // has nothing to read a failure with.
+            .Produces<HealthResponse>()
+            .Produces<HealthResponse>(StatusCodes.Status503ServiceUnavailable);
 
         return endpoints;
     }
