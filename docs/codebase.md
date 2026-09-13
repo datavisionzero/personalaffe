@@ -21,9 +21,9 @@ PERSONAL-E2 is under way: the owner, the one-time setup and the password
 material (PERSONAL-9), the door in front of the `/api` group with the browser's
 sign-in behind it (PERSONAL-10), and the second factor, the recovery codes and
 the owner's sessions (PERSONAL-11), agent access with a permission per
-application (PERSONAL-12), and the credential half of `pea` (PERSONAL-13). What
-is not there yet is the web application's screens and the owner's recovery on
-the server.
+application (PERSONAL-12), the credential half of `pea` (PERSONAL-13) and the
+web application's door (PERSONAL-14). What is not there yet is the owner's
+recovery on the server.
 
 ## Where this comes from
 
@@ -291,9 +291,21 @@ and the routes, `shared` the Markdown field and the editor behind it, `api` the
 generated client and its wrapper, `components/ui` the owned primitives. The four
 applications get a folder each when they arrive.
 
-*PERSONAL-4 created `api/`, `shell/`, `shared/` and one screen. The four
-application folders, the navigation, the settings and the editor are
-PERSONAL-E4's and later.*
+*PERSONAL-4 created `api/`, `shell/`, `shared/` and one screen. PERSONAL-14
+added `session/`, `security/` and `agents/` — the door and the owner's own
+settings — and turned `shell/App.tsx` into what decides between them. The four
+application folders, the navigation and the editor are PERSONAL-E4's and
+later.*
+
+**Nothing is drawn until the instance has said whether it has an owner and
+whether this browser is signed in.** `session/useSession.ts` asks the two
+questions in that order, and the three answers a screen has to be able to draw —
+no owner yet, nobody signed in, signed in — are separate states: a sign-in form
+at a fresh installation is a door with no lock and no key.
+
+Every write carries `X-Personalaffe-CSRF` (`api/client.ts`), which is half of
+what a browser write proves; the other half is `Origin`, which the browser sets
+itself on anything that is not a GET.
 
 Two libraries the blueprint names are **not installed yet**: Base UI and
 CodeMirror, with `react-markdown` and its two remark plugins. Nothing on the

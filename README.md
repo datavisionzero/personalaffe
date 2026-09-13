@@ -12,8 +12,8 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > first half of PERSONAL-E2: an instance is claimed once by its one owner, who
 > signs in with an email address and a password and, if they want one, a code
 > from an authenticator, and everything but five operations is behind that door.
-> An agent can be let in with a named token and a permission per application,
-> and there is still no content of any kind for it to reach —
+> An agent can be let in from the browser with a named token and a permission
+> per application, and there is still no content of any kind for it to reach —
 > **do not put anything personal in an instance of it.** The rest of the door is
 > PERSONAL-E2's, the content safeguards PERSONAL-E3's.
 
