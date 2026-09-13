@@ -158,6 +158,15 @@ docker compose -f deploy/docker-compose.yml up -d
 [`docs/operations.md`](docs/operations.md) has the variables, the reverse-proxy
 boundary, the two volumes and which commands destroy them.
 
+## CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the commands above
+on every push and every pull request: the two .NET test projects, the web
+workspace, the CLI, the contract against a real PostgreSQL, and the image with a
+smoke test that starts it through the Compose file and checks that one container
+serves both halves. It publishes nothing and holds no credential.
+[`docs/codebase.md`](docs/codebase.md) has the job-by-job table.
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).

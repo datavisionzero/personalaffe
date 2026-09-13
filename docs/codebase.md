@@ -13,8 +13,9 @@ is wrong.
 Status: the four .NET projects, the two test projects, the self-applying
 migrator, the health endpoints (PERSONAL-2), the checked-in contract and the
 problem document (PERSONAL-3), the web workspace with one screen (PERSONAL-4)
-the Go CLI with two verbs (PERSONAL-5) and the image with its Compose topology
-(PERSONAL-6) exist. CI does not yet; PERSONAL-7 and PERSONAL-8 fill it in.
+the Go CLI with two verbs (PERSONAL-5), the image with its Compose topology
+(PERSONAL-6) and the CI gate (PERSONAL-7) exist. PERSONAL-8 is the fresh-checkout
+verification and the handoff.
 
 ## Where this comes from
 
@@ -394,19 +395,41 @@ made once, and otherwise invisible until the day the owner's file goes missing.
 ## The gate
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request and
-on demand. It is the only thing standing between a mistake and the trunk: unit
-tests, integration tests on Testcontainers, the web install/typecheck/lint/test/build,
-the CLI generate/vet/test/build, the contract check, and the image build with a
-smoke test that the started container serves both the API and the web
-application.
+on demand. It is the only thing standing between a mistake and the trunk, and it
+runs the same commands a contributor runs — six jobs, five of them beside each
+other and the sixth after all of them:
 
-The workflow is written whole before its subjects exist, as in both sources: a
-first job asks for the one file each subject cannot exist without —
-`src/web/package.json`, `src/cli/go.mod`, `docs/api/openapi.json`,
-`deploy/Dockerfile` — and a job whose subject is not there yet skips rather than
-fails. Nothing has to come back and enable them.
+| Job | What it runs | The same thing locally |
+| --- | --- | --- |
+| Unit tests | restore, build, `tests/Personalaffe.UnitTests` | `dotnet test tests/Personalaffe.UnitTests -c Release` |
+| Integration tests | the same, plus Testcontainers' Postgres | `dotnet test tests/Personalaffe.IntegrationTests -c Release` |
+| Web | `npm ci`, typecheck, lint, test, build | the same, in `src/web` |
+| CLI | `go generate`, `go vet`, `go test`, `go build` | the same, in `src/cli` |
+| OpenAPI contract | starts the instance against a real Postgres, captures the served document, `git diff --exit-code` | `dotnet test tests/Personalaffe.IntegrationTests --filter ContractTests` |
+| Image and smoke test | builds `deploy/Dockerfile`, starts `deploy/docker-compose.yml`, waits for readiness, checks both halves | `docker build -f deploy/Dockerfile …` then `docker compose … up -d` |
 
-*PERSONAL-7 implements it.*
+**No job stands in for a toolchain.** There is no skip condition and no
+always-succeeding placeholder: every one of them builds or runs the thing it is
+named after, and a subject that stopped existing turns its job red rather than
+quiet.
+
+Three things it deliberately does not do: it publishes no image, it deploys
+nothing, and it holds no credential — `permissions: contents: read` is the whole
+of what it is given. Publishing is the release epic's.
+
+Two details worth keeping when it grows. The generation steps are never cached
+away: `npm ci` runs the package's own `pre*` scripts and the Go job runs
+`go generate` explicitly, so neither toolchain can be tested against a client
+that agrees with a stale contract. And the image job cleans up after itself with
+`down -v` under `if: always()`, after dumping the instance's log under
+`if: failure()` — `up -d` says nothing about why a container is unhealthy.
+
+**A feature epic extends these jobs rather than adding its own.** A new
+application's tests are more tests in the two .NET test projects, in `src/web`
+and in `src/cli`, and they are run by the job that already builds that
+toolchain. What would justify a seventh job is a subject none of the six covers
+— a browser check with its own runtime, say, which is what PERSONAL-E4's
+acceptance criteria will need.
 
 ## What is deliberately not here
 
