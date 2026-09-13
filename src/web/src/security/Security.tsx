@@ -114,6 +114,14 @@ export function Security() {
 
       <Refused>{refused}</Refused>
 
+      {state?.recovered_at && (
+        <p className="border-line rounded-md border px-3 py-2 text-sm text-balance">
+          This instance was recovered from its server on{" "}
+          {new Date(state.recovered_at).toLocaleString()}. If that was not you, whoever has the
+          machine has this workspace.
+        </p>
+      )}
+
       {codes && <RecoveryCodes codes={codes} onDone={() => setCodes(undefined)} />}
 
       {state && !state.second_factor_enabled && !offer && (

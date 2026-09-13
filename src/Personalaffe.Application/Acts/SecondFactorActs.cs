@@ -5,7 +5,10 @@ namespace Personalaffe.Application.Acts;
 
 /// <summary>How this instance is signed in to, as much of it as is worth saying.</summary>
 public sealed record SecurityState(
-    bool SecondFactorEnabled, DateTimeOffset? EnrolledAt, int RecoveryCodesRemaining);
+    bool SecondFactorEnabled,
+    DateTimeOffset? EnrolledAt,
+    int RecoveryCodesRemaining,
+    DateTimeOffset? RecoveredAt);
 
 /// <summary>What an enrolment offers: the secret, and the URI a phone reads it from.</summary>
 public sealed record SecondFactorOffer(string Secret, string Uri);
@@ -23,7 +26,10 @@ public sealed class ReadSecurity(ICallerIdentity caller, IOwners owners, IRecove
         return new SecurityState(
             owner.SecondFactorEnabled,
             owner.TotpEnrolledAt,
-            await codes.RemainingAsync(owner.Id, cancellationToken));
+            await codes.RemainingAsync(owner.Id, cancellationToken),
+            // A recovery nobody performed is a recovery somebody else
+            // performed, so the owner is shown when the last one was.
+            owner.RecoveredAt);
     }
 }
 

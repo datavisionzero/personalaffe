@@ -1460,7 +1460,8 @@
         "required": [
           "second_factor_enabled",
           "enrolled_at",
-          "recovery_codes_remaining"
+          "recovery_codes_remaining",
+          "recovered_at"
         ],
         "type": "object",
         "properties": {
@@ -1477,6 +1478,13 @@
           "recovery_codes_remaining": {
             "type": "integer",
             "format": "int32"
+          },
+          "recovered_at": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         },
         "additionalProperties": false

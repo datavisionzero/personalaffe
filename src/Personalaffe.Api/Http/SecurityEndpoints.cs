@@ -4,7 +4,10 @@ namespace Personalaffe.Api.Http;
 
 /// <summary>What <c>GET /api/security</c> answers.</summary>
 public sealed record SecurityResponse(
-    bool SecondFactorEnabled, DateTimeOffset? EnrolledAt, int RecoveryCodesRemaining);
+    bool SecondFactorEnabled,
+    DateTimeOffset? EnrolledAt,
+    int RecoveryCodesRemaining,
+    DateTimeOffset? RecoveredAt);
 
 /// <summary>A change to how this instance is signed in to, with the password that authorizes it.</summary>
 public sealed record PasswordRequest(string? Password);
@@ -40,7 +43,10 @@ public static class SecurityEndpoints
                 var state = await act.ExecuteAsync(cancellationToken);
 
                 return Results.Ok(new SecurityResponse(
-                    state.SecondFactorEnabled, state.EnrolledAt, state.RecoveryCodesRemaining));
+                    state.SecondFactorEnabled,
+                    state.EnrolledAt,
+                    state.RecoveryCodesRemaining,
+                    state.RecoveredAt));
             })
             .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("ReadSecurity")

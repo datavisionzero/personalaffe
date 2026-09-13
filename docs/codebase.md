@@ -22,8 +22,8 @@ material (PERSONAL-9), the door in front of the `/api` group with the browser's
 sign-in behind it (PERSONAL-10), and the second factor, the recovery codes and
 the owner's sessions (PERSONAL-11), agent access with a permission per
 application (PERSONAL-12), the credential half of `pea` (PERSONAL-13) and the
-web application's door (PERSONAL-14). What is not there yet is the owner's
-recovery on the server.
+web application's door (PERSONAL-14) and the owner's recovery on the server
+(PERSONAL-15).
 
 ## Where this comes from
 
@@ -169,6 +169,14 @@ change arrives as another one on top, only ever forward. `Security/` is the
 password hasher: Argon2id in a value that carries the parameters it was made
 with, so that raising the cost later does not lock out the owner who exists. A
 later epic adds `Files/`, the local file store.
+
+**The one thing that is not HTTP** is `Hosting/OwnerRecovery.cs`: the verb an
+operator runs on the machine when the password, the authenticator and the
+recovery codes are all gone. It is not an endpoint and cannot become one — its
+authorization is that somebody is standing at the host, which is the same
+authorization `pg_dump` has. It goes through the same act the browser's password
+change goes through, so the two cannot drift
+([`docs/operations.md`](./operations.md)).
 
 **`Personalaffe.Api` is HTTP and the composition root.** `Http/` maps the
 endpoints, one file per object, plus the cross-cutting pieces that arrive in

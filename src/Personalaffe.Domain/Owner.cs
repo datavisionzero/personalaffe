@@ -103,6 +103,13 @@ public sealed class Owner
     public bool SecondFactorEnabled => TotpSecret is not null;
 
     /// <summary>
+    /// When somebody last recovered this instance from the machine it runs on.
+    /// Kept so that the owner sees it afterwards: a recovery nobody performed
+    /// is a recovery somebody else performed.
+    /// </summary>
+    public DateTimeOffset? RecoveredAt { get; private set; }
+
+    /// <summary>
     /// The owner of an instance that had none, from an address and a hash that
     /// has already been made.
     /// </summary>
@@ -165,6 +172,13 @@ public sealed class Owner
         LastTotpStep = null;
         PendingTotpSecret = null;
         PendingTotpSecretAt = null;
+        UpdatedAt = at;
+    }
+
+    /// <summary>Records a recovery through the server, for the owner to see afterwards.</summary>
+    public void RecordRecovery(DateTimeOffset at)
+    {
+        RecoveredAt = at;
         UpdatedAt = at;
     }
 

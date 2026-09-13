@@ -13,12 +13,7 @@ namespace Personalaffe.Application.Acts;
 /// point of it is that whoever else was in is now out.
 /// </remarks>
 public sealed class ChangePassword(
-    OwnerConfirmation confirmation,
-    IOwners owners,
-    IPasswordHasher passwords,
-    IBrowserSessions sessions,
-    ICallerIdentity caller,
-    TimeProvider clock)
+    OwnerConfirmation confirmation, SetTheOwnersPassword setPassword, ICallerIdentity caller)
 {
     /// <exception cref="Refusal">
     /// The current password is not the owner's (<c>forbidden</c>), or the new
@@ -29,12 +24,8 @@ public sealed class ChangePassword(
     {
         var owner = await confirmation.ConfirmedAsync(currentPassword, cancellationToken);
 
-        var now = clock.GetUtcNow();
-
-        owner.ChangePassword(
-            await passwords.HashAsync(Password.Checked(password), cancellationToken), now);
-        await owners.SaveAsync(cancellationToken);
-
-        await sessions.RevokeAllAsync(owner.Id, caller.Caller.SessionId, now, cancellationToken);
+        // The same act the recovery on the server goes through, so that the two
+        // cannot drift into disagreeing about what a password change does.
+        await setPassword.ExecuteAsync(owner, password, caller.Caller.SessionId, cancellationToken);
     }
 }

@@ -5,11 +5,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Security } from "@/security/Security";
 import { anInstance, refused } from "@/shared/anInstance";
 
-const off = { second_factor_enabled: false, enrolled_at: null, recovery_codes_remaining: 0 };
+const off = {
+  second_factor_enabled: false,
+  enrolled_at: null,
+  recovery_codes_remaining: 0,
+  recovered_at: null,
+};
 const on = {
   second_factor_enabled: true,
   enrolled_at: "2026-09-13T12:00:00.000000Z",
   recovery_codes_remaining: 10,
+  recovered_at: null,
 };
 
 describe("how the owner signs in", () => {
@@ -113,6 +119,18 @@ describe("how the owner signs in", () => {
     expect(await screen.findByText(/a laptop/)).toBeInTheDocument();
     expect(screen.getByText("— this one")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign it out" })).toBeInTheDocument();
+  });
+
+  it("says when the instance was last recovered from its server", async () => {
+    anInstance({
+      "GET /api/security": [{ body: { ...off, recovered_at: "2026-09-14T09:00:00.000000Z" } }],
+      "GET /api/sessions": [{ body: [] }],
+    });
+
+    render(<Security />);
+
+    // A recovery nobody performed is a recovery somebody else performed.
+    expect(await screen.findByText(/recovered from its server/)).toBeInTheDocument();
   });
 
   it("changes the password and says every other browser is signed out", async () => {

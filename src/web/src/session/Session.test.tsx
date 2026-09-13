@@ -20,7 +20,12 @@ const owner = {
 
 const nothingBehindTheDoor = {
   "GET /api/security": {
-    body: { second_factor_enabled: false, enrolled_at: null, recovery_codes_remaining: 0 },
+    body: {
+      second_factor_enabled: false,
+      enrolled_at: null,
+      recovery_codes_remaining: 0,
+      recovered_at: null,
+    },
   },
   "GET /api/sessions": { body: [] },
   "GET /api/agents": { body: [] },

@@ -50,6 +50,9 @@ public sealed class OwnerConfiguration : IEntityTypeConfiguration<Owner>
         builder.Property(owner => owner.PendingTotpSecretAt).HasColumnName("pending_totp_secret_at");
         builder.Property(owner => owner.LastTotpStep).HasColumnName("last_totp_step");
 
+        // What the operator did on the machine, where the owner can see it.
+        builder.Property(owner => owner.RecoveredAt).HasColumnName("recovered_at");
+
         builder.Ignore(owner => owner.SecondFactorEnabled);
 
         builder.Property(owner => owner.CreatedAt).HasColumnName("created_at").IsRequired();

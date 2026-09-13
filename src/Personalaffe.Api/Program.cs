@@ -17,20 +17,38 @@ using Serilog;
 // away costs a line on standard error, never a request.
 Serilog.Debugging.SelfLog.Enable(Console.Error);
 
-// This binary serves the instance and has no verbs. A word handed to it is
-// somebody looking for one — `personalaffe backup`, `personalaffe reset` — and
-// the host would otherwise ignore it, start a second server beside the one
+// This binary serves the instance and has exactly one verb. A word handed to it
+// is somebody looking for one — `personalaffe backup`, `personalaffe reset` —
+// and the host would otherwise ignore it, start a second server beside the one
 // already running and die on a port that is taken. What that person is looking
-// for is `pea` or the database, so the answer says which, here, rather than
-// twenty lines of stack trace later.
+// for is `pea`, the database, or the one verb below, so the answer says which,
+// here, rather than twenty lines of stack trace later.
 //
 // A `--switch` is not a verb: that is the configuration the host itself reads,
 // and it is left alone.
 if (Array.Find(args, argument => !argument.StartsWith('-')) is { } verb)
 {
-    Console.Error.WriteLine($"""
-        personalaffe: `{verb}` is not a command. This image serves the instance and takes no verbs.
+    // The way back in when the password, the authenticator and the recovery
+    // codes are all gone (docs/operations.md). It is here and not behind HTTP
+    // because its authorization is that somebody is standing at the machine.
+    if (verb == OwnerRecovery.Verb)
+    {
+        return await OwnerRecovery.RunAsync(
+            args,
+            // The environment, and nothing else: the connection string is
+            // `ConnectionStrings__Postgres`, the same variable the instance
+            // itself reads, so the verb needs no configuration of its own.
+            new ConfigurationBuilder().AddEnvironmentVariables().Build(),
+            Console.In,
+            Console.Out,
+            Console.Error);
+    }
 
+    Console.Error.WriteLine($"""
+        personalaffe: `{verb}` is not a command. This image serves the instance and takes one verb.
+
+        The way back in when the owner is locked out, on this machine (docs/operations.md):
+            personalaffe {OwnerRecovery.Verb} --password-file -
         The workspace is reached with the CLI, over the API, from anywhere:
             pea version                     (docs/cli.md)
         The database is reached beside this container, not through it:
@@ -109,6 +127,7 @@ builder.Services.AddScoped<BeginSecondFactorEnrolment>();
 builder.Services.AddScoped<ConfirmSecondFactorEnrolment>();
 builder.Services.AddScoped<DisableSecondFactor>();
 builder.Services.AddScoped<ReissueRecoveryCodes>();
+builder.Services.AddScoped<SetTheOwnersPassword>();
 builder.Services.AddScoped<ChangePassword>();
 builder.Services.AddScoped<ListAgentAccess>();
 builder.Services.AddScoped<GrantAgentAccess>();
