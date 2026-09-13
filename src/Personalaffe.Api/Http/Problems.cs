@@ -81,17 +81,28 @@ public static class Problems
     /// The document as an endpoint's result, for the refusals an endpoint makes
     /// itself rather than lets out of an act.
     /// </summary>
+    /// <remarks>
+    /// Written as JSON rather than through <c>Results.Problem</c>, which would
+    /// hand it to the problem-details service and have a <c>trace_id</c> added
+    /// on the way out. Every refusal is one document with the members its code
+    /// calls for and no others — and two refusals that are meant to be
+    /// indistinguishable, as sign-in's are, have to be indistinguishable to the
+    /// byte.
+    /// </remarks>
     public static IResult Result(
         RefusalCode code, string? detail, IReadOnlyDictionary<string, object?>? extensions = null) =>
-        Results.Problem(Document(code, detail, instance: null, extensions));
+        Written(Document(code, detail, instance: null, extensions));
 
     /// <summary>The <c>validation</c> document: <c>errors</c> maps field to messages.</summary>
     public static IResult Validation(IReadOnlyDictionary<string, string[]> errors) =>
-        Results.Problem(Document(Refusal.Validation(errors)));
+        Written(Document(Refusal.Validation(errors)));
 
     /// <inheritdoc cref="Validation(IReadOnlyDictionary{string, string[]})"/>
     public static IResult Validation(string field, string message) =>
-        Results.Problem(Document(Refusal.Validation(field, message)));
+        Written(Document(Refusal.Validation(field, message)));
+
+    private static IResult Written(ProblemDetails document) =>
+        Results.Json(document, options: null, ContentType, document.Status);
 
     /// <summary>
     /// Writes a refusal's document straight to the response, for the refusals

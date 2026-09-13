@@ -78,6 +78,11 @@ try
     // the socket.
     trustedProxies = TrustedProxies.FromVariable(builder.Configuration[TrustedProxies.Variable]);
     builder.Services.AddSingleton(trustedProxies);
+
+    // Where this instance is reached, when the operator has said. Optional, and
+    // what it buys is a stricter check on browser writes (CsrfProtection).
+    builder.Services.AddSingleton(PublicUrlSettings.FromVariables(
+        builder.Configuration[PublicUrlSettings.Variable]));
 }
 catch (ArgumentException refusal)
 {
@@ -94,6 +99,13 @@ builder.Services.AddSingleton(TimeProvider.System);
 // accident.
 builder.Services.AddScoped<ReadSetupState>();
 builder.Services.AddScoped<SetUpTheInstance>();
+builder.Services.AddScoped<AuthenticateCaller>();
+builder.Services.AddScoped<SignIn>();
+builder.Services.AddScoped<SignOut>();
+builder.Services.AddScoped<ReadMe>();
+
+// The door, in front of the `/api` group and nowhere else (docs/api.md).
+builder.Services.AddPersonalaffeAuthentication();
 
 // Order is start order, and both run before anything is served, so that an
 // installation is `docker compose up` and nothing else. Storage first because it
@@ -146,10 +158,24 @@ app.UsePersonalaffeVersion();
 
 app.UseRouting();
 
+// After routing, because it asks the endpoint whether it is behind the door;
+// before authorization, because what it establishes is who the caller is.
+app.UseAuthentication();
+
+// A write a browser makes proves it came from this application, and nothing a
+// token holder does is affected (BrowserWriteGuard).
+app.UseMiddleware<BrowserWriteGuard>();
+
+app.UseAuthorization();
+
 // Everything the instance serves as an API is under one prefix, and everything
 // else is the web application's (docs/codebase.md). An endpoint outside this
 // group is a decision, not an oversight.
 var api = app.MapGroup(Routes.Api)
+    // Behind the door by default, and outside it only where an endpoint says
+    // AllowAnonymous. That is the way round that fails safe: an endpoint added
+    // later without a thought about authentication is closed, not open.
+    .RequireAuthorization()
     // The one answer every operation can give whatever else it does, said once
     // for the group rather than at each endpoint: a bug is a problem document
     // like any refusal (docs/api.md, Errors). It is also what puts the shape in
@@ -166,15 +192,23 @@ app.MapOpenApi($"{Routes.Api}/openapi/{{documentName}}.json");
 api.MapInstance();
 api.MapHealth();
 api.MapSetup();
+api.MapSession();
+api.MapMe();
 
 // An address under the prefix that no endpoint took is an API mistake and
 // answers as one. Without this it would fall through to the web application's
 // `index.html` once PERSONAL-4 puts that in front of it, and a client would
 // have to tell a 200 of HTML from the JSON it asked for.
+//
+// Outside the door on purpose: what it says is which endpoints this build has,
+// and the contract at /api/openapi/v1.json says that already, to anybody.
+// Answering 401 here instead would mean a client could not tell "your token is
+// wrong" from "this instance is older than you think".
 api.MapFallback(context => Problems.WriteAsync(
     context,
     RefusalCode.NotFound,
-    "This instance has no such endpoint. GET /api/openapi/v1.json is the contract it does have."));
+    "This instance has no such endpoint. GET /api/openapi/v1.json is the contract it does have."))
+    .AllowAnonymous();
 
 // The web application: built by its own toolchain into wwwroot at image build
 // time (deploy/Dockerfile) or by a local `npm run build`; in development the

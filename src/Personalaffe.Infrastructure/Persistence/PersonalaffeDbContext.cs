@@ -23,6 +23,12 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// </summary>
     public DbSet<Owner> Owners => Set<Owner>();
 
+    /// <summary>
+    /// The signed-in browsers: server-side, so that revoked means revoked
+    /// (<see cref="BrowserSession"/>).
+    /// </summary>
+    public DbSet<BrowserSession> BrowserSessions => Set<BrowserSession>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // One IEntityTypeConfiguration per table, found rather than listed, so

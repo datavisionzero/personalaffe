@@ -7,11 +7,13 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 [`docs/mvp-plan.md`](docs/mvp-plan.md) says in what order it is built.
 
 > **It is not a workspace yet.** What exists today is the foundation of
-> PERSONAL-E1: a .NET host, a PostgreSQL schema that migrates itself, a checked-in
-> HTTP contract, three operations — a version and two health checks — and a web
-> page and a CLI that read them. There is no authentication, no owner, and no
-> content —
-> **do not put anything personal in an instance of it.** Authentication is
+> PERSONAL-E1 — a .NET host, a PostgreSQL schema that migrates itself, a
+> checked-in HTTP contract, and a web page and a CLI that read it — and the
+> first half of PERSONAL-E2: an instance is claimed once by its one owner, who
+> signs in with an email address and a password, and everything but five
+> operations is behind that door. There is still no second factor, no agent
+> access and no content of any kind —
+> **do not put anything personal in an instance of it.** The rest of the door is
 > PERSONAL-E2's, the content safeguards PERSONAL-E3's.
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way

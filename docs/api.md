@@ -4,13 +4,12 @@ One instance, one address, one API. The web application and `pea` are both
 clients of it and there is no second way in
 ([`docs/codebase.md`](./codebase.md)).
 
-**Five operations exist today.** Three are the foundation's and two are the
-one-time setup; none of them carries personal content, and all five are listed
-under *Operations* below. Everything else on this page is the shape every later
-operation is written to — the conventions, the error document, the codes — and
-it is here because it was settled in PERSONAL-3, before there was a second
-endpoint to settle it differently. Sections that describe something not yet
-implemented say so in their first line.
+**There is a door now.** Five operations are outside it — the version, the two
+health checks and the two setup operations — and everything else needs a
+credential. What the door takes and what it answers is *The door* below; the
+conventions, the error document and the codes were settled in PERSONAL-3, before
+there was a second endpoint to settle them differently. Sections that describe
+something not yet implemented say so in their first line.
 
 ## The contract is the artifact
 
@@ -120,11 +119,10 @@ grows with the epics that need it — `deleted` with recoverable deletion
 (PERSONAL-E3), `disabled` with the application switch (PERSONAL-E4). **Each
 addition is a row in this table in the same commit.**
 
-Of the eight, five can be raised today: `validation` and `unknown-field` by
-anything that takes a body, `conflict` by the one-time setup, and `not-found`
-and `internal` by the host. `unauthenticated` and `forbidden` arrive with the
-door in the ticket after setup; `stale` is the shape PERSONAL-E3's writes are
-written to.
+Of the eight, seven can be raised today: `validation` and `unknown-field` by
+anything that takes a body, `unauthenticated` and `forbidden` by the door,
+`conflict` by the one-time setup, and `not-found` and `internal` by the host.
+`stale` is the shape PERSONAL-E3's writes are written to.
 
 ### Exit codes
 
@@ -132,15 +130,63 @@ written to.
 branches without parsing anything. The table lives in
 [`docs/cli.md`](./cli.md) with the CLI that implements it (PERSONAL-5).
 
+## The door
+
+**Everything but the five operations under *Operations* needs a credential**,
+and absence is `unauthenticated`, never `not-found`. Which endpoints an instance
+has is not a secret — the contract says so to anybody — so an address no
+endpoint took is still `not-found` rather than a challenge, and a client can
+tell "your credential is wrong" from "this instance is older than you think".
+
+There are two credentials and the instance tells them apart itself:
+
+- **A browser session**, in an `HttpOnly` cookie the instance sets at sign-in.
+  It is a row on the server, so revoking one means something; the cookie holds a
+  secret and nothing else, and no script on the page can read it.
+- **`Authorization: Bearer <token>`**, for `pea` and for agents. *Agent access
+  and its tokens are the ticket after this one; until then a bearer token admits
+  nobody, which is the honest answer — none has ever been issued.*
+
+The cookie's strictness follows the request's own scheme. Over HTTPS it is
+`__Host-personalaffe_session`, bound to this host and to `/`; over plain HTTP it
+is `personalaffe_session` without the prefix and without `secure`, because a
+prefixed or `secure` cookie is not stored at all there and the first sign-in of
+a new installation often happens over `http://127.0.0.1:8080/`. A session over
+plain HTTP travels in the clear: put TLS in front of anything that is not a
+trial ([`docs/operations.md`](./operations.md)).
+
+### A browser write proves where it came from
+
+A request that is authenticated **by the cookie** and is not `GET`, `HEAD` or
+`OPTIONS` carries two things, or it is `forbidden`:
+
+```
+X-Personalaffe-CSRF: 1
+Origin: https://workspace.example.com
+```
+
+The header is what no cross-site form can set; the origin is compared against
+`PERSONALAFFE_PUBLIC_URL` when the operator has set one, and against the host
+otherwise — the scheme is left out there, because behind a proxy that terminates
+TLS the request arrives as `http` unless the proxy is trusted to say otherwise.
+
+**A request carrying a bearer token never sees this check.** Nothing attaches
+that header but the client that holds the token, so `pea` and an agent are
+unaffected.
+
+### Sign-in says nothing about why it failed
+
+An instance with no owner, an address that is not the owner's and a password
+that is not theirs are one answer, to the byte. Failed attempts are throttled
+per address and per caller, in a fifteen-minute window, and a throttled attempt
+answers exactly what a wrong one answers: telling a guesser they are being
+throttled tells them they have found something worth guessing at.
+
 ## Extension points, not yet implemented
 
 These are named so that the operations of later epics do not each invent their
 own spelling. **None of them is implemented.**
 
-- **Authentication** (PERSONAL-E2) is `Authorization: Bearer <token>` for the
-  CLI and for agents, and an opaque session cookie for the browser. Everything
-  but the five operations below requires one, and absence is
-  `unauthenticated`, never `not-found`.
 - **Stale-update handling** (PERSONAL-E3): a write that replaces something says
   which version it read, and a write based on an older one is refused as
   `stale` rather than silently winning. The value is the object's `updated_at`
@@ -152,14 +198,13 @@ own spelling. **None of them is implemented.**
 
 ## Operations
 
-Five, and they are the whole of what an instance answers today. All five are
-outside the door — there is no door yet — and all five are held to carrying
-**no owner data, no credential, and nothing about the host**: an instance on the
-public internet with nobody signed in answers exactly these, and a test asserts
-their answers stay short and say nothing else.
+Five outside the door, and three behind it.
 
-The two setup operations are the last ones that will ever be outside the door
-besides the three above. Everything the epics after this add is behind it.
+The five are held to carrying **no owner data, no credential, and nothing about
+the host**: an instance on the public internet with nobody signed in answers
+exactly these, and a test asserts their answers stay short and say nothing else.
+They are also the last five: everything the epics after this add is behind the
+door.
 
 ### `GET /api/version`
 
@@ -239,6 +284,36 @@ mostly buys a short password with a digit stuck on the end.
 Nothing comes back, and nothing about the password is ever readable again: what
 is stored is an Argon2id value that carries the parameters it was made with, so
 raising the cost later does not lock the owner out.
+
+### `POST /api/session`
+
+```json
+{ "email": "owner@example.com", "password": "correct horse battery staple" }
+```
+
+Signs the owner in and answers `204` with the session cookie set. Wrong in any
+way, it is `unauthenticated` and says no more than that.
+
+### `DELETE /api/session`
+
+Ends the session this request came in on and takes the cookie out of the
+browser — both names of it, because an instance that gained a TLS proxy after
+somebody signed in over plain HTTP still has the other one in that browser.
+
+A caller holding a token has no session to end and is told so: a token is
+revoked where it was issued, and answering `204` would say something had been
+taken away that is still working.
+
+### `GET /api/me`
+
+```json
+{ "kind": "owner", "email": "owner@example.com", "since": "2026-09-13T12:00:00.000000Z" }
+```
+
+Who the presented credential admits, and the cheapest way for a client to find
+out that it still works — which is what both clients do with it. `kind` is
+`owner` or `agent`; an agent answers with its name and its permissions instead
+of an address once agent access exists.
 
 ### Anything else under `/api`
 
