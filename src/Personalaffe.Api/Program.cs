@@ -46,6 +46,7 @@ var builder = WebApplication.CreateBuilder(args);
 // operator finds is a stack trace in a container restarting every few seconds.
 // There is no logger yet — this runs before the host is built, which is why the
 // message goes to stderr by hand.
+TrustedProxies trustedProxies;
 try
 {
     var logSettings = LogSettings.FromVariables(builder.Configuration[LogSettings.LevelVariable]);
@@ -66,6 +67,16 @@ try
     // never reaches a log: DatabaseSettings.Redacted is what may be printed.
     builder.Services.AddPersonalaffeInfrastructure(DatabaseSettings.FromConnectionString(
         builder.Configuration.GetConnectionString(DatabaseSettings.ConnectionStringName)));
+
+    // Where the owner's files will go (docs/operations.md). Nothing writes there
+    // yet; what is read here is the path, and StorageService checks the place.
+    builder.Services.AddSingleton(StorageSettings.FromVariables(
+        builder.Configuration[StorageSettings.Variable]));
+
+    // Who may speak for the caller. Unset, nobody may, and the instance reads
+    // the socket.
+    trustedProxies = TrustedProxies.FromVariable(builder.Configuration[TrustedProxies.Variable]);
+    builder.Services.AddSingleton(trustedProxies);
 }
 catch (ArgumentException refusal)
 {
@@ -77,8 +88,10 @@ catch (ArgumentException refusal)
 // about the container they are resolved from.
 builder.Services.AddSingleton(TimeProvider.System);
 
-// The schema, before anything is served, so that an installation is
-// `docker compose up` and nothing else.
+// Order is start order, and both run before anything is served, so that an
+// installation is `docker compose up` and nothing else. Storage first because it
+// is the cheaper of the two to get wrong and the faster to answer.
+builder.Services.AddHostedService<StorageService>();
 builder.Services.AddHostedService<SchemaMigrationService>();
 
 builder.Services.AddPersonalaffeOpenApi();
@@ -104,6 +117,14 @@ builder.Services.AddProblemDetails();
 var app = builder.Build();
 
 app.UseExceptionHandler();
+
+// Before anything reads a scheme or an address: the log line wants the caller's,
+// not the proxy's — and so will the rate limits of PERSONAL-E2. Only when an
+// operator has named the proxy; an unnamed one is a client with a header.
+if (trustedProxies.Configured)
+{
+    app.UseForwardedHeaders(trustedProxies.Options());
+}
 
 // Method, path, status and duration — and nothing the owner or an agent wrote.
 app.UseSerilogRequestLogging();

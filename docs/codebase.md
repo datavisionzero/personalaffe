@@ -13,8 +13,8 @@ is wrong.
 Status: the four .NET projects, the two test projects, the self-applying
 migrator, the health endpoints (PERSONAL-2), the checked-in contract and the
 problem document (PERSONAL-3), the web workspace with one screen (PERSONAL-4)
-and the Go CLI with two verbs (PERSONAL-5) exist. The image and CI do not yet;
-PERSONAL-6 through PERSONAL-8 fill them in the order their blockers allow.
+the Go CLI with two verbs (PERSONAL-5) and the image with its Compose topology
+(PERSONAL-6) exist. CI does not yet; PERSONAL-7 and PERSONAL-8 fill it in.
 
 ## Where this comes from
 
@@ -385,8 +385,11 @@ and trusts forwarded headers only from a proxy the operator named
 (`PERSONALAFFE_TRUSTED_PROXY`). Unset, every request looks as if it came from
 whatever spoke to the socket, which is the safe default.
 
-*PERSONAL-6 implements this; the Files API that fills the volume is
-PERSONAL-E6's.*
+*PERSONAL-6 implemented this. Nothing writes to the storage volume yet — the
+Files API that fills it is PERSONAL-E6's — but `StorageService` checks the place
+before the instance serves, because the failure it catches is an operator's,
+made once, and otherwise invisible until the day the owner's file goes missing.
+[`docs/operations.md`](./operations.md) is what an operator reads.*
 
 ## The gate
 

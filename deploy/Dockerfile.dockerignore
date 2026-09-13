@@ -1,0 +1,20 @@
+# The build context is the repository root; this keeps out of it what the image
+# never needs. `.git/` is excluded on purpose — the commit reaches the build as
+# the REVISION argument, not by reading the repository.
+.git/
+**/bin/
+**/obj/
+scratchpad/
+tests/
+docs/
+!docs/api/openapi.json
+**/node_modules/
+src/web/dist/
+src/Personalaffe.Api/wwwroot/
+src/cli/
+.github/
+*.md
+
+# The development connection string. It names a database nobody else can reach
+# and a password everybody can read, and neither belongs in an image.
+src/Personalaffe.Api/appsettings.Development.json

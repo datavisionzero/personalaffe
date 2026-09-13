@@ -41,6 +41,9 @@ npm-debug.log*
 deploy/.env
 volume/
 
+# Where a development run puts the owner's files (PERSONALAFFE_STORAGE_ROOT)
+/storage/
+
 # macOS
 .DS_Store
 

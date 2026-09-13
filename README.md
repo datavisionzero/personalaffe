@@ -145,6 +145,19 @@ A value the instance will not accept stops the start with one line naming the
 variable. The connection string is never written to the log: what is printed is
 the same string with every credential replaced by `***`.
 
+## Running it as an installation
+
+One application container and one PostgreSQL:
+
+```sh
+cp deploy/.env.example deploy/.env      # and set POSTGRES_PASSWORD
+docker build -f deploy/Dockerfile -t personalaffe:local .
+docker compose -f deploy/docker-compose.yml up -d
+```
+
+[`docs/operations.md`](docs/operations.md) has the variables, the reverse-proxy
+boundary, the two volumes and which commands destroy them.
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
