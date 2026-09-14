@@ -162,7 +162,7 @@ A script branches on the code; nothing has to be parsed.
 | 2 | A mistake in the arguments, or in `PERSONALAFFE_URL` / `PERSONALAFFE_TOKEN`. |
 | 3 | `404` — nothing at that address. |
 | 4 | `400 validation` and every `422` — the instance refused what was asked. |
-| 5 | `409` — something else already occupies that name or place. |
+| 5 | `409` — `conflict`, something else already occupies that name or place, or `disabled`, the application is switched off. |
 | 6 | `412 stale` — the object changed since it was read. |
 | 7 | `401` and `403` — the door stayed shut. |
 | 9 | Version skew: this `pea` does not talk to that instance. |

@@ -6,13 +6,14 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 [`CONTEXT.md`](CONTEXT.md) is the language it uses;
 [`docs/mvp-plan.md`](docs/mvp-plan.md) says in what order it is built.
 
-> **It is a workspace with nothing in it yet.** What exists is the foundation of
-> PERSONAL-E1 — a .NET host, a PostgreSQL schema that migrates itself, a
-> checked-in HTTP contract, and a web application and a CLI that read it — and
-> the door of PERSONAL-E2: an instance is claimed once by its one owner, who
-> signs in with an email address, a password and, if they want one, a code from
-> an authenticator; agents are let in with named tokens and a permission per
-> application; and everything but five operations is behind that door.
+> **One of the four applications works; three are still empty.** What exists is
+> the foundation of PERSONAL-E1 — a .NET host, a PostgreSQL schema that migrates
+> itself, a checked-in HTTP contract, and a web application and a CLI that read
+> it — and the door of PERSONAL-E2: an instance is claimed once by its one
+> owner, who signs in with an email address, a password and, if they want one, a
+> code from an authenticator; agents are let in with named tokens and a
+> permission per application; and everything but five operations is behind that
+> door.
 >
 > PERSONAL-E3 adds the safeguards over content: a write says which version it
 > replaces and a stale one is refused; deleting lasting content sets it aside in
