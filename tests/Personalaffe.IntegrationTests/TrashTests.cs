@@ -107,8 +107,15 @@ public sealed class TrashTests(PostgresFixture postgres)
         using var restored = await owner.SendAsync(
             Restoring(entry, ContentVersion.Of(entry.UpdatedAt)), Token);
 
-        Assert.Equal(HttpStatusCode.NoContent, restored.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, restored.StatusCode);
         Assert.Equal([(entry.Id, null)], knowledge.Restored);
+
+        // The answer says where it landed, because the place something came
+        // from can be gone and nothing here moves content silently.
+        var landed = JsonNode.Parse(await restored.Content.ReadAsStringAsync(Token))!;
+
+        Assert.Equal("architecture", landed["name"]!.GetValue<string>());
+        Assert.False(landed["moved_to_the_root"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -166,7 +173,7 @@ public sealed class TrashTests(PostgresFixture postgres)
         using var allowed = await writer.SendAsync(
             Restoring(reader, ContentVersion.Of(reader.UpdatedAt)), Token);
 
-        Assert.Equal(HttpStatusCode.NoContent, allowed.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
         Assert.Equal([(reader.Id, null)], knowledge.Restored);
     }
 
@@ -237,7 +244,7 @@ public sealed class TrashTests(PostgresFixture postgres)
         var version = ContentVersion.Of(gone.UpdatedAt);
 
         using var first = await owner.SendAsync(Restoring(gone, version), Token);
-        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
 
         using var second = await owner.SendAsync(Restoring(gone, version), Token);
         Assert.Equal(HttpStatusCode.NotFound, second.StatusCode);

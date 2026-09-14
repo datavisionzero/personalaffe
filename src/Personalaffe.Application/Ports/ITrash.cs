@@ -18,6 +18,19 @@ public sealed record TrashEntry(
     DateTimeOffset ExpiresAt,
     DateTimeOffset UpdatedAt);
 
+/// <summary>Where a restored thing ended up.</summary>
+/// <param name="Where">
+/// The place it is in now, as the owner would recognise it, or nothing for the
+/// root and for an application with no hierarchy.
+/// </param>
+/// <param name="MovedToTheRoot">
+/// Whether the place it came from had already been removed for good, so that it
+/// went to the root instead (<see cref="Restoration"/>). Nothing in this
+/// product moves the owner's content without saying so.
+/// </param>
+public sealed record RestoredTo(
+    WorkspaceApplication Application, Guid Id, string Name, string? Where, bool MovedToTheRoot);
+
 /// <summary>
 /// One application's half of the Trash: what of mine is in it, put this back,
 /// remove this for good.
@@ -53,13 +66,14 @@ public interface ITrash
     Task<IReadOnlyList<TrashEntry>> ListAsync(int limit, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Puts one back, or answers false if this application has no such entry.
+    /// Puts one back and says where it landed, or answers nothing if this
+    /// application has no such entry.
     /// </summary>
     /// <exception cref="Refusal">
     /// <c>stale</c> if <paramref name="held"/> is not the entry's version,
-    /// <c>conflict</c> if something now occupies the place it came from.
+    /// <c>conflict</c> if something now occupies the name it came back under.
     /// </exception>
-    Task<bool> RestoreAsync(
+    Task<RestoredTo?> RestoreAsync(
         Guid id, ContentVersion held, string? restoreAs, CancellationToken cancellationToken);
 
     /// <summary>

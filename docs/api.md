@@ -274,6 +274,36 @@ Tasks and Files are PERSONAL-E5 to PERSONAL-E8 and none of them exists yet.
 That is the shape working rather than missing: a module joins the Trash by
 contributing to it and by nothing else.
 
+## Putting something back into a tree
+
+Files and Knowledge have hierarchies, and restoring into one has two rules,
+decided once for both.
+
+**A folder or a page that is in the Trash comes back with what needs it.**
+Restoring a page whose folder is also deleted restores the folder too —
+refusing until the folder has been restored first would make the owner walk the
+tree by hand, and doing neither would leave the page somewhere they cannot
+reach. The folder comes back as itself and not with everything it used to
+contain: restoring one page is restoring one page.
+
+**A name already taken is `conflict`, not a silent rename.** Two things with one
+name in one place is a tree nobody can navigate, and a product that quietly
+appends "(2)" has made a decision the owner would have made differently. The
+refusal names what is in the way, and `name` on the same call puts it back under
+another one, so nobody is ever stuck with something they cannot get out of the
+Trash.
+
+**One deletion is one Trash entry.** Deleting a folder takes everything in it
+under one moment, and the whole thing comes back together. Something further
+down that the owner deleted separately is an entry of its own with an expiry of
+its own: it does not come back when its folder does, and removing the folder for
+good does not destroy it.
+
+Which leaves one case: a thing whose folder is gone for good while it is still
+recoverable. It is **restored to the root**, and the answer says so with
+`moved_to_the_root`. Nothing in this product moves the owner's content without
+saying it did.
+
 ## The door
 
 **Everything but the five operations under *Operations* needs a credential**,
@@ -623,7 +653,12 @@ Newest deletion first. Only the applications the caller may read are asked.
 Puts one thing back. Needs read/write access to that application and the
 entry's `updated_at` in `If-Match`. `name` restores it under another name, for
 the case where the place it came from is occupied — without it, an occupied
-name is `conflict`. 204, and the object is in the application again.
+name is `conflict`. Answers where it landed:
+
+```json
+{ "application": "knowledge", "id": "0199f0c4-…", "name": "architecture",
+  "where": "/notes", "moved_to_the_root": false }
+```
 
 ### `DELETE /api/trash/{application}/{id}`
 

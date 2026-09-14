@@ -78,7 +78,7 @@ public sealed class ReadTheTrash(ICallerIdentity caller, IEnumerable<ITrash> con
 /// </remarks>
 public sealed class RestoreFromTheTrash(ICallerIdentity caller, IEnumerable<ITrash> contributors)
 {
-    public async Task ExecuteAsync(
+    public async Task<RestoredTo> ExecuteAsync(
         WorkspaceApplication application,
         Guid id,
         ContentVersion held,
@@ -89,10 +89,10 @@ public sealed class RestoreFromTheTrash(ICallerIdentity caller, IEnumerable<ITra
 
         var contributor = Trash.Of(contributors, application);
 
-        if (contributor is null || !await contributor.RestoreAsync(id, held, restoreAs, cancellationToken))
-        {
-            throw Trash.NoSuchEntry(application, id);
-        }
+        return contributor is null
+            ? throw Trash.NoSuchEntry(application, id)
+            : await contributor.RestoreAsync(id, held, restoreAs, cancellationToken)
+              ?? throw Trash.NoSuchEntry(application, id);
     }
 }
 

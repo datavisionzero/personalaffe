@@ -128,9 +128,9 @@ public sealed class PurgeTheTrashTests
         public Task<IReadOnlyList<TrashEntry>> ListAsync(int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<TrashEntry>>([]);
 
-        public Task<bool> RestoreAsync(
+        public Task<RestoredTo?> RestoreAsync(
             Guid id, ContentVersion held, string? restoreAs, CancellationToken cancellationToken) =>
-            Task.FromResult(false);
+            Task.FromResult<RestoredTo?>(null);
 
         public Task<bool> RemoveAsync(Guid id, ContentVersion held, CancellationToken cancellationToken) =>
             Task.FromResult(false);
@@ -148,9 +148,9 @@ public sealed class PurgeTheTrashTests
         public Task<IReadOnlyList<TrashEntry>> ListAsync(int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<TrashEntry>>([]);
 
-        public Task<bool> RestoreAsync(
+        public Task<RestoredTo?> RestoreAsync(
             Guid id, ContentVersion held, string? restoreAs, CancellationToken cancellationToken) =>
-            Task.FromResult(false);
+            Task.FromResult<RestoredTo?>(null);
 
         public Task<bool> RemoveAsync(Guid id, ContentVersion held, CancellationToken cancellationToken) =>
             Task.FromResult(false);

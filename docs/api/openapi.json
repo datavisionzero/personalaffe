@@ -1316,8 +1316,15 @@
               }
             }
           },
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoredResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request",
@@ -1796,6 +1803,38 @@
             "items": {
               "type": "string"
             }
+          }
+        },
+        "additionalProperties": false
+      },
+      "RestoredResponse": {
+        "required": [
+          "application",
+          "id",
+          "name",
+          "where",
+          "moved_to_the_root"
+        ],
+        "type": "object",
+        "properties": {
+          "application": {
+            "$ref": "#/components/schemas/WorkspaceApplication"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "where": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "moved_to_the_root": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

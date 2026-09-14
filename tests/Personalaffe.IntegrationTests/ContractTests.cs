@@ -84,6 +84,7 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Contains("TrashResponse", schemas);
         Assert.Contains("TrashEntryResponse", schemas);
         Assert.Contains("TrashEmptiedResponse", schemas);
+        Assert.Contains("RestoredResponse", schemas);
         Assert.Contains("Actor", schemas);
         Assert.Contains("Permission", schemas);
     }

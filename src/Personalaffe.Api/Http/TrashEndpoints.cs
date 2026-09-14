@@ -35,6 +35,14 @@ public sealed record TrashEntryResponse(
 /// <summary>What is in the Trash, and whether the limit cut it short.</summary>
 public sealed record TrashResponse(IReadOnlyList<TrashEntryResponse> Items, bool HasMore);
 
+/// <summary>Where a restored thing ended up.</summary>
+public sealed record RestoredResponse(
+    WorkspaceApplication Application, Guid Id, string Name, string? Where, bool MovedToTheRoot)
+{
+    public static RestoredResponse Of(RestoredTo restored) => new(
+        restored.Application, restored.Id, restored.Name, restored.Where, restored.MovedToTheRoot);
+}
+
 /// <summary>How much emptying it removed.</summary>
 public sealed record TrashEmptiedResponse(int Removed);
 
@@ -86,14 +94,14 @@ public static class TrashEndpoints
                 RestoreFromTheTrash act,
                 CancellationToken cancellationToken) =>
             {
-                await act.ExecuteAsync(
+                var restored = await act.ExecuteAsync(
                     Applications.Named(application), id, EntityTags.Required(request), name, cancellationToken);
 
-                return Results.NoContent();
+                return Results.Ok(RestoredResponse.Of(restored));
             })
             .WithName("RestoreFromTrash")
             .WithSummary("Put one thing back where it came from, or under another name.")
-            .Produces(StatusCodes.Status204NoContent)
+            .Produces<RestoredResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)

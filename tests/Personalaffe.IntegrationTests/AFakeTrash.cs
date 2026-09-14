@@ -46,19 +46,20 @@ internal sealed class AFakeTrash(WorkspaceApplication application) : ITrash
         Task.FromResult<IReadOnlyList<TrashEntry>>(
             [.. _entries.Values.OrderByDescending(entry => entry.DeletedAt).Take(limit)]);
 
-    public Task<bool> RestoreAsync(
+    public Task<RestoredTo?> RestoreAsync(
         Guid id, ContentVersion held, string? restoreAs, CancellationToken cancellationToken)
     {
         if (!_entries.TryGetValue(id, out var entry))
         {
-            return Task.FromResult(false);
+            return Task.FromResult<RestoredTo?>(null);
         }
 
         Guard(entry, held);
         _entries.Remove(id);
         Restored.Add((id, restoreAs));
 
-        return Task.FromResult(true);
+        return Task.FromResult<RestoredTo?>(new RestoredTo(
+            application, id, restoreAs ?? entry.Name, entry.Where, MovedToTheRoot: false));
     }
 
     public Task<bool> RemoveAsync(Guid id, ContentVersion held, CancellationToken cancellationToken)
