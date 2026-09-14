@@ -27,8 +27,11 @@ export type Application = {
   icon: LucideIcon;
   /** What it is for, in one sentence the empty state and the palette both use. */
   hint: string;
-  /** The epic that fills it, while it is still empty. */
-  arrives: string;
+  /**
+   * The epic that fills it, while it is still empty. The two applications that
+   * have landed carry none: an entry with no `arrives` is one with a screen.
+   */
+  arrives?: string;
 };
 
 export const applications: Application[] = [
@@ -38,7 +41,6 @@ export const applications: Application[] = [
     path: "/scratchpad",
     icon: StickyNoteIcon,
     hint: "Text put down in seconds and read on another device.",
-    arrives: "PERSONAL-E5",
   },
   {
     name: "knowledge",
@@ -62,7 +64,6 @@ export const applications: Application[] = [
     path: "/files",
     icon: FileIcon,
     hint: "Personal files, in folders, on this instance's own disk.",
-    arrives: "PERSONAL-E6",
   },
 ];
 

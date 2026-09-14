@@ -28,7 +28,7 @@ test.describe("on a phone", () => {
 
     await expect(page).toHaveURL(/\/files$/);
     await expect(drawer).toBeHidden();
-    await expect(page.getByText("Files is not in this build yet.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Files" })).toBeVisible();
   });
 
   test("takes a Scratchpad entry on a phone, and copies one back", async ({ page, context }) => {

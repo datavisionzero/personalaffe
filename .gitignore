@@ -45,8 +45,12 @@ npm-debug.log*
 deploy/.env
 volume/
 
-# Where a development run puts the owner's files (PERSONALAFFE_STORAGE_ROOT)
+# Where a development run puts the owner's files (PERSONALAFFE_STORAGE_ROOT).
+# The default root is relative to the working directory, which is the checkout
+# for `dotnet run` from the repository root and the project folder for
+# `dotnet run --project`. Both are somebody's own files and neither is ours.
 /storage/
+src/Personalaffe.Api/storage/
 
 # macOS
 .DS_Store

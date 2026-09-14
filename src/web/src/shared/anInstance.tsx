@@ -15,7 +15,14 @@ import type { Me } from "@/session/useSession";
  */
 export type Answer = { status?: number; body?: unknown; contentType?: string };
 
-export type Asked = { method: string; path: string; body: unknown; headers: Headers };
+export type Asked = {
+  method: string;
+  path: string;
+  /** The query string, so that a test can say what travelled beside the path. */
+  query: string;
+  body: unknown;
+  headers: Headers;
+};
 
 export function anInstance(answers: Record<string, Answer | Answer[]>) {
   const asked: Asked[] = [];
@@ -25,8 +32,20 @@ export function anInstance(answers: Record<string, Answer | Answer[]>) {
     const url = new URL(request.url);
     const key = `${request.method} ${url.pathname}`;
 
-    const body = request.body === null ? undefined : await request.clone().json();
-    asked.push({ method: request.method, path: url.pathname, body, headers: request.headers });
+    // A body is JSON everywhere except an upload, whose body is the file
+    // itself (`docs/api.md`, Files). What a test wants to see of one is what
+    // arrived, so it is read as text and parsed where it parses. `request.body`
+    // is not asked: the stream a `File` becomes is not one every runtime
+    // exposes, and reading the clone is the same question without the
+    // assumption.
+    const body = await readBody(request.clone());
+    asked.push({
+      method: request.method,
+      path: url.pathname,
+      query: url.search,
+      body,
+      headers: request.headers,
+    });
 
     const answer = answers[key];
     const next = Array.isArray(answer) ? (answer.shift() ?? { status: 404 }) : answer;
@@ -52,6 +71,26 @@ export function anInstance(answers: Record<string, Answer | Answer[]>) {
   vi.stubGlobal("fetch", fetch);
 
   return { asked, fetch };
+}
+
+async function readBody(request: Request): Promise<unknown> {
+  let text: string;
+
+  try {
+    text = await request.text();
+  } catch {
+    return undefined;
+  }
+
+  if (text === "") {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
 }
 
 /** A refusal as the instance writes one (`docs/api.md`, Errors). */

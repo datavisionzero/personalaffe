@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Home } from "@/home/Home";
+import { Files } from "@/files/Files";
 import { Scratchpad } from "@/scratchpad/Scratchpad";
 import type { Me } from "@/session/useSession";
 import { Settings } from "@/settings/Settings";
@@ -195,11 +196,12 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
 }
 
 /**
- * The screen an application has, for the ones that have one. The three still to
+ * The screen an application has, for the ones that have one. The two still to
  * come are drawn by `Awaited` until their epic lands.
  */
 const screens: Partial<Record<Application["name"], () => ReactElement>> = {
   scratchpad: () => <Scratchpad />,
+  files: () => <Files />,
 };
 
 /**
@@ -236,7 +238,13 @@ function TheApplication({
     return <Disabled what={application.label} />;
   }
 
-  return (
-    screens[application.name]?.() ?? <Awaited what={application.label} epic={application.arrives} />
-  );
+  const screen = screens[application.name];
+
+  if (screen !== undefined) {
+    return screen();
+  }
+
+  // No screen means the epic that fills it has not landed, and the entry in
+  // `applications.ts` is what says which one that is.
+  return <Awaited what={application.label} epic={application.arrives ?? "a later epic"} />;
 }
