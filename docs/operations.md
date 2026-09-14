@@ -161,12 +161,13 @@ per application, and never a name or a word of what the owner wrote.
 Swept the Trash: removed 4 expired item(s), Knowledge: 3, Files: 1.
 ```
 
-**What the Trash holds today is Files'** (`docs/mvp-plan.md`): deleted files and
-folders, with their bytes. Knowledge and Tasks are still to come, and the
-Scratchpad deliberately never puts anything there. When the sweep removes a
-file, it removes the row and then the bytes — in that order, so that an instance
-killed between the two leaves bytes nobody points at rather than a row whose
-file is missing. The tidy-up below is what takes those away.
+**Three of the four applications fill the Trash**: Files, Knowledge and Tasks.
+The Scratchpad deliberately never puts anything there — what it deletes is
+destroyed. A page goes with its history, a list with its tasks, a folder with
+everything in it. When the sweep removes a file, it removes the row and then the
+bytes — in that order, so that an instance killed between the two leaves bytes
+nobody points at rather than a row whose file is missing. The tidy-up below is
+what takes those away.
 
 ## The storage volume tidies itself up
 

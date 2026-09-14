@@ -570,10 +570,11 @@ removes one for good — thirty days after the deletion by default, and
 not for an application being switched off, and not for the instance being down.
 
 **Three of the four applications fill it**: a deleted file, folder, page, list
-or task is here — with its bytes, or with its history — until it is restored or
-its retention runs out. The Scratchpad deliberately contributes nothing, because
-what it deletes is destroyed. A module joins the Trash by contributing to it and
-by nothing else, and the Scratchpad is the one that never will.
+or task is here — with its bytes, or with its history, or with the tasks that
+were in it — until it is restored or its retention runs out. The Scratchpad
+deliberately contributes nothing, because what it deletes is destroyed. A module
+joins the Trash by contributing to it and by nothing else, and the Scratchpad is
+the one that never will.
 
 ## Putting something back into a tree
 

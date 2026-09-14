@@ -65,13 +65,20 @@ editor that finally has work (PERSONAL-48), and the suite and the record that
 close it (PERSONAL-49). What the epic decided is
 [ADR 0007](./adr/0007-a-page-is-its-id-and-its-history-only-grows.md).
 
-**Three of the four applications are here.** An instance captures plain text,
-lists it, pins it, expires it and destroys it; it stores files in folders and
-hands them back byte for byte; and it keeps lasting notes as Markdown in a tree,
-with a history behind every page and an export anybody can read. All three are
-reached in a browser and from `pea`. What the rest of `docs/mvp-plan.md`
-describes is not started: Tasks answers "not in this build yet" at its own
-address.
+**PERSONAL-E8 is complete**: the task, its list, its date and its order
+(PERSONAL-50), the nine endpoints over them (PERSONAL-51), `pea tasks`
+(PERSONAL-52), the screen and the end of `Awaited` (PERSONAL-53), and the suite
+and the record that close it (PERSONAL-54). What the epic decided is
+[ADR 0008](./adr/0008-a-due-date-is-a-day-and-an-order-is-a-number-between-two-others.md).
+
+**All four applications are here.** An instance captures plain text, lists it,
+pins it, expires it and destroys it; it stores files in folders and hands them
+back byte for byte; it keeps lasting notes as Markdown in a tree, with a history
+behind every page and an export anybody can read; and it keeps personal
+commitments in named lists, in an order the owner sets. All four are reached in
+a browser and from `pea`. What is left of `docs/mvp-plan.md` is not content: the
+dashboard and search of PERSONAL-E9, and the operational acceptance of
+PERSONAL-E10.
 
 ## Where this comes from
 
@@ -266,6 +273,12 @@ Implemented for the Scratchpad (PERSONAL-E5): `Domain/Scratchpad/` with
 `Persistence/ScratchpadEntries` with its configuration and migration, and
 `Http/ScratchpadEndpoints`.
 
+Implemented for Tasks (PERSONAL-E8): `Domain/Tasks/` with `TaskList`,
+`PersonalTask`, `TaskTitle` and `Positions`; `Application/Ports/ITasks` with
+`TheList`; `Application/Acts/Tasks/` with the nine acts; `Persistence/Tasks` and
+`TasksTrash` with their two configurations and their migration; and
+`Http/TaskEndpoints`.
+
 Implemented for Knowledge (PERSONAL-E7): `Domain/Knowledge/` with `Page`,
 `PageTitle` and `PageRevision`; `Application/Ports/IPages` with
 `PageInTheTree`; `Application/Acts/Knowledge/` with the eight acts and
@@ -280,10 +293,12 @@ Implemented for Files (PERSONAL-E6): `Domain/Files/` with `StoredFile`,
 their migration; `Files/LocalFileBytes`; and `Http/FileEndpoints` with
 `FileBodies` beside it.
 
-Planned, not implemented: every endpoint of Tasks. An instance answers the five
-outside the door, the owner's own, which applications it has, its Scratchpad,
-its Files, its Knowledge, and a Trash that Files and Knowledge fill and the
-Scratchpad deliberately never puts anything in.
+**Nothing of the four applications is planned but unimplemented any more.** An
+instance answers the five outside the door, the owner's own, which applications
+it has, its Scratchpad, its Files, its Knowledge, its Tasks, and a Trash that
+three of the four fill and the Scratchpad deliberately never puts anything in.
+What is still to come is the dashboard, the search and the release
+(PERSONAL-E9, PERSONAL-E10), and neither is a content module.
 
 ## Where an application lives
 
@@ -296,8 +311,10 @@ and one in `src/web/src/`:
 to be: PERSONAL-E5 built exactly this shape, and PERSONAL-E6 was written by
 reading it. Files is the worked example of the other half — a module with a
 tree, a Trash and bytes beside its rows — and Knowledge was written by reading
-that one, which is the third module and the first with a history. Tasks is
-written by reading whichever of the three it resembles most.
+that one, which is the third module and the first with a history. Tasks is the
+fourth and the one with no tree at all, which is what made it worth having
+([ADR 0008](./adr/0008-a-due-date-is-a-day-and-an-order-is-a-number-between-two-others.md)):
+it applies the Trash without applying `Restoration`, and says why.
 
 ```
 src/Personalaffe.Domain/Scratchpad/ScratchpadEntry.cs        the rules
@@ -335,12 +352,12 @@ application. It lives at the root of each layer, because every application asks
 it the same question: `Owner`, `AgentAccess`, `Permissions` and `Caller` in
 Domain, the acts beside the others, and one store each.
 
-*The Scratchpad's folders, Files' and Knowledge's exist; Tasks' do not.
-PERSONAL-2 created the folders that had something to put in them and no others,
-which is still the rule: an empty folder claiming a future module is a lie the
-tree tells. PERSONAL-26 gave each of the four a route, and PERSONAL-27's
-`shell/States.tsx` the screen that says which epic fills the one still to come —
-one component rather than a folder holding a placeholder.*
+*All four applications' folders exist now. PERSONAL-2 created the folders that
+had something to put in them and no others, which is still the rule: an empty
+folder claiming a future module is a lie the tree tells. PERSONAL-26 gave each
+of the four a route, and PERSONAL-27's `shell/States.tsx` said which epic filled
+the ones still to come — until PERSONAL-53 took that state away, because there
+are none.*
 
 **What the four applications inherit from PERSONAL-E4**, beside PERSONAL-E3's
 safeguards:
@@ -444,9 +461,9 @@ PERSONAL-27, PERSONAL-29 and PERSONAL-30 added `components/ui/`, `lib/`,
 frame: `shell/` grew the sidebar, the palette, the keys and the routes, and
 `home/`, `settings/`, `trash/` and `editor/` are the screens behind them.
 PERSONAL-37 added the first application folder, `scratchpad/`, PERSONAL-43 the
-second, `files/`, and PERSONAL-48 the third, `knowledge/` — which is also where
-`editor/` went, because the field it stood in for now has a screen that writes.
-The one still to come arrives with its epic.*
+second, `files/`, PERSONAL-48 the third, `knowledge/` — which is also where
+`editor/` went, because the field it stood in for now has a screen that writes —
+and PERSONAL-53 the fourth, `tasks/`. There are no more.*
 
 **Nothing is drawn until the instance has said whether it has an owner and
 whether this browser is signed in.** `session/useSession.ts` asks the two
@@ -723,6 +740,12 @@ does both in one call because the second is not optional. Recovering is a
 guarded write on the object and never on the revision. What Tasks plugs into, if
 it wants any, is exactly this
 ([ADR 0007](./adr/0007-a-page-is-its-id-and-its-history-only-grows.md)).
+
+**PERSONAL-E8, tasks — landed.** The one content module with no tree, and the
+one place a value is a date rather than a moment. What it adds to the list of
+things a later module can read is `Positions`: an order that survives a
+concurrent workspace, because a move changes one row
+([ADR 0008](./adr/0008-a-due-date-is-a-day-and-an-order-is-a-number-between-two-others.md)).
 
 **PERSONAL-E9, search and the dashboard, and PERSONAL-E10, operations.** Nothing
 in the foundation stands in their way and nothing anticipates them. The two

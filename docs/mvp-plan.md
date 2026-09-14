@@ -1,6 +1,6 @@
 # personalaffe — MVP Implementation Plan
 
-Status: agreed product and architecture direction. **PERSONAL-E1 to PERSONAL-E7
+Status: agreed product and architecture direction. **PERSONAL-E1 to PERSONAL-E8
 are delivered** — the application, API, CLI and delivery foundation; the door in
 front of them, with one owner, an optional second factor, agent access with a
 permission per application and a recovery that needs the machine rather than a
@@ -16,19 +16,21 @@ address made from an id, folders to put them in, a Trash that finally has a
 contributor, and a tidy-up for what an interrupted upload leaves behind; and the
 third, Knowledge — Markdown in a tree, an address a rename cannot break, a
 history that only ever grows, and an export that is a zip somebody can read
-without ever having heard of this product ([`docs/codebase.md`](codebase.md),
+without ever having heard of this product; and the fourth, Tasks — named lists,
+a due date that is a day rather than a moment, and an order in which moving one
+task changes one row ([`docs/codebase.md`](codebase.md),
 [ADR 0002](adr/0002-one-owner-with-a-browser-and-agents-with-tokens.md),
 [ADR 0003](adr/0003-content-is-guarded-by-what-it-was-read-at-and-deleted-by-being-set-aside.md),
 [ADR 0004](adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md),
 [ADR 0005](adr/0005-the-scratchpad-keeps-nothing-and-its-clock-runs-from-the-last-change.md),
 [ADR 0006](adr/0006-a-file-is-its-id-and-its-bytes-go-down-before-its-row.md),
-[ADR 0007](adr/0007-a-page-is-its-id-and-its-history-only-grows.md)).
+[ADR 0007](adr/0007-a-page-is-its-id-and-its-history-only-grows.md),
+[ADR 0008](adr/0008-a-due-date-is-a-day-and-an-order-is-a-number-between-two-others.md)).
 
-PERSONAL-E8 through PERSONAL-E10 are not started: there are **no Tasks**, which
-answers "not in this build yet" at its own address. The home page is still not a
-dashboard, nothing is searchable, and no release has been published. What an
-instance stores today is what the Scratchpad, Files and Knowledge store, and no
-backup of any of it has been through a restore anybody has proved
+**Every content application VISION.md names now exists.** What PERSONAL-E9 and
+PERSONAL-E10 have left is not content: the home page is still not a dashboard,
+nothing is searchable, there is no weather, and no release has been published.
+And no backup of any of it has been through a restore anybody has proved
 (PERSONAL-E10) — the Knowledge export is not one, since it carries no Trash, no
 revisions and no agent access — so anything you would mind losing still belongs
 somewhere else as well.
@@ -269,7 +271,7 @@ Reuse existing components and libraries rather than selecting a new editor. Exac
 
 ### PERSONAL-E8: MVP: Deliver simple personal task lists
 
-Prerequisites: PERSONAL-E2, PERSONAL-E3, PERSONAL-E4.
+Prerequisites: PERSONAL-E2, PERSONAL-E3, PERSONAL-E4. **Delivered.**
 
 #### Outcome
 

@@ -6,7 +6,7 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 [`CONTEXT.md`](CONTEXT.md) is the language it uses;
 [`docs/mvp-plan.md`](docs/mvp-plan.md) says in what order it is built.
 
-> **Three of the four applications work; one is still empty.** What exists is
+> **All four applications work.** What exists is
 > the foundation of PERSONAL-E1 — a .NET host, a PostgreSQL schema that migrates
 > itself, a checked-in HTTP contract, and a web application and a CLI that read
 > it — and the door of PERSONAL-E2: an instance is claimed once by its one
@@ -49,10 +49,17 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > anybody can read. A page's address is its id, so a link to it survives every
 > rename and every move.
 >
-> **Tasks is still empty.** It answers "not in this build yet" at its own
-> address; that is PERSONAL-E8. And no backup of this has been through a restore
-> anybody has proved — that is PERSONAL-E10, and the Knowledge export is not one
-> — so **anything you would mind losing still belongs somewhere else as well.**
+> PERSONAL-E8 adds the fourth: **Tasks**. Personal commitments in named lists,
+> captured in one field and Enter, with an optional note and an optional day —
+> a day, and not a moment, so the fourteenth is the fourteenth wherever you are
+> standing — and an order you set, in which moving one task leaves every other
+> device's version alone.
+>
+> **What is left is not content.** The home page is not a dashboard yet, nothing
+> is searchable, and there is no release: those are PERSONAL-E9 and
+> PERSONAL-E10. And no backup of this has been through a restore anybody has
+> proved — also PERSONAL-E10, and the Knowledge export is not one — so
+> **anything you would mind losing still belongs somewhere else as well.**
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
@@ -222,6 +229,15 @@ Knowledge is the third, and the one that writes prose. A path is titles, and
 ./pea knowledge export --out knowledge.zip  # Markdown anybody can read
 ```
 
+Tasks is the fourth, and the one that has to be quick:
+
+```sh
+./pea tasks new-list Einkauf
+./pea tasks add Einkauf "Milch holen" --due 2026-09-14
+./pea tasks ls Einkauf
+./pea tasks done ID
+```
+
 [`docs/cli.md`](docs/cli.md) has the configuration ladders, the input rules and
 the exit codes.
 
@@ -299,21 +315,21 @@ writes nothing into the repository and needs no credential.
 
 ## Known limits
 
-Everything here is PERSONAL-E1 to PERSONAL-E7, and nothing more.
+Everything here is PERSONAL-E1 to PERSONAL-E8, and nothing more.
 
-- **One of the four applications is empty.** No tasks: what the database carries
-  is an owner, their sessions, their recovery codes, the agents they let in,
-  which of the four applications is switched on, the Scratchpad's entries, the
-  metadata of the owner's files, and their knowledge pages with the history
-  behind them. Tasks is PERSONAL-E8 and answers "not in this build yet" at its
-  own address.
-- **An agent reaches three of the four applications.** The permissions are real
-  and enforced everywhere; the fourth does not exist yet.
-- **The Trash has two contributors.** The guard on a write, recoverable
-  deletion, the hourly sweep and the restore rules all work, and Files and
-  Knowledge are what fill them. The Scratchpad deliberately does not — an entry
-  is destroyed when it is deleted — and Tasks will when it arrives
+- **All four applications work, and none of what is left is content.** What the
+  database carries is an owner, their sessions, their recovery codes, the agents
+  they let in, which of the four applications is switched on, the Scratchpad's
+  entries, the metadata of the owner's files, their knowledge pages with the
+  history behind them, and their task lists.
+- **The Trash has three contributors.** The guard on a write, recoverable
+  deletion, the hourly sweep and the restore rules all work, and Files,
+  Knowledge and Tasks are what fill them. The Scratchpad deliberately does not —
+  an entry is destroyed when it is deleted
   ([`docs/codebase.md`](docs/codebase.md)).
+- **Tasks is a list and not a planner.** No recurring tasks, no assignments, no
+  sprints, no dependencies and no time tracking (VISION §6.4). A due date is a
+  day rather than a moment, which is why it is the same day in every timezone.
 - **Knowledge is Markdown and a tree, and nothing more.** No tags, no automatic
   backlinks, no full-text search yet (that is PERSONAL-E9), and no turning a
   Scratchpad entry into a page. A page keeps fifty previous versions and the
