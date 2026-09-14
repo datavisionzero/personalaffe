@@ -2,7 +2,11 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Personalaffe.Api.Http;
+using Personalaffe.Application.Acts;
+using Personalaffe.Application.Acts.Files;
 using Personalaffe.Application.Ports;
 using Personalaffe.Domain;
 
@@ -235,6 +239,81 @@ internal sealed class AFileArea : IAsyncDisposable
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    /// <summary>
+    /// Runs the hourly Trash sweep, now, through the act the background service
+    /// calls.
+    /// </summary>
+    /// <remarks>
+    /// The act and not the service: what a test about the Trash wants to know is
+    /// what the purge does, and waiting an hour for a timer is not a thing a
+    /// suite can do. That the service calls it on the hour and after a restart
+    /// is <c>RetentionTests</c>'s subject.
+    /// </remarks>
+    public async Task<ThePurge> PurgeAsync(CancellationToken cancellationToken)
+    {
+        await using var scope = Instance.Services.CreateAsyncScope();
+
+        return await scope.ServiceProvider.GetRequiredService<PurgeTheTrash>()
+            .ExecuteAsync(cancellationToken);
+    }
+
+    /// <summary>Runs the storage tidy-up, now, with the margin a test chooses.</summary>
+    public async Task<int> TidyAsync(DateTimeOffset olderThan, CancellationToken cancellationToken)
+    {
+        await using var scope = Instance.Services.CreateAsyncScope();
+
+        return await scope.ServiceProvider.GetRequiredService<TidyTheStorage>()
+            .ExecuteAsync(olderThan, cancellationToken);
+    }
+
+    /// <summary>
+    /// Moves a deletion back in time, so that the sweep's deadline has passed
+    /// for it.
+    /// </summary>
+    /// <remarks>
+    /// The alternative is a fake clock inside the instance, which would mean the
+    /// rows under test were written by a clock no instance has. Moving the row
+    /// is what an instance that had been running for a month would have.
+    /// </remarks>
+    public async Task BackdateAsync(TimeSpan by, CancellationToken cancellationToken)
+    {
+        await using var context = AnInstance.ContextFor(Instance.ConnectionString);
+        var seconds = by.TotalSeconds;
+
+        await context.Database.ExecuteSqlAsync(
+            $"update files set deleted_at = deleted_at - make_interval(secs => {seconds}) where deleted_at is not null",
+            cancellationToken);
+
+        await context.Database.ExecuteSqlAsync(
+            $"update folders set deleted_at = deleted_at - make_interval(secs => {seconds}) where deleted_at is not null",
+            cancellationToken);
+    }
+
+    /// <summary>What is in the Trash, over every application.</summary>
+    public async Task<JsonNode> TrashAsync(CancellationToken cancellationToken) =>
+        (await Owner.GetFromJsonAsync<JsonNode>("/api/trash", cancellationToken))!;
+
+    /// <summary>Puts something back, as the owner.</summary>
+    public Task<TheAnswer> RestoreAsync(
+        Guid id, string version, CancellationToken cancellationToken, string? restoreAs = null) =>
+        Guarded(
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/trash/files/{id}/restore"
+                + (restoreAs is null ? string.Empty : $"?name={Uri.EscapeDataString(restoreAs)}")),
+            version,
+            cancellationToken,
+            asWhom: null);
+
+    /// <summary>Removes one thing from the Trash for good, as the owner.</summary>
+    public Task<TheAnswer> RemoveForGoodAsync(
+        Guid id, string version, CancellationToken cancellationToken, HttpClient? asWhom = null) =>
+        Guarded(
+            new HttpRequestMessage(HttpMethod.Delete, $"/api/trash/files/{id}"),
+            version,
+            cancellationToken,
+            asWhom);
 
     /// <summary>Every file this instance has on its volume, as addresses.</summary>
     public IReadOnlyList<string> OnTheVolume() =>

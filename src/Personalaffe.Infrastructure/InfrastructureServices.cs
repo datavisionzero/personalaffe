@@ -50,6 +50,11 @@ public static class InfrastructureServices
         services.AddScoped<IScratchpadEntries, ScratchpadEntries>();
         services.AddScoped<IStoredFiles, StoredFiles>();
 
+        // The first real Trash contributor. Registering it is the whole of
+        // appearing in GET /api/trash, in restore, in permanent removal and in
+        // the hourly purge (docs/codebase.md).
+        services.AddScoped<ITrash, FilesTrash>();
+
         // The one thing in this layer that is not the database. It holds no
         // per-request state — a path and a logger — so it is registered once.
         services.AddSingleton<IFileBytes, LocalFileBytes>();

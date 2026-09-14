@@ -1,4 +1,5 @@
 using Personalaffe.Application.Acts;
+using Personalaffe.Application.Acts.Files;
 using Personalaffe.Application.Acts.Scratchpad;
 using Personalaffe.Application.Ports;
 
@@ -11,11 +12,18 @@ namespace Personalaffe.Api.Hosting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Two sweeps, one loop.</strong> The Trash's purge and the Scratchpad's
-/// expiry answer different questions and run on different periods, but they are
-/// the same kind of work on the same clock and there is no reason for a second
-/// timer. <strong>They are independent</strong>: one that throws is logged and
-/// the other still runs, and the next hour happens anyway.
+/// <strong>Three sweeps, one loop.</strong> The Trash's purge, the Scratchpad's
+/// expiry and the storage tidy-up answer different questions and run on
+/// different periods, but they are the same kind of work on the same clock and
+/// there is no reason for three timers. <strong>They are independent</strong>:
+/// one that throws is logged and the others still run, and the next hour
+/// happens anyway.
+/// </para>
+/// <para>
+/// <strong>The tidy-up goes last</strong>, after the purge has removed the rows
+/// and the bytes it was asked to: anything the purge left behind because it was
+/// interrupted is an orphan by the time the tidy-up looks, and is gone in the
+/// same round rather than an hour later.
 /// </para>
 /// <para>
 /// <strong>The interval is a constant and not a variable.</strong> An operator
@@ -68,6 +76,7 @@ public sealed class RetentionService(
         {
             await SweepTheTrashAsync(stoppingToken);
             await ExpireTheScratchpadAsync(stoppingToken);
+            await TidyTheStorageAsync(stoppingToken);
         }
         while (await WaitAsync(timer, stoppingToken));
     }
@@ -150,6 +159,40 @@ public sealed class RetentionService(
         catch (Exception exception)
         {
             logger.LogError(exception, "Sweeping the Scratchpad failed. The next sweep will try again.");
+        }
+    }
+
+    private async Task TidyTheStorageAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var tidy = scope.ServiceProvider.GetRequiredService<TidyTheStorage>();
+
+            // The margin, worked out here and nowhere else. What is newer than
+            // this is an upload that may still be arriving, and the whole safety
+            // of the tidy-up is that it does not touch one.
+            var removed = await tidy.ExecuteAsync(
+                clock.GetUtcNow() - TidyTheStorage.Margin, stoppingToken);
+
+            if (removed == 0)
+            {
+                logger.LogDebug("Tidied the storage volume; nothing was left over.");
+                return;
+            }
+
+            // A count and nothing else. What went was never the owner's content
+            // — an upload that failed, or bytes whose row is already gone — but
+            // an operator watching their disk should still see that it happened.
+            logger.LogInformation(
+                "Tidied the storage volume: removed {Removed} file(s) nothing pointed at.", removed);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Tidying the storage volume failed. The next sweep will try again.");
         }
     }
 

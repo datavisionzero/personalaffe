@@ -98,6 +98,17 @@ public interface IStoredFiles
     /// </remarks>
     Task<IReadOnlyList<Folder>> SubtreeAsync(Guid folder, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Every file id this application still has, the Trash included.
+    /// </summary>
+    /// <remarks>
+    /// What the tidy-up compares the volume against. Deleted rows are in it:
+    /// their bytes are still the owner's to restore, and removing them because
+    /// the file is in the Trash would make restoring a file give back an empty
+    /// one.
+    /// </remarks>
+    Task<IReadOnlySet<Guid>> StoredIdsAsync(CancellationToken cancellationToken);
+
     /// <summary>Puts a file's row down, its bytes already on the volume.</summary>
     Task AddAsync(StoredFile file, CancellationToken cancellationToken);
 

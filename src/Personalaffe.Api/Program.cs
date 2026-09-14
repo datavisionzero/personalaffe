@@ -177,6 +177,7 @@ builder.Services.AddScoped<MoveOrRenameAFile>();
 builder.Services.AddScoped<MoveOrRenameAFolder>();
 builder.Services.AddScoped<DiscardAFile>();
 builder.Services.AddScoped<DiscardAFolder>();
+builder.Services.AddScoped<TidyTheStorage>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();

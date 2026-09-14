@@ -45,6 +45,12 @@ services:
       # instance's own defaults, thirty and seven (docs/operations.md).
       PERSONALAFFE_TRASH_RETENTION: "${PERSONALAFFE_TRASH_RETENTION:-}"
       PERSONALAFFE_SCRATCHPAD_RETENTION: "${PERSONALAFFE_SCRATCHPAD_RETENTION:-}"
+      # How much the Files application may store, in whole mebibytes: one file,
+      # and everything together. Empty means the instance's own defaults, 64 and
+      # 5120 (docs/operations.md). They protect the volume from a single upload
+      # and from a year of them.
+      PERSONALAFFE_MAX_FILE_MIB: "${PERSONALAFFE_MAX_FILE_MIB:-}"
+      PERSONALAFFE_MAX_STORAGE_MIB: "${PERSONALAFFE_MAX_STORAGE_MIB:-}"
     ports:
       # Loopback by default, and that is not a formality while there is no
       # authentication: the whole value is the left half of the published port,
