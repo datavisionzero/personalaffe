@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 
 import { api } from "@/api/client";
-import { Button, Field, Refused, inputClass } from "@/shared/Form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, Refused } from "@/shared/Form";
 import { refusal, type Me } from "@/session/useSession";
 
 /**
@@ -56,7 +58,7 @@ export function Setup({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
         <h2 id="setup" className="text-lg font-semibold">
           Claim this workspace
         </h2>
-        <p className="text-muted text-sm text-balance">
+        <p className="text-muted-foreground text-sm text-balance">
           It belongs to nobody yet. This works exactly once: there is one owner, and there is no
           second account.
         </p>
@@ -66,8 +68,7 @@ export function Setup({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
         label="Email address"
         hint="The name you sign in with. personalaffe sends no mail and needs no mail server."
       >
-        <input
-          className={inputClass}
+        <Input
           type="email"
           name="email"
           autoComplete="username"
@@ -78,8 +79,7 @@ export function Setup({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
       </Field>
 
       <Field label="Password" hint="At least 12 characters. There is no other rule.">
-        <input
-          className={inputClass}
+        <Input
           type="password"
           name="password"
           autoComplete="new-password"
@@ -93,7 +93,7 @@ export function Setup({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
       <Refused>{refused}</Refused>
 
       <div>
-        <Button type="submit" kind="primary" disabled={working}>
+        <Button type="submit" disabled={working}>
           {working ? "Claiming…" : "Claim it"}
         </Button>
       </div>

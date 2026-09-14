@@ -1,24 +1,19 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "@/shell/App";
-import { anInstance, refused } from "@/shared/anInstance";
-
-const owner = {
-  kind: "owner",
-  email: "owner@example.com",
-  name: null,
-  permissions: {
-    scratchpad: "read_write",
-    knowledge: "read_write",
-    tasks: "read_write",
-    files: "read_write",
-  },
-  since: "2026-09-13T12:00:00.000000Z",
-};
+import {
+  anInstance,
+  refused,
+  renderAt,
+  theApplications,
+  theOwner as owner,
+} from "@/shared/anInstance";
 
 const nothingBehindTheDoor = {
+  "GET /api/applications": theApplications(),
+  "GET /api/trash": { body: { items: [], has_more: false } },
   "GET /api/security": {
     body: {
       second_factor_enabled: false,
@@ -37,7 +32,7 @@ describe("the door", () => {
   it("offers setup at an instance nobody has claimed, and nothing else", async () => {
     anInstance({ "GET /api/setup": { body: { required: true } } });
 
-    render(<App />);
+    renderAt("/", <App />);
 
     expect(await screen.findByRole("heading", { name: "Claim this workspace" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Sign in" })).not.toBeInTheDocument();
@@ -52,7 +47,7 @@ describe("the door", () => {
       ...nothingBehindTheDoor,
     });
 
-    render(<App />);
+    renderAt("/", <App />);
 
     await userEvent.type(
       await screen.findByLabelText("Email address"),
@@ -76,7 +71,7 @@ describe("the door", () => {
       "GET /api/me": refused("unauthenticated", 401),
     });
 
-    render(<App />);
+    renderAt("/", <App />);
 
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
@@ -89,7 +84,7 @@ describe("the door", () => {
       ...nothingBehindTheDoor,
     });
 
-    render(<App />);
+    renderAt("/", <App />);
 
     await userEvent.type(await screen.findByLabelText("Email address"), "owner@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "correct horse battery staple");
@@ -106,7 +101,7 @@ describe("the door", () => {
       ...nothingBehindTheDoor,
     });
 
-    render(<App />);
+    renderAt("/", <App />);
 
     await userEvent.type(await screen.findByLabelText("Email address"), "owner@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "correct horse battery staple");
@@ -133,7 +128,7 @@ describe("the door", () => {
       "POST /api/session": refused("unauthenticated", 401, "The email address or the password is not correct."),
     });
 
-    render(<App />);
+    renderAt("/", <App />);
 
     await userEvent.type(await screen.findByLabelText("Email address"), "owner@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "not the password");
@@ -151,7 +146,7 @@ describe("the door", () => {
       ...nothingBehindTheDoor,
     });
 
-    render(<App />);
+    renderAt("/", <App />);
 
     await userEvent.type(await screen.findByLabelText("Email address"), "owner@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "correct horse battery staple");
@@ -170,9 +165,14 @@ describe("the door", () => {
       ...nothingBehindTheDoor,
     });
 
-    render(<App />);
+    renderAt("/", <App />);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Sign out" }));
+    // Behind the door now: signing out is in the account menu, where a reader
+    // of any web application looks for it.
+    await userEvent.click(
+      await screen.findByRole("button", { name: `Account: ${owner.email}` }),
+    );
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Sign out" }));
 
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
@@ -183,7 +183,7 @@ describe("the door", () => {
       vi.fn<typeof globalThis.fetch>(() => Promise.reject(new TypeError("Failed to fetch"))),
     );
 
-    render(<App />);
+    renderAt("/", <App />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Nothing answered at this address");
   });

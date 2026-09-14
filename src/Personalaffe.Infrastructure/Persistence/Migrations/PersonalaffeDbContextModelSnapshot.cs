@@ -111,6 +111,54 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Personalaffe.Domain.ApplicationState", b =>
+                {
+                    b.Property<string>("Application")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("application");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("enabled");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Application")
+                        .HasName("pk_application");
+
+                    b.ToTable("application", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Application = "scratchpad",
+                            Enabled = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Application = "knowledge",
+                            Enabled = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Application = "tasks",
+                            Enabled = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Application = "files",
+                            Enabled = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        });
+                });
+
             modelBuilder.Entity("Personalaffe.Domain.BrowserSession", b =>
                 {
                     b.Property<Guid>("Id")

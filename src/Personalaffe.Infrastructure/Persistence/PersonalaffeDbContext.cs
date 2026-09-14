@@ -9,8 +9,8 @@ namespace Personalaffe.Infrastructure.Persistence;
 /// <remarks>
 /// EF Core owns every table and the migrations that apply themselves on
 /// startup. What it declares is what something already stores rows in: the
-/// owner and what gets them in, from PERSONAL-E2. The content safeguards are
-/// PERSONAL-E3's and the four applications bring their own tables with them — a
+/// owner and what gets them in, from PERSONAL-E2, and the application switch
+/// from PERSONAL-E4. The four applications bring their own tables with them — a
 /// table invented here before something stores rows in it would be a shape
 /// nobody has had to live with.
 /// </remarks>
@@ -41,6 +41,13 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// nothing here can become a second.
     /// </summary>
     public DbSet<AgentAccess> AgentAccess => Set<AgentAccess>();
+
+    /// <summary>
+    /// Which of the four applications this workspace has switched on
+    /// (<see cref="ApplicationState"/>). Four rows, seeded by the migration
+    /// that creates the table.
+    /// </summary>
+    public DbSet<ApplicationState> Applications => Set<ApplicationState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

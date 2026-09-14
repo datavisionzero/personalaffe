@@ -18,6 +18,7 @@ pea status          # which instance, and where the credential is coming from
 pea login           # check a token and keep it in this machine's keychain
 pea whoami          # who the credential admits, and what it reaches
 pea logout          # take it out again
+pea applications    # which applications are switched on, and what this credential reaches
 pea trash list      # what was deleted and is still recoverable
 pea trash restore   # put one thing back
 ```
@@ -253,6 +254,29 @@ in the browser, and an agent that could revoke its own credential would be
 deciding something about the instance. A machine with nothing stored is left as
 it is, because that is the state that was asked for.
 
+### `pea applications`
+
+```sh
+pea applications
+```
+
+```
+scratchpad	on	read_write
+knowledge	off	read
+tasks	on	none
+files	on	read_write
+```
+
+One line per application, tab separated: which of the four this workspace has
+switched on, and what this credential may do in each. All four are listed,
+including the ones this credential cannot reach — that column is the answer to
+why an operation was refused, without a second request.
+
+An application that is switched off refuses every operation in it as `disabled`,
+which is exit 5 ([`docs/api.md`](./api.md), The applications). What is in it is
+kept and the retention sweep goes on running; switching it back on is the
+owner's doing, in the browser.
+
 ### `pea trash list`
 
 ```sh
@@ -265,8 +289,9 @@ knowledge	0199f0c4-…	architecture	/notes	by agent "the laptop agent"	expires 2
 ```
 
 One line per entry, tab separated, newest deletion first. Only the applications
-this credential may read are asked, so an agent sees its own half of the
-workspace and nothing beyond it. `--json` is the object the API answered.
+this credential may read — and the owner has switched on — are asked, so an
+agent sees its own half of the workspace and nothing beyond it. `--json` is the
+object the API answered.
 
 An empty Trash says so on stderr and writes nothing to stdout, so a pipeline
 reading it gets nothing rather than a sentence.
@@ -294,10 +319,10 @@ on stderr — nothing here moves the owner's content quietly.
 
 ### There is no verb that destroys anything
 
-`pea trash purge` does not exist, and neither does emptying the Trash or
-removing one entry for good. Those are the owner's, and `pea` holds agent
-access: the same reason it cannot issue a credential or change a security
-setting. An agent that could permanently remove one entry could bypass the Trash
+`pea trash purge` does not exist, and neither does emptying the Trash,
+removing one entry for good, or switching an application off. Those are the
+owner's, and `pea` holds agent access: the same reason it cannot issue a
+credential or change a security setting. An agent that could permanently remove one entry could bypass the Trash
 in two steps instead of one, and the Trash exists precisely so that an agent
 acting on the owner's behalf cannot destroy the owner's content.
 

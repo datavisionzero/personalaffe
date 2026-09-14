@@ -141,6 +141,9 @@ builder.Services.AddScoped<RevokeAgentAccess>();
 builder.Services.AddScoped<ListSessions>();
 builder.Services.AddScoped<RevokeSession>();
 builder.Services.AddScoped<RevokeOtherSessions>();
+builder.Services.AddScoped<ReadTheApplications>();
+builder.Services.AddScoped<SwitchTheApplication>();
+builder.Services.AddScoped<ReachingAnApplication>();
 builder.Services.AddScoped<ReadTheTrash>();
 builder.Services.AddScoped<RestoreFromTheTrash>();
 builder.Services.AddScoped<RemoveFromTheTrash>();
@@ -245,6 +248,7 @@ api.MapSession();
 api.MapMe();
 api.MapSecurity();
 api.MapAgents();
+api.MapApplications();
 api.MapTrash();
 
 // An address under the prefix that no endpoint took is an API mistake and

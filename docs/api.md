@@ -115,14 +115,14 @@ instance's log.
 | `forbidden` | 403 | The caller may not do this. |
 | `not-found` | 404 | Nothing at that address. |
 | `deleted` | 404 | What was at that address is in the Trash. Carries `deleted_at` and `expires_at`. |
+| `disabled` | 409 | The application this belongs to is switched off. Carries `application`. |
 | `stale` | 412 | The object has changed since it was read. |
 | `conflict` | 409 | Something else already occupies that name or place. |
 | `internal` | 500 | Something went wrong on the server. |
 
 The set is [`RefusalCode`](../src/Personalaffe.Domain/RefusalCode.cs) and it
-grows with the epics that need it — `disabled` arrives with the application
-switch (PERSONAL-E4). **Each addition is a row in this table in the same
-commit.**
+grows with the epics that need it. **Each addition is a row in this table in the
+same commit.**
 
 **Switching on the status would collapse the distinction `deleted` exists to
 make.** Both it and `not-found` are 404; one of them means the owner can have
@@ -217,6 +217,45 @@ can delete a version it never read.
 name the access had at the time — and nothing links back to the agent access
 row. The question the owner is asking of that list is which of their agents did
 this, and a name that disappears when the access is revoked is no answer.
+
+## The applications
+
+The workspace is four applications and each can be switched off
+(`CONTEXT.md`, Application). `GET /api/applications` is what a client draws its
+navigation from: all four, whether each is on, and what the caller may do in it.
+
+```json
+{ "items": [
+    { "application": "scratchpad",
+      "enabled": true,
+      "permission": "read_write",
+      "updated_at": "2026-09-14T15:30:08.000000Z" } ] }
+```
+
+All four, whoever asks. The set is closed and this document names it, so
+leaving out the ones an agent cannot reach would hide nothing — and `permission`
+beside each is what tells an agent why an operation was refused without a second
+request.
+
+`PUT /api/applications/{application}` switches one, with `{ "enabled": false }`
+and the `updated_at` it was read at in `If-Match`. **The owner alone**: an agent
+that could switch an application off could hide the owner's content from the
+owner's own screens. It answers the application in its new state, version
+included, so switching twice in a row needs no read in between. Switching one to
+the state it is already in is not a write and does not move `updated_at` — the
+guard is still checked.
+
+**Switched off hides an application; it removes nothing.** Every operation
+inside one is refused `409 disabled`, it is left out of aggregate views like the
+Trash, and it is absent from the web application's navigation. What was written
+stays written and the Trash keeps what was deleted — *and the retention sweep
+goes on running*. A deadline that stopped while an application was off would be
+a way to keep expired content for ever, and content that vanished on switching
+one back on would be the same surprise from the other side.
+
+**Access is decided before the switch.** A caller who may not reach an
+application is refused `403 forbidden` whether it is switched on or off, so the
+refusal says nothing about how the owner has configured their workspace.
 
 ## The Trash
 
@@ -442,14 +481,6 @@ Changing the password and turning the second factor off each **sign every other
 browser out**. The point of changing a password is that whoever else was in is
 now out.
 
-## Extension points, not yet implemented
-
-These are named so that the operations of later epics do not each invent their
-own spelling.
-
-- **Application enablement** (PERSONAL-E4) adds `disabled`: an application the
-  owner has switched off rejects content operations rather than answering them.
-
 ## Operations
 
 Five outside the door, and the rest behind it.
@@ -671,15 +702,26 @@ Shuts the agent out at once, and answers the access as it now stands. **A
 timestamp, not a deletion**: the row stays and the list keeps it. Revoking a
 revoked access changes nothing and is not an error.
 
+### `GET /api/applications`
+
+All four, their switches, and the caller's own permission in each. Behind the
+door, and that is the whole of its access rule.
+
+### `PUT /api/applications/{application}`
+
+`{ "enabled": false }`, with `If-Match`. **The owner alone.** Answers the
+application in its new state.
+
 ### `GET /api/trash`
 
 `application` narrows it to one; `limit` bounds it, 1 to 1000, 200 by default.
-Newest deletion first. Only the applications the caller may read are asked.
+Newest deletion first. Only the applications the caller may read **and the
+owner has switched on** are asked.
 
 ### `POST /api/trash/{application}/{id}/restore`
 
-Puts one thing back. Needs read/write access to that application and the
-entry's `updated_at` in `If-Match`. `name` restores it under another name, for
+Puts one thing back. Needs read/write access to that application, the
+application switched on, and the entry's `updated_at` in `If-Match`. `name` restores it under another name, for
 the case where the place it came from is occupied — without it, an occupied
 name is `conflict`. Answers where it landed:
 
@@ -696,7 +738,8 @@ Removes one thing for good, bytes included. **The owner alone.** Takes
 ### `DELETE /api/trash`
 
 Empties it, or one application's part of it with `application`. **The owner
-alone.** Answers `{ "removed": 7 }`.
+alone.** A switched-off application is left out of an "empty everything" and
+refuses an "empty this one". Answers `{ "removed": 7 }`.
 
 ### Anything else under `/api`
 

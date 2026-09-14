@@ -1,21 +1,25 @@
 # personalaffe — MVP Implementation Plan
 
-Status: agreed product and architecture direction. **PERSONAL-E1, PERSONAL-E2
-and PERSONAL-E3 are delivered** — the application, API, CLI and delivery
-foundation; the door in front of them, with one owner, an optional second
-factor, agent access with a permission per application and a recovery that needs
-the machine rather than a mail server; and the safeguards over content: the
-guard on a write, deletion that can be taken back, one Trash over the four
-applications, the sweep that empties it, and the rules for restoring into a tree
-([`docs/codebase.md`](codebase.md),
+Status: agreed product and architecture direction. **PERSONAL-E1 to PERSONAL-E4
+are delivered** — the application, API, CLI and delivery foundation; the door in
+front of them, with one owner, an optional second factor, agent access with a
+permission per application and a recovery that needs the machine rather than a
+mail server; the safeguards over content: the guard on a write, deletion that
+can be taken back, one Trash over the four applications, the sweep that empties
+it, and the rules for restoring into a tree; and the workspace they are drawn
+in: the four switches, the frame with its navigation, palette and keys, the
+shared Markdown editor, and screens that keep up with the instance without a
+reload ([`docs/codebase.md`](codebase.md),
 [ADR 0002](adr/0002-one-owner-with-a-browser-and-agents-with-tokens.md),
-[ADR 0003](adr/0003-content-is-guarded-by-what-it-was-read-at-and-deleted-by-being-set-aside.md)).
+[ADR 0003](adr/0003-content-is-guarded-by-what-it-was-read-at-and-deleted-by-being-set-aside.md),
+[ADR 0004](adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md)).
 
-PERSONAL-E4 through PERSONAL-E10 are not started, so there is **no content of
-any kind**: no Scratchpad, no Knowledge, no Tasks, no Files, and no shell to
-reach them through. The safeguards are there and nothing has inherited them yet
-— an instance answers an empty Trash. Do not store anything personal in an
-instance of it yet.
+PERSONAL-E5 through PERSONAL-E10 are not started, so there is **no content of
+any kind**: no Scratchpad, no Knowledge, no Tasks, no Files. The workspace and
+its safeguards are there and nothing has inherited them yet — an instance
+answers an empty Trash, and each of the four applications answers "not in this
+build yet" at its own address. Do not store anything personal in an instance of
+it yet.
 
 The plan implements the four core applications in VISION.md. IDEAS.md remains non-binding and outside the MVP. CONTEXT.md defines domain vocabulary. Epic descriptions are maintained in the PERSONAL project in planaffe; this document is the repository copy of their initial plan.
 
@@ -46,7 +50,7 @@ The dependencies below express implementation prerequisites. They are recorded i
 
 ### PERSONAL-E1: MVP: Establish the application, API, CLI, and delivery foundation
 
-Prerequisites: none.
+Prerequisites: none. **Delivered.**
 
 #### Outcome
 
@@ -74,7 +78,7 @@ Use the agreed stack and existing library choices; do not repeat library compari
 
 ### PERSONAL-E2: MVP: Secure owner access and scoped agent credentials
 
-Prerequisites: PERSONAL-E1.
+Prerequisites: PERSONAL-E1. **Delivered.**
 
 #### Outcome
 
@@ -104,7 +108,7 @@ Email is the login identifier, not a requirement for a mail delivery service. To
 
 ### PERSONAL-E3: MVP: Protect content with recoverable deletion and guarded updates
 
-Prerequisites: PERSONAL-E1, PERSONAL-E2.
+Prerequisites: PERSONAL-E1, PERSONAL-E2. **Delivered.**
 
 #### Outcome
 
@@ -133,7 +137,7 @@ The exact Trash duration, concurrency token, hierarchy collision policy, and pur
 
 ### PERSONAL-E4: MVP: Deliver the responsive app shell and shared editing experience
 
-Prerequisites: PERSONAL-E1, PERSONAL-E2.
+Prerequisites: PERSONAL-E1, PERSONAL-E2. **Delivered.**
 
 #### Outcome
 

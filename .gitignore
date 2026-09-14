@@ -53,3 +53,10 @@ volume/
 
 # The local instance on this machine: what only this host needs.
 deploy/docker-compose.local.yml
+
+# What a failed browser check leaves behind: its trace, its video and the page
+# it was looking at. Useful for the minute somebody reads it, and never
+# committed — CI uploads them as an artifact instead (.github/workflows/ci.yml).
+src/web/test-results/
+src/web/playwright-report/
+src/web/blob-report/

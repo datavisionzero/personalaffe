@@ -32,10 +32,18 @@ into a tree (PERSONAL-21), the revision convention (PERSONAL-22) and the two
 clients that carry the version (PERSONAL-23). What the epic decided is
 [ADR 0003](./adr/0003-content-is-guarded-by-what-it-was-read-at-and-deleted-by-being-set-aside.md).
 
+**PERSONAL-E4 is complete**: the application switch and what it refuses
+(PERSONAL-24), the owned primitives, the token layer and the Markdown field
+(PERSONAL-25), the frame — sidebar, palette, keys, routes — and the refresh
+(PERSONAL-26), and the browser checks in a seventh CI job (PERSONAL-27). What
+the epic decided is
+[ADR 0004](./adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md).
+
 What the rest of `docs/mvp-plan.md` describes is not started: **there is still no
-content of any kind**. The safeguards exist and nothing has yet inherited them —
-an instance answers an empty Trash and its sweep removes nothing, which is the
-shape working rather than missing.
+content of any kind**. The safeguards and the shell exist and nothing has yet
+inherited them — an instance answers an empty Trash, its sweep removes nothing,
+and each of the four applications answers "not in this build yet" at its own
+address. That is the shape working rather than missing.
 
 ## Where this comes from
 
@@ -86,11 +94,11 @@ already had a domain cut out of it once.
   `deploy/.env.example`, `.github/workflows/ci.yml`. Adapted: a file-storage
   volume beside the database volume, and no SMTP service.
 
-### Kept for PERSONAL-E4, not implemented here
+### Taken for PERSONAL-E4
 
-The shared editing experience is a later epic's work, and this is the list it
-starts from rather than a second selection exercise (ADR 0001). In both sources
-under `src/web/src/shared/`:
+The shared editing experience, from the list ADR 0001 named rather than from a
+second selection exercise. In both sources under `src/web/src/shared/`, and now
+under personalaffe's:
 
 - `MarkdownField.tsx` — what every screen imports to edit Markdown.
 - `Editor.tsx` — the only file that knows CodeMirror; a lazy chunk of its own.
@@ -100,8 +108,13 @@ under `src/web/src/shared/`:
 - `components/ui/` and `index.css` — the shadcn-generated primitives and the
   token layer, owned by the repository that carries them.
 
-The package versions those need are in both sources' `src/web/package.json` and
-are adopted with them. PERSONAL-E4 does not reopen the choice.
+The package versions came with them from both sources' `src/web/package.json`.
+Adapted: `links.ts` admits `http`, `https` and `mailto` and has no scheme of its
+own yet — nothing in this workspace has an address a body can name until
+PERSONAL-E6 and PERSONAL-E7 — and the token layer is hostingaffe's structure
+with personalaffe's colours. `components/ui/` came over whole, with
+`lib/utils.ts`, `hooks/use-mobile.ts`, the theme provider and `components.json`,
+so that the next primitive is generated the same way these were.
 
 ### Deliberately not taken
 
@@ -143,7 +156,7 @@ personalaffe/
 │  ├─ Personalaffe.Infrastructure/ Postgres, the file store
 │  ├─ Personalaffe.Api/            HTTP and the composition root
 │  ├─ cli/                         the Go CLI — `pea`
-│  └─ web/                         the single-page application
+│  └─ web/                         the single-page application, and browser/ its checks
 ├─ tests/
 │  ├─ Personalaffe.UnitTests/
 │  └─ Personalaffe.IntegrationTests/
@@ -200,25 +213,29 @@ file that knows all four layers.
 Implemented: `Domain/` with `Refusal`, `RefusalCode`, `Owner`, `Password`,
 `Caller`, `BrowserSession`, `Totp`, `Base32`, `RecoveryCode`,
 `WorkspaceApplication`, `Permission`, `Permissions`, `TokenSecret`,
-`AgentAccess`, and PERSONAL-E3's `ContentVersion`, `Actor`, `IRecoverable`,
-`Recoverable`, `Restoration` and `Revisions`;
+`AgentAccess`, PERSONAL-E3's `ContentVersion`, `Actor`, `IRecoverable`,
+`Recoverable`, `Restoration` and `Revisions`, and PERSONAL-E4's
+`ApplicationState`;
 `Application/Ports/` with the settings records the host validates at startup,
 `IOwners`, `IPasswordHasher`, `IBrowserSessions`, `IRecoveryCodes`,
-`IAgentAccessStore`, `ICallerIdentity`, `ITrash` and `IExclusiveWork`;
-`Application/Acts/` with the setup, sign-in, session, security and agent-access
-acts, the four Trash acts and the purge; `Persistence/` with the context, the
-migrator, four tables and their stores, five migrations, `GuardedSave`,
-`ExclusiveWork` and the two configuration helpers `RecoverableContent` and
-`ContentRevisions`; `Security/` with the Argon2id hasher;
+`IAgentAccessStore`, `ICallerIdentity`, `ITrash`, `IExclusiveWork` and
+`IApplicationSwitch`; `Application/Acts/` with the setup, sign-in, session,
+security and agent-access acts, the four Trash acts and the purge, and the two
+application acts beside `ReachingAnApplication`; `Persistence/` with the
+context, the migrator, five tables and their stores, six migrations,
+`GuardedSave`, `ExclusiveWork` and the two configuration helpers
+`RecoverableContent` and `ContentRevisions`; `Security/` with the Argon2id hasher;
 `Hosting/` including `RetentionService`; and `Http/` with `Routes`, `Problems`,
 `Rfc3339`, `VersionHeader`, `OpenApiDocument`, `Authentication`,
 `BrowserSecurity`, `EntityTags`, `Applications`, `InstanceEndpoints`,
 `HealthEndpoints`, `SetupEndpoints`, `SessionEndpoints`, `MeEndpoints`,
-`SecurityEndpoints`, `AgentEndpoints` and `TrashEndpoints`.
+`SecurityEndpoints`, `AgentEndpoints`, `ApplicationEndpoints` and
+`TrashEndpoints`.
 
 Planned, not implemented: `Files/`, and every endpoint of the four
-applications — an instance answers the five outside the
-door and the owner's own, and nothing of the workspace itself.
+applications — an instance answers the five outside the door, the owner's own,
+which applications it has, and its empty Trash. Nothing of the workspace's
+content.
 
 ## Where an application lives
 
@@ -250,7 +267,32 @@ Domain, the acts beside the others, and one store each.
 
 *The application folders are still planned. PERSONAL-2 created the folders that
 had something to put in them and no others — which is none of these: an empty
-folder claiming a future module is a lie the tree tells.*
+folder claiming a future module is a lie the tree tells. PERSONAL-26 gave each
+of the four a route and a screen that says which epic fills it, and that screen
+is one component in `shell/States.tsx` rather than four folders holding a
+placeholder each.*
+
+**What the four applications inherit from PERSONAL-E4**, beside PERSONAL-E3's
+safeguards:
+
+- **The switch.** `ReachingAnApplication.ToReadAsync` and `ToWriteAsync` are
+  what an act calls first. They ask access, then the switch, in that order, and
+  throw `forbidden` or `disabled` (ADR 0004). An aggregate view that leaves an
+  application out rather than refusing calls `SwitchedOnAsync`, as
+  `ReadTheTrash` does.
+- **The frame.** A screen is a route in `shell/Shell.tsx` and a folder beside
+  `shell/`. It is drawn inside the sidebar, the header and the palette without
+  doing anything, and it is offered in the navigation by being in
+  `shell/applications.ts`.
+- **The five states.** `shell/States.tsx`: `Busy`, `Empty`, `Denied`,
+  `Disabled`, `Failed`. A content screen draws one of them rather than inventing
+  its own; none of them is a blank page and none is silent to a screen reader.
+- **The refresh.** `shared/ask.ts`. A read is `useAsk(address, request)` and
+  refreshes itself; a screen with unsaved work passes `hold`, and nothing
+  arrives underneath what somebody is typing.
+- **The editor.** `shared/MarkdownField.tsx`, with its toolbar, its preview and
+  its full-screen dialog. Everything written in this workspace goes through it,
+  so what is decided there is decided in all of them at once.
 
 ## The CLI is a client, not a layer
 
@@ -311,16 +353,27 @@ copies it into the published output. A local `npm run build` lands in
 `src/Personalaffe.Api/wwwroot/`, which the API serves, so that one `dotnet run`
 gives the whole product.
 
-Its layout is one folder per area, as in both sources: `shell` owns the frame
-and the routes, `shared` the Markdown field and the editor behind it, `api` the
-generated client and its wrapper, `components/ui` the owned primitives. The four
+Its layout is one folder per area, as in both sources: `shell` owns the frame,
+the navigation, the palette, the keys and the routes; `shared` the Markdown
+field, the editor behind it and `ask.ts`, which is how a screen keeps up with
+the instance; `api` the generated client and its wrapper; `components/ui` the
+owned primitives, with `lib` and `hooks` what they reach for. `session`,
+`security` and `agents` are the door and the owner's own settings; `home`,
+`settings`, `trash` and `editor` are the screens the frame routes to. The four
 applications get a folder each when they arrive.
+
+`browser/` is beside `src/` rather than in it: those are Playwright's checks,
+they run against a running instance rather than against a module, and vitest is
+told not to pick them up.
 
 *PERSONAL-4 created `api/`, `shell/`, `shared/` and one screen. PERSONAL-14
 added `session/`, `security/` and `agents/` — the door and the owner's own
-settings — and turned `shell/App.tsx` into what decides between them. The four
-application folders, the navigation and the editor are PERSONAL-E4's and
-later.*
+settings — and turned `shell/App.tsx` into what decides between them.
+PERSONAL-25 and PERSONAL-26 added `components/ui/`, `lib/`, `hooks/`, the
+editing components under `shared/`, and the frame: `shell/` grew the sidebar,
+the palette, the keys and the routes, and `home/`, `settings/`, `trash/` and
+`editor/` are the screens behind them. The four application folders arrive with
+their epics.*
 
 **Nothing is drawn until the instance has said whether it has an owner and
 whether this browser is signed in.** `session/useSession.ts` asks the two
@@ -332,12 +385,9 @@ Every write carries `X-Personalaffe-CSRF` (`api/client.ts`), which is half of
 what a browser write proves; the other half is `Origin`, which the browser sets
 itself on anything that is not a GET.
 
-Two libraries the blueprint names are **not installed yet**: Base UI and
-CodeMirror, with `react-markdown` and its two remark plugins. Nothing on the
-foundation screen is a dialog, a popup or a Markdown field, and a dependency
-added before something uses it is a decision with no reason attached. The
-choice is not reopened when they arrive — the versions are in both sources'
-`src/web/package.json` and the components are listed above.
+*PERSONAL-25 installed Base UI, CodeMirror, `react-markdown` and its two remark
+plugins, `react-router`, `lucide-react` and the IBM Plex faces, and PERSONAL-27
+added Playwright. Each arrived with the thing that uses it.*
 
 ## The HTTP contract is an artifact, not an intention
 
@@ -414,8 +464,10 @@ empty database, that a second start finds nothing to do, that readiness fails
 when the database is gone, that the served contract is the checked-in one — are
 precisely the ones worth testing.
 
-The frontend carries its own tests inside `src/web/`, and the CLI its own inside
-`src/cli/`, each run by the CI job that builds it.
+The frontend carries its own tests inside `src/web/src/`, and the CLI its own
+inside `src/cli/`, each run by the CI job that builds it. **The one exception is
+`src/web/browser/`**, which is Playwright against a real instance in a real
+browser and has a job of its own — the subject none of the other six covers.
 
 ## The toolchains, and what pins them
 
@@ -472,8 +524,8 @@ made once, and otherwise invisible until the day the owner's file goes missing.
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request and
 on demand. It is the only thing standing between a mistake and the trunk, and it
-runs the same commands a contributor runs — six jobs, five of them beside each
-other and the sixth after all of them:
+runs the same commands a contributor runs — seven jobs, six of them beside each
+other and the seventh after all of them:
 
 | Job | What it runs | The same thing locally |
 | --- | --- | --- |
@@ -482,6 +534,7 @@ other and the sixth after all of them:
 | Web | `npm ci`, typecheck, lint, test, build | the same, in `src/web` |
 | CLI | `go generate`, `go vet`, `go test`, `go build` | the same, in `src/cli` |
 | OpenAPI contract | starts the instance against a real Postgres, captures the served document, `git diff --exit-code` | `dotnet test tests/Personalaffe.IntegrationTests --filter ContractTests` |
+| Browser checks | builds the application into the host's `wwwroot`, starts the instance, drives it in Chromium | `npm run browser`, against an instance you have up (README) |
 | Image and smoke test | builds `deploy/Dockerfile`, starts `deploy/docker-compose.yml`, waits for readiness, checks both halves | `docker build -f deploy/Dockerfile …` then `docker compose … up -d` |
 
 **No job stands in for a toolchain.** There is no skip condition and no
@@ -503,9 +556,15 @@ that agrees with a stale contract. And the image job cleans up after itself with
 **A feature epic extends these jobs rather than adding its own.** A new
 application's tests are more tests in the two .NET test projects, in `src/web`
 and in `src/cli`, and they are run by the job that already builds that
-toolchain. What would justify a seventh job is a subject none of the six covers
-— a browser check with its own runtime, say, which is what PERSONAL-E4's
-acceptance criteria will need.
+toolchain. What justifies another job is a subject none of the others covers,
+and PERSONAL-27 found the one: `browser` runs Playwright in Chromium against a
+real instance serving the built application from its own `wwwroot`. Everything
+under `src/web/src` runs in jsdom, which lays nothing out and cannot say whether
+the sidebar is a drawer at a phone's width, whether CodeMirror works at all, or
+whether a screen brings a change made elsewhere onto itself while nobody touches
+it. Its checks are `src/web/browser/`, its configuration is
+`src/web/playwright.config.ts`, and `npm run browser` is how it is run against
+an instance somebody already has up.
 
 ## What the next epics plug into
 
@@ -552,19 +611,20 @@ The proving ground under `tests/` is what each of these was developed against,
 and `Things` there is what a module with a tree and a history looks like when it
 applies all of them.
 
-**PERSONAL-E4, the shell.** The application switch it brings must not reach the
-retention sweep: `ITrash.PurgeAsync` takes a deadline and a cancellation token
-and nothing else, on purpose, because disabling an application may not suspend a
-deadline and re-enabling one may not resurrect what expired while it was off.
-`TheSafeguardsHoldTests` asserts that signature by reflection, so adding a
-parameter is a red build rather than a decision nobody notices.
+**PERSONAL-E4, the shell — landed.** What a content module inherits is listed
+under [Where an application lives](#where-an-application-lives): the switch
+through `ReachingAnApplication`, the frame, the five states, the refresh and the
+editor. The application switch deliberately does not reach the retention sweep —
+`ITrash.PurgeAsync` takes a deadline and a cancellation token and nothing else,
+and `TheSafeguardsHoldTests` asserts that signature by reflection, so adding a
+parameter is a red build rather than a decision nobody notices. What the epic
+decided is
+[ADR 0004](./adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md).
 
-`src/web/src/shell/` owns the frame; the four
-application folders go beside it. The editor components and their package
-versions are listed above, unselected and uninstalled. `disabled` is the refusal
-code the application switch brings. The static files and the SPA fallback are
-already mapped after the `/api` group, so a new screen is a route in the
-application and nothing in the host.
+Two things in it are scaffolding and go when an application arrives. `/editor`
+is the one screen the Markdown field has until PERSONAL-E5 gives it real work;
+`shared/links.ts` has no scheme of its own until PERSONAL-E6 and PERSONAL-E7
+give a file and a page an address a body can name.
 
 **PERSONAL-E6, files.** `StorageSettings` and `StorageService` already settle
 where the bytes go and prove the place works at start; what is missing is the
@@ -580,7 +640,8 @@ volumes a consistent backup has to cover are named in
 same commit, because `ContractTests` compares the two. A new refusal code is a
 row in the table in `docs/api.md` and a case in `Problems`, which throws rather
 than guesses when a code has no status. New tests are more tests in the projects
-CI already runs; a seventh job is only for a subject none of the six covers.
+CI already runs; another job is only for a subject none of the existing ones
+covers, and `browser` is the one that has ever qualified.
 
 ## What is deliberately not here
 
