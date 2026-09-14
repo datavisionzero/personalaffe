@@ -1,16 +1,21 @@
 # personalaffe — MVP Implementation Plan
 
-Status: agreed product and architecture direction. **PERSONAL-E1 and
-PERSONAL-E2 are delivered** — the application, API, CLI and delivery foundation,
-and the door in front of them: one owner, an optional second factor, agent
-access with a permission per application, and a recovery that needs the machine
-rather than a mail server ([`docs/codebase.md`](codebase.md),
-[ADR 0002](adr/0002-one-owner-with-a-browser-and-agents-with-tokens.md)).
+Status: agreed product and architecture direction. **PERSONAL-E1, PERSONAL-E2
+and PERSONAL-E3 are delivered** — the application, API, CLI and delivery
+foundation; the door in front of them, with one owner, an optional second
+factor, agent access with a permission per application and a recovery that needs
+the machine rather than a mail server; and the safeguards over content: the
+guard on a write, deletion that can be taken back, one Trash over the four
+applications, the sweep that empties it, and the rules for restoring into a tree
+([`docs/codebase.md`](codebase.md),
+[ADR 0002](adr/0002-one-owner-with-a-browser-and-agents-with-tokens.md),
+[ADR 0003](adr/0003-content-is-guarded-by-what-it-was-read-at-and-deleted-by-being-set-aside.md)).
 
-PERSONAL-E3 through PERSONAL-E10 are not started, so there is **no content of
-any kind**: no Scratchpad, no Knowledge, no Tasks, no Files, and none of the
-safeguards PERSONAL-E3 brings. Do not store anything personal in an instance of
-it yet.
+PERSONAL-E4 through PERSONAL-E10 are not started, so there is **no content of
+any kind**: no Scratchpad, no Knowledge, no Tasks, no Files, and no shell to
+reach them through. The safeguards are there and nothing has inherited them yet
+— an instance answers an empty Trash. Do not store anything personal in an
+instance of it yet.
 
 The plan implements the four core applications in VISION.md. IDEAS.md remains non-binding and outside the MVP. CONTEXT.md defines domain vocabulary. Epic descriptions are maintained in the PERSONAL project in planaffe; this document is the repository copy of their initial plan.
 

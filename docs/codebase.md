@@ -25,8 +25,17 @@ and the owner's two screens (PERSONAL-14), the recovery on the server
 epic decided is
 [ADR 0002](./adr/0002-one-owner-with-a-browser-and-agents-with-tokens.md).
 
-What the rest of `docs/mvp-plan.md` describes is not started: **there is no
-content of any kind yet**, and no safeguards over content either.
+**PERSONAL-E3 is complete**: the guard on a write (PERSONAL-17), deletion that
+sets content aside (PERSONAL-18), one Trash over the four applications
+(PERSONAL-19), the sweep that empties it (PERSONAL-20), the rules for restoring
+into a tree (PERSONAL-21), the revision convention (PERSONAL-22) and the two
+clients that carry the version (PERSONAL-23). What the epic decided is
+[ADR 0003](./adr/0003-content-is-guarded-by-what-it-was-read-at-and-deleted-by-being-set-aside.md).
+
+What the rest of `docs/mvp-plan.md` describes is not started: **there is still no
+content of any kind**. The safeguards exist and nothing has yet inherited them —
+an instance answers an empty Trash and its sweep removes nothing, which is the
+shape working rather than missing.
 
 ## Where this comes from
 
@@ -190,17 +199,22 @@ file that knows all four layers.
 
 Implemented: `Domain/` with `Refusal`, `RefusalCode`, `Owner`, `Password`,
 `Caller`, `BrowserSession`, `Totp`, `Base32`, `RecoveryCode`,
-`WorkspaceApplication`, `Permission`, `Permissions`, `TokenSecret` and
-`AgentAccess`;
+`WorkspaceApplication`, `Permission`, `Permissions`, `TokenSecret`,
+`AgentAccess`, and PERSONAL-E3's `ContentVersion`, `Actor`, `IRecoverable`,
+`Recoverable`, `Restoration` and `Revisions`;
 `Application/Ports/` with the settings records the host validates at startup,
 `IOwners`, `IPasswordHasher`, `IBrowserSessions`, `IRecoveryCodes`,
-`IAgentAccessStore` and `ICallerIdentity`; `Application/Acts/` with the setup,
-sign-in, session, security and agent-access acts; `Persistence/` with the
-context, the migrator, four tables and their stores, and five migrations; `Security/` with the Argon2id hasher;
-`Hosting/`; and `Http/` with `Routes`, `Problems`, `Rfc3339`, `VersionHeader`,
-`OpenApiDocument`, `Authentication`, `BrowserSecurity`, `InstanceEndpoints`,
+`IAgentAccessStore`, `ICallerIdentity`, `ITrash` and `IExclusiveWork`;
+`Application/Acts/` with the setup, sign-in, session, security and agent-access
+acts, the four Trash acts and the purge; `Persistence/` with the context, the
+migrator, four tables and their stores, five migrations, `GuardedSave`,
+`ExclusiveWork` and the two configuration helpers `RecoverableContent` and
+`ContentRevisions`; `Security/` with the Argon2id hasher;
+`Hosting/` including `RetentionService`; and `Http/` with `Routes`, `Problems`,
+`Rfc3339`, `VersionHeader`, `OpenApiDocument`, `Authentication`,
+`BrowserSecurity`, `EntityTags`, `Applications`, `InstanceEndpoints`,
 `HealthEndpoints`, `SetupEndpoints`, `SessionEndpoints`, `MeEndpoints`,
-`SecurityEndpoints` and `AgentEndpoints`.
+`SecurityEndpoints`, `AgentEndpoints` and `TrashEndpoints`.
 
 Planned, not implemented: `Files/`, and every endpoint of the four
 applications — an instance answers the five outside the
@@ -385,7 +399,16 @@ rules of Domain and the acts of Application against substituted ports, the
 layering test, and the parts of Infrastructure that need nothing installed
 either — the password hasher is a function, and a function is a unit test.
 
-**`Personalaffe.IntegrationTests`** brings up Postgres with Testcontainers,
+**`Personalaffe.IntegrationTests`** also owns **the proving ground**: a `things`
+table with a tree, a history and the deletion columns, created by the test
+fixture and living nowhere in `src/`. PERSONAL-E3's conventions landed before
+there was any content to apply them to, and a convention nobody has applied is a
+convention nobody has tested — so `Thing`, `ThingRevision` and `Things` are a
+content module in every respect except that no instance has them. No migration
+carries them and the contract does not mention them; what is under test is the
+production code they call.
+
+It brings up Postgres with Testcontainers,
 because the parts no substitute can vouch for — that the migrations apply to an
 empty database, that a second start finds nothing to do, that readiness fails
 when the database is gone, that the served contract is the checked-in one — are
@@ -502,15 +525,41 @@ keychain — left to the sign-in that fills it, and
 `client.New(address, token, …)` already sends the bearer header when there is a
 token to send.
 
-**PERSONAL-E3, content safeguards.** `Caller.RequireRead` and `RequireWrite`
-are what a content operation asks before it does anything, and they are waiting
-for their first caller. `RefusalCode.Stale` and its 412 are
-settled; what a write sends to say which version it is replacing is spelled in
-`docs/api.md` as the object's `updated_at`, in the one timestamp format
-`Rfc3339` writes. `deleted` is the code that joins the set, and the table in
-`docs/api.md` is where it is added in the same commit.
+**PERSONAL-E3, content safeguards — landed.** What a content module inherits,
+and the whole of it:
 
-**PERSONAL-E4, the shell.** `src/web/src/shell/` owns the frame; the four
+- **The guard.** Declare `UpdatedAt` a concurrency token in the module's
+  `IEntityTypeConfiguration`, answer `EntityTags.Write` on a read of one object,
+  take `EntityTags.Required(request)` on a write, and save through
+  `GuardedSave.SaveAsync` rather than `SaveChangesAsync`. `.Guarded()` on the
+  endpoint puts `If-Match` in the contract, which is what both generated clients
+  read it from.
+- **Recoverable deletion.** Implement `IRecoverable` on the entity and call
+  `builder.IsRecoverable()` in its configuration: that is the two columns, the
+  three of the actor, the query filter that makes forgetting impossible, and the
+  index the sweep uses. `content.Delete(caller, now)` and `content.Restore()`
+  are the two acts; `content.Gone(...)` is what a deleted address answers.
+- **The Trash and the sweep.** Register one `ITrash` for the application. That
+  is the whole of appearing in `GET /api/trash`, in restore, in permanent
+  removal and in the hourly purge. Permission is settled in the acts, once, so a
+  contributor takes no caller.
+- **A hierarchy**, where the module has one: `Restoration.Plan` says what comes
+  back with what and what is in the way. What the tree *is* stays in the module.
+- **History**, where the module keeps any: `IRevision`, `builder.IsARevision()`,
+  and `Revisions.Superseded` after every write.
+
+The proving ground under `tests/` is what each of these was developed against,
+and `Things` there is what a module with a tree and a history looks like when it
+applies all of them.
+
+**PERSONAL-E4, the shell.** The application switch it brings must not reach the
+retention sweep: `ITrash.PurgeAsync` takes a deadline and a cancellation token
+and nothing else, on purpose, because disabling an application may not suspend a
+deadline and re-enabling one may not resurrect what expired while it was off.
+`TheSafeguardsHoldTests` asserts that signature by reflection, so adding a
+parameter is a red build rather than a decision nobody notices.
+
+`src/web/src/shell/` owns the frame; the four
 application folders go beside it. The editor components and their package
 versions are listed above, unselected and uninstalled. `disabled` is the refusal
 code the application switch brings. The static files and the SPA fallback are
