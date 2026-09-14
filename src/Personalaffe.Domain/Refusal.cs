@@ -42,6 +42,18 @@ public sealed class Refusal(
     /// <summary>Nothing by that address.</summary>
     public static Refusal NotFound(string detail) => new(RefusalCode.NotFound, detail);
 
+    /// <summary>
+    /// What used to be there is in the Trash. It carries when it was deleted
+    /// and when it stops being recoverable, so that a client can say how long
+    /// is left without a second request — and so that "it is gone" and "it is
+    /// gone for good" are not the same sentence.
+    /// </summary>
+    public static Refusal Deleted(string detail, DateTimeOffset deletedAt, DateTimeOffset expiresAt) =>
+        new(
+            RefusalCode.Deleted,
+            detail,
+            new Dictionary<string, object?> { ["deleted_at"] = deletedAt, ["expires_at"] = expiresAt });
+
     /// <summary>Something else already occupies that name or place.</summary>
     public static Refusal Conflict(string detail) => new(RefusalCode.Conflict, detail);
 

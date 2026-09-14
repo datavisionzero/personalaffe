@@ -114,17 +114,19 @@ instance's log.
 | `second-factor` | 401 | The password was right and the authenticator's code is wanted as well. |
 | `forbidden` | 403 | The caller may not do this. |
 | `not-found` | 404 | Nothing at that address. |
+| `deleted` | 404 | What was at that address is in the Trash. Carries `deleted_at` and `expires_at`. |
 | `stale` | 412 | The object has changed since it was read. |
 | `conflict` | 409 | Something else already occupies that name or place. |
 | `internal` | 500 | Something went wrong on the server. |
 
 The set is [`RefusalCode`](../src/Personalaffe.Domain/RefusalCode.cs) and it
-grows with the epics that need it — `deleted` with recoverable deletion
-(PERSONAL-E3), `disabled` with the application switch (PERSONAL-E4). **Each
-addition is a row in this table in the same commit.**
+grows with the epics that need it — `disabled` arrives with the application
+switch (PERSONAL-E4). **Each addition is a row in this table in the same
+commit.**
 
-All nine can be raised. `stale` was the last one that could not, until
-[the guarded write](#the-guarded-write) gave it something to guard.
+**Switching on the status would collapse the distinction `deleted` exists to
+make.** Both it and `not-found` are 404; one of them means the owner can have
+the thing back.
 
 ### Exit codes
 
@@ -185,6 +187,36 @@ that only half the writes in the product can use is not a guard.
 Both clients do this for the caller. `pea` keeps the tag from the read it made
 and sends it on the write that follows ([`docs/cli.md`](./cli.md)); the web
 application's client does the same.
+
+## Deleting sets content aside
+
+Deleting a knowledge page, a task, a task list, a file or a folder does not
+destroy it. The row stays, leaves every ordinary read, and can be restored until
+its retention runs out — [the Trash](#the-trash) of `CONTEXT.md`. Its address
+answers `404 deleted` rather than `404 not-found` while it is there:
+
+```json
+{ "type": "/problems/deleted",
+  "title": "What was at that address is in the Trash",
+  "status": 404,
+  "detail": "The page was deleted by the agent access `the laptop agent` and is in the Trash. …",
+  "deleted_at": "2026-09-12T19:02:11.881000Z",
+  "expires_at": "2026-10-12T19:02:11.881000Z" }
+```
+
+**A Scratchpad entry is the exception and is destroyed immediately.** It is
+temporary by definition (`CONTEXT.md`), an owner who deletes one means it, and a
+Trash full of the text somebody pasted between two devices is not a service to
+anybody.
+
+Deletion is a write in both senses the product has: it needs read/write access
+to the application, and it carries `If-Match` like any other write, so nothing
+can delete a version it never read.
+
+**Who deleted something travels with it as a copy** — the kind, the id, and the
+name the access had at the time — and nothing links back to the agent access
+row. The question the owner is asking of that list is which of their agents did
+this, and a name that disappears when the access is revoked is no answer.
 
 ## The door
 
@@ -301,8 +333,6 @@ now out.
 These are named so that the operations of later epics do not each invent their
 own spelling.
 
-- **Recoverable deletion** (PERSONAL-E3) adds `deleted`, which is a 404 that
-  says the object can still be restored.
 - **Application enablement** (PERSONAL-E4) adds `disabled`: an application the
   owner has switched off rejects content operations rather than answering them.
 

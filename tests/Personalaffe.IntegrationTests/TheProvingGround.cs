@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Personalaffe.Domain;
+using Personalaffe.Infrastructure.Persistence.Configurations;
 
 namespace Personalaffe.IntegrationTests;
 
@@ -26,7 +27,7 @@ namespace Personalaffe.IntegrationTests;
 /// will apply it.
 /// </para>
 /// </remarks>
-internal sealed class Thing
+internal sealed class Thing : IRecoverable
 {
     public Guid Id { get; set; }
 
@@ -41,6 +42,10 @@ internal sealed class Thing
 
     /// <summary>The version a write holds on to (<see cref="ContentVersion"/>).</summary>
     public DateTimeOffset UpdatedAt { get; set; }
+
+    public DateTimeOffset? DeletedAt { get; set; }
+
+    public Actor? DeletedBy { get; set; }
 
     public ContentVersion Version => ContentVersion.Of(UpdatedAt);
 }
@@ -57,6 +62,11 @@ internal sealed class ThingConfiguration : IEntityTypeConfiguration<Thing>
         // concurrency token is what makes EF write `where … and updated_at = …`,
         // and what `GuardedSave` turns into the product's refusal.
         builder.Property(thing => thing.UpdatedAt).IsConcurrencyToken();
+
+        // The other line: the deletion columns, the filter that keeps deleted
+        // rows out of every read nobody thought about, and the index the purge
+        // sweeps.
+        builder.IsRecoverable();
     }
 }
 
