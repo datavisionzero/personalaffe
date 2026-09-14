@@ -218,6 +218,56 @@ name the access had at the time — and nothing links back to the agent access
 row. The question the owner is asking of that list is which of their agents did
 this, and a name that disappears when the access is revoked is no answer.
 
+## The Trash
+
+One list over the four applications, at `GET /api/trash`. There is no table
+under it: `deleted_at` stays in each module's own table and the Trash asks each
+of them, because a central index would be a second place that has to agree with
+the first, and the generic content entity personalaffe deliberately does not
+have ([`docs/codebase.md`](./codebase.md)).
+
+```json
+{ "items": [
+    { "application": "knowledge",
+      "id": "0199f0c4-…",
+      "name": "architecture",
+      "where": "/notes",
+      "deleted_at": "2026-09-12T19:02:11.881000Z",
+      "deleted_by": { "kind": "agent", "name": "the laptop agent" },
+      "expires_at": "2026-10-12T19:02:11.881000Z",
+      "updated_at": "2026-09-12T19:02:11.881000Z" } ],
+  "has_more": false }
+```
+
+`updated_at` on an entry is what a restore or a permanent removal sends back in
+`If-Match`: a list cannot answer an `ETag` per item, so the version travels in
+the item.
+
+**There is no cursor.** A limit and `has_more` are what keep a runaway from
+becoming an unbounded response; a personal Trash holds one person's deletions
+over one retention period, and four cursors and a tie-break rule would be a lot
+of machinery for a list that fits on a screen.
+
+**Who may do what, and why:**
+
+| Act | Who |
+| --- | --- |
+| Read the list | Anyone, filtered to the applications they may read |
+| Restore an entry | Read/write access to the application it is in |
+| Remove one entry for good | **The owner alone** |
+| Empty the Trash | **The owner alone** |
+
+An agent that could permanently remove one entry could bypass the Trash in two
+steps instead of one, and what the Trash is for is that an agent acting on the
+owner's behalf cannot destroy the owner's content. `pea` therefore has no verb
+that destroys anything, the same way it has none that issues a credential
+([`docs/cli.md`](./cli.md)).
+
+**An instance today answers an empty Trash**, because Scratchpad, Knowledge,
+Tasks and Files are PERSONAL-E5 to PERSONAL-E8 and none of them exists yet.
+That is the shape working rather than missing: a module joins the Trash by
+contributing to it and by nothing else.
+
 ## The door
 
 **Everything but the five operations under *Operations* needs a credential**,
@@ -556,6 +606,28 @@ per access that works, and this is it.
 Shuts the agent out at once, and answers the access as it now stands. **A
 timestamp, not a deletion**: the row stays and the list keeps it. Revoking a
 revoked access changes nothing and is not an error.
+
+### `GET /api/trash`
+
+`application` narrows it to one; `limit` bounds it, 1 to 1000, 200 by default.
+Newest deletion first. Only the applications the caller may read are asked.
+
+### `POST /api/trash/{application}/{id}/restore`
+
+Puts one thing back. Needs read/write access to that application and the
+entry's `updated_at` in `If-Match`. `name` restores it under another name, for
+the case where the place it came from is occupied — without it, an occupied
+name is `conflict`. 204, and the object is in the application again.
+
+### `DELETE /api/trash/{application}/{id}`
+
+Removes one thing for good, bytes included. **The owner alone.** Takes
+`If-Match` like the restore. 204, and there is no way back.
+
+### `DELETE /api/trash`
+
+Empties it, or one application's part of it with `application`. **The owner
+alone.** Answers `{ "removed": 7 }`.
 
 ### Anything else under `/api`
 

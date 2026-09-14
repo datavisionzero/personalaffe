@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,10 +21,21 @@ namespace Personalaffe.IntegrationTests;
 /// </remarks>
 internal sealed class AnInstance(
     string connectionString,
-    IReadOnlyDictionary<string, string?>? configuration = null) : WebApplicationFactory<Program>
+    IReadOnlyDictionary<string, string?>? configuration = null,
+    Action<IServiceCollection>? registrations = null) : WebApplicationFactory<Program>
 {
     public static async Task<AnInstance> StartedAsync(PostgresFixture postgres) =>
         new(await postgres.CreateDatabaseAsync());
+
+    /// <summary>
+    /// An instance with something else registered as well — a Trash
+    /// contributor, for the surfaces whose four real implementations are later
+    /// epics'. The registrations are appended to the host's, so what they add
+    /// to an <c>IEnumerable</c> arrives beside whatever the product registered.
+    /// </summary>
+    public static async Task<AnInstance> StartedWithAsync(
+        PostgresFixture postgres, Action<IServiceCollection> registrations) =>
+        new(await postgres.CreateDatabaseAsync(), configuration: null, registrations);
 
     public static AnInstance Against(string connectionString) => new(connectionString);
 
@@ -78,6 +90,11 @@ internal sealed class AnInstance(
 
             settings.AddInMemoryCollection(values);
         });
+
+        if (registrations is not null)
+        {
+            builder.ConfigureServices(registrations);
+        }
 
         builder.ConfigureLogging(logging =>
         {

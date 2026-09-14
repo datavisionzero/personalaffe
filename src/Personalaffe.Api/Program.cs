@@ -137,6 +137,10 @@ builder.Services.AddScoped<RevokeAgentAccess>();
 builder.Services.AddScoped<ListSessions>();
 builder.Services.AddScoped<RevokeSession>();
 builder.Services.AddScoped<RevokeOtherSessions>();
+builder.Services.AddScoped<ReadTheTrash>();
+builder.Services.AddScoped<RestoreFromTheTrash>();
+builder.Services.AddScoped<RemoveFromTheTrash>();
+builder.Services.AddScoped<EmptyTheTrash>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();
@@ -231,6 +235,7 @@ api.MapSession();
 api.MapMe();
 api.MapSecurity();
 api.MapAgents();
+api.MapTrash();
 
 // An address under the prefix that no endpoint took is an API mistake and
 // answers as one. Without this it would fall through to the web application's

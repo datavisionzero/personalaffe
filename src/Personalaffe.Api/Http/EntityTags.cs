@@ -1,3 +1,4 @@
+using Microsoft.OpenApi;
 using Personalaffe.Domain;
 
 namespace Personalaffe.Api.Http;
@@ -36,6 +37,37 @@ public static class EntityTags
 
     /// <summary>The header a read answers with.</summary>
     public const string ETag = "ETag";
+
+    /// <summary>
+    /// Says on the endpoint what the code already does: this write takes
+    /// <c>If-Match</c> and can answer <c>stale</c>. The header is read by hand
+    /// rather than bound as a parameter, so the document would not otherwise
+    /// carry it — and both clients are generated from the document.
+    /// </summary>
+    public static RouteHandlerBuilder Guarded(this RouteHandlerBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder
+            .AddOpenApiOperationTransformer((operation, _, _) =>
+            {
+                operation.Parameters ??= [];
+                operation.Parameters.Add(new OpenApiParameter
+                {
+                    Name = IfMatch,
+                    In = ParameterLocation.Header,
+                    Required = true,
+                    Description =
+                        "The version this write replaces: the `ETag` of the read it is based on, or the "
+                        + "object's `updated_at` where the read was a list. A write holding an older one "
+                        + "is refused as `stale`.",
+                    Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+                });
+
+                return Task.CompletedTask;
+            })
+            .ProducesProblem(StatusCodes.Status412PreconditionFailed);
+    }
 
     /// <summary>The strong entity tag for <paramref name="version"/>.</summary>
     public static string For(ContentVersion version) =>

@@ -58,6 +58,9 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/sessions",
                 "/api/sessions/{id}",
                 "/api/setup",
+                "/api/trash",
+                "/api/trash/{application}/{id}",
+                "/api/trash/{application}/{id}/restore",
                 "/api/version",
             ],
             paths);
@@ -78,6 +81,10 @@ public sealed class ContractTests(PostgresFixture postgres)
         // same name, and the suffix is dropped from the schema id
         // (OpenApiDocument). This is the first type to use that rule.
         Assert.Contains("Permissions", schemas);
+        Assert.Contains("TrashResponse", schemas);
+        Assert.Contains("TrashEntryResponse", schemas);
+        Assert.Contains("TrashEmptiedResponse", schemas);
+        Assert.Contains("Actor", schemas);
         Assert.Contains("Permission", schemas);
     }
 
