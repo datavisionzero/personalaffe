@@ -84,12 +84,24 @@ describe("the frame", () => {
   });
 
   describe("a direct link into an application", () => {
-    it("opens it when it is switched on and reachable", async () => {
-      anInstance({ "GET /api/applications": theApplications(), ...emptyTrash });
+    it("opens the screen of an application that has one", async () => {
+      anInstance({
+        "GET /api/applications": theApplications(),
+        "GET /api/scratchpad/entries": { body: { items: [], has_more: false } },
+        ...emptyTrash,
+      });
 
       renderAt("/scratchpad", <Shell me={theOwner} onSignedOut={() => undefined} />);
 
-      expect(await screen.findByText(/Scratchpad is not in this build yet/)).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Scratchpad" })).toBeInTheDocument();
+    });
+
+    it("says an application still to come is still to come", async () => {
+      anInstance({ "GET /api/applications": theApplications(), ...emptyTrash });
+
+      renderAt("/tasks", <Shell me={theOwner} onSignedOut={() => undefined} />);
+
+      expect(await screen.findByText(/Tasks is not in this build yet/)).toBeInTheDocument();
     });
 
     // Three different facts, and only one of them is the owner's to act on.

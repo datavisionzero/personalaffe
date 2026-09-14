@@ -33,17 +33,29 @@ clients that carry the version (PERSONAL-23). What the epic decided is
 [ADR 0003](./adr/0003-content-is-guarded-by-what-it-was-read-at-and-deleted-by-being-set-aside.md).
 
 **PERSONAL-E4 is complete**: the application switch and what it refuses
-(PERSONAL-24), the owned primitives, the token layer and the Markdown field
-(PERSONAL-25), the frame — sidebar, palette, keys, routes — and the refresh
-(PERSONAL-26), and the browser checks in a seventh CI job (PERSONAL-27). What
-the epic decided is
+(PERSONAL-25), the owned primitives and the five states (PERSONAL-27), the
+Markdown field and its renderer (PERSONAL-29, PERSONAL-30), the frame — sidebar,
+palette, keys, routes — with the owner's four switches on screen and the refresh
+(PERSONAL-26, PERSONAL-28, PERSONAL-31), and the browser checks in a seventh CI
+job (PERSONAL-32). What the epic decided is
 [ADR 0004](./adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md).
 
-What the rest of `docs/mvp-plan.md` describes is not started: **there is still no
-content of any kind**. The safeguards and the shell exist and nothing has yet
-inherited them — an instance answers an empty Trash, its sweep removes nothing,
-and each of the four applications answers "not in this build yet" at its own
-address. That is the shape working rather than missing.
+**PERSONAL-E5 is complete**: the Scratchpad entry, its table and the clock it
+expires by (PERSONAL-33), the five endpoints over it (PERSONAL-34), the sweep
+that empties it whether the application is switched on or off (PERSONAL-35),
+`pea scratchpad` and the first verb in this product that destroys something
+(PERSONAL-36), the screen with its capture box and its one-click copy
+(PERSONAL-37), and the suite and the record that close it (PERSONAL-38). What
+the epic decided is
+[ADR 0005](./adr/0005-the-scratchpad-keeps-nothing-and-its-clock-runs-from-the-last-change.md).
+
+**There is content now, and it is the Scratchpad's.** An instance captures
+plain text, lists it, pins it, expires it and destroys it, in a browser and from
+`pea`. What the rest of `docs/mvp-plan.md` describes is not started: Knowledge,
+Tasks and Files each answer "not in this build yet" at their own address, and
+the Trash is still empty — not because nothing has inherited it, but because the
+one application that exists deliberately does not contribute to it
+([ADR 0005](./adr/0005-the-scratchpad-keeps-nothing-and-its-clock-runs-from-the-last-change.md)).
 
 ## Where this comes from
 
@@ -232,10 +244,16 @@ context, the migrator, five tables and their stores, six migrations,
 `SecurityEndpoints`, `AgentEndpoints`, `ApplicationEndpoints` and
 `TrashEndpoints`.
 
-Planned, not implemented: `Files/`, and every endpoint of the four
-applications — an instance answers the five outside the door, the owner's own,
-which applications it has, and its empty Trash. Nothing of the workspace's
-content.
+Implemented for the Scratchpad (PERSONAL-E5): `Domain/Scratchpad/` with
+`ScratchpadEntry`, `Application/Ports/IScratchpadEntries`,
+`Application/Acts/Scratchpad/` with the five acts and `ExpireTheEntries`,
+`Persistence/ScratchpadEntries` with its configuration and migration, and
+`Http/ScratchpadEndpoints`.
+
+Planned, not implemented: `Files/`, and every endpoint of Knowledge, Tasks and
+Files. An instance answers the five outside the door, the owner's own, which
+applications it has, its Scratchpad, and a Trash that the Scratchpad
+deliberately never puts anything in.
 
 ## Where an application lives
 
@@ -244,13 +262,24 @@ The four applications of `VISION.md` — Scratchpad, Knowledge, Tasks, Files —
 registry and not plugins. An application is a folder in each of the four layers
 and one in `src/web/src/`:
 
+**The Scratchpad is the worked example** rather than the illustration it used
+to be: PERSONAL-E5 built exactly this shape, and the next three are written by
+reading it.
+
 ```
-src/Personalaffe.Domain/Scratchpad/         the rules of a scratchpad entry
-src/Personalaffe.Application/Acts/Scratchpad/
-src/Personalaffe.Infrastructure/Persistence/Configurations/  its table
-src/Personalaffe.Api/Http/ScratchpadEndpoints.cs
-src/web/src/scratchpad/                     its screens
+src/Personalaffe.Domain/Scratchpad/ScratchpadEntry.cs        the rules
+src/Personalaffe.Application/Acts/Scratchpad/                the acts
+src/Personalaffe.Application/Ports/IScratchpadEntries.cs     what they need answered
+src/Personalaffe.Infrastructure/Persistence/ScratchpadEntries.cs             the store
+src/Personalaffe.Infrastructure/Persistence/Configurations/ScratchpadEntryConfiguration.cs
+src/Personalaffe.Api/Http/ScratchpadEndpoints.cs             one file per object
+src/web/src/scratchpad/Scratchpad.tsx                        its screen
 ```
+
+The port and the store are the one thing the shape above did not say out loud:
+an application's acts reach persistence through an interface in
+`Application/Ports/`, and `Infrastructure/Persistence/` answers it. Nothing in
+`Acts/` knows there is a database.
 
 What more than one of them shares sits at the root of the layer it belongs to,
 and only once two of them actually need it: the concurrency guard, recoverable
@@ -265,12 +294,12 @@ application. It lives at the root of each layer, because every application asks
 it the same question: `Owner`, `AgentAccess`, `Permissions` and `Caller` in
 Domain, the acts beside the others, and one store each.
 
-*The application folders are still planned. PERSONAL-2 created the folders that
-had something to put in them and no others — which is none of these: an empty
-folder claiming a future module is a lie the tree tells. PERSONAL-26 gave each
-of the four a route and a screen that says which epic fills it, and that screen
-is one component in `shell/States.tsx` rather than four folders holding a
-placeholder each.*
+*The Scratchpad's folders exist; the other three do not. PERSONAL-2 created the
+folders that had something to put in them and no others, which is still the
+rule: an empty folder claiming a future module is a lie the tree tells.
+PERSONAL-26 gave each of the four a route, and PERSONAL-27's `shell/States.tsx`
+the screen that says which epic fills the three still to come — one component
+rather than three folders holding a placeholder each.*
 
 **What the four applications inherit from PERSONAL-E4**, beside PERSONAL-E3's
 safeguards:
@@ -369,11 +398,12 @@ told not to pick them up.
 *PERSONAL-4 created `api/`, `shell/`, `shared/` and one screen. PERSONAL-14
 added `session/`, `security/` and `agents/` — the door and the owner's own
 settings — and turned `shell/App.tsx` into what decides between them.
-PERSONAL-25 and PERSONAL-26 added `components/ui/`, `lib/`, `hooks/`, the
-editing components under `shared/`, and the frame: `shell/` grew the sidebar,
-the palette, the keys and the routes, and `home/`, `settings/`, `trash/` and
-`editor/` are the screens behind them. The four application folders arrive with
-their epics.*
+PERSONAL-27, PERSONAL-29 and PERSONAL-30 added `components/ui/`, `lib/`,
+`hooks/` and the editing components under `shared/`; PERSONAL-26 added the
+frame: `shell/` grew the sidebar, the palette, the keys and the routes, and
+`home/`, `settings/`, `trash/` and `editor/` are the screens behind them.
+PERSONAL-37 added the first application folder, `scratchpad/`. The three still
+to come arrive with their epics.*
 
 **Nothing is drawn until the instance has said whether it has an owner and
 whether this browser is signed in.** `session/useSession.ts` asks the two
@@ -385,9 +415,10 @@ Every write carries `X-Personalaffe-CSRF` (`api/client.ts`), which is half of
 what a browser write proves; the other half is `Origin`, which the browser sets
 itself on anything that is not a GET.
 
-*PERSONAL-25 installed Base UI, CodeMirror, `react-markdown` and its two remark
-plugins, `react-router`, `lucide-react` and the IBM Plex faces, and PERSONAL-27
-added Playwright. Each arrived with the thing that uses it.*
+*PERSONAL-27 installed Base UI, `react-router`, `lucide-react` and the IBM Plex
+faces; PERSONAL-29 and PERSONAL-30 added CodeMirror, `react-markdown` and its
+two remark plugins; PERSONAL-32 added Playwright. Each arrived with the thing
+that uses it.*
 
 ## The HTTP contract is an artifact, not an intention
 
@@ -557,7 +588,7 @@ that agrees with a stale contract. And the image job cleans up after itself with
 application's tests are more tests in the two .NET test projects, in `src/web`
 and in `src/cli`, and they are run by the job that already builds that
 toolchain. What justifies another job is a subject none of the others covers,
-and PERSONAL-27 found the one: `browser` runs Playwright in Chromium against a
+and PERSONAL-32 found the one: `browser` runs Playwright in Chromium against a
 real instance serving the built application from its own `wwwroot`. Everything
 under `src/web/src` runs in jsdom, which lays nothing out and cannot say whether
 the sidebar is a drawer at a phone's width, whether CodeMirror works at all, or
@@ -622,9 +653,11 @@ decided is
 [ADR 0004](./adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md).
 
 Two things in it are scaffolding and go when an application arrives. `/editor`
-is the one screen the Markdown field has until PERSONAL-E5 gives it real work;
-`shared/links.ts` has no scheme of its own until PERSONAL-E6 and PERSONAL-E7
-give a file and a page an address a body can name.
+is the one screen the Markdown field has — **until Knowledge in PERSONAL-E7, not
+until PERSONAL-E5**: the Scratchpad is plain text (VISION §6.2) and its capture
+box is a `<textarea>`, so nothing on that screen edits Markdown and no browser
+opening it downloads an editor. `shared/links.ts` has no scheme of its own until
+PERSONAL-E6 and PERSONAL-E7 give a file and a page an address a body can name.
 
 **PERSONAL-E6, files.** `StorageSettings` and `StorageService` already settle
 where the bytes go and prove the place works at start; what is missing is the

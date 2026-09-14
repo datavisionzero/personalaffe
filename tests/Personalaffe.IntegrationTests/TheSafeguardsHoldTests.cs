@@ -4,8 +4,10 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using Personalaffe.Api.Http;
+using Personalaffe.Application.Acts.Scratchpad;
 using Personalaffe.Application.Ports;
 using Personalaffe.Domain;
+using Personalaffe.Infrastructure.Persistence;
 
 namespace Personalaffe.IntegrationTests;
 
@@ -206,6 +208,40 @@ public sealed class TheSafeguardsHoldTests(PostgresFixture postgres)
         Assert.Equal(
             [typeof(DateTimeOffset), typeof(CancellationToken)],
             purge.GetParameters().Select(parameter => parameter.ParameterType));
+    }
+
+    [Fact]
+    public void Nothing_in_the_scratchpad_sweep_can_be_told_which_applications_to_skip()
+    {
+        // The same claim as the Trash's purge above, asserted the same way. The
+        // Scratchpad's sweep runs whether the owner has the application
+        // switched on or off, and works from a deadline somebody else worked
+        // out — so neither the switch nor a retention has a parameter here to
+        // arrive through.
+        foreach (var sweep in new[]
+        {
+            typeof(IScratchpadEntries).GetMethod(nameof(IScratchpadEntries.ExpireAsync))!,
+            typeof(ExpireTheEntries).GetMethod(nameof(ExpireTheEntries.ExecuteAsync))!,
+        })
+        {
+            Assert.Equal(
+                [typeof(DateTimeOffset), typeof(CancellationToken)],
+                sweep.GetParameters().Select(parameter => parameter.ParameterType));
+        }
+    }
+
+    [Fact]
+    public void The_scratchpad_contributes_nothing_to_the_trash()
+    {
+        // The one application that deliberately does not inherit the Trash
+        // (`docs/api.md`, Deleting sets content aside). The day somebody wires
+        // it in by habit, a deletion the owner was told is final stops being
+        // final — so the absence is asserted rather than remembered.
+        Assert.False(typeof(ITrash).IsAssignableFrom(typeof(ScratchpadEntries)));
+
+        Assert.DoesNotContain(
+            typeof(IScratchpadEntries).GetMethods().Select(method => method.Name),
+            name => name is "RestoreAsync" or "PurgeAsync" or "EmptyAsync");
     }
 
     private Task<AnInstance> Holding(params AFakeTrash[] contributors) =>

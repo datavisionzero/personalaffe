@@ -1,11 +1,12 @@
 import { CommandIcon, WifiOffIcon } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactElement } from "react";
 import { Link, Route, Routes, useNavigate } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Home } from "@/home/Home";
+import { Scratchpad } from "@/scratchpad/Scratchpad";
 import type { Me } from "@/session/useSession";
 import { Settings } from "@/settings/Settings";
 import { Trash } from "@/trash/Trash";
@@ -194,6 +195,14 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
 }
 
 /**
+ * The screen an application has, for the ones that have one. The three still to
+ * come are drawn by `Awaited` until their epic lands.
+ */
+const screens: Partial<Record<Application["name"], () => ReactElement>> = {
+  scratchpad: () => <Scratchpad />,
+};
+
+/**
  * What is at an application's address.
  *
  * <b>The three answers a direct link has to be able to give</b>, and they are
@@ -201,6 +210,10 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
  * it off, or it is switched on and this build has nothing in it yet. Sending
  * all three home would be the same screen for a permission problem, a setting
  * and an unfinished epic.
+ *
+ * The first two are settled here, from the answer the frame already has, so
+ * that a screen an agent cannot read is never asked for. A screen still answers
+ * them for itself: the switch can be thrown while somebody is looking at it.
  */
 function TheApplication({
   application,
@@ -223,5 +236,7 @@ function TheApplication({
     return <Disabled what={application.label} />;
   }
 
-  return <Awaited what={application.label} epic={application.arrives} />;
+  return (
+    screens[application.name]?.() ?? <Awaited what={application.label} epic={application.arrives} />
+  );
 }

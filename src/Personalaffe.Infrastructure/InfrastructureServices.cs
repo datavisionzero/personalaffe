@@ -46,6 +46,7 @@ public static class InfrastructureServices
         services.AddScoped<IRecoveryCodes, RecoveryCodes>();
         services.AddScoped<IAgentAccessStore, AgentAccessStore>();
         services.AddScoped<IApplicationSwitch, ApplicationSwitch>();
+        services.AddScoped<IScratchpadEntries, ScratchpadEntries>();
 
         // Argon2id, and the only place that knows it is (docs/codebase.md).
         services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();

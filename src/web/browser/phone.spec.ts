@@ -31,8 +31,32 @@ test.describe("on a phone", () => {
     await expect(page.getByText("Files is not in this build yet.")).toBeVisible();
   });
 
+  test("takes a Scratchpad entry on a phone, and copies one back", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+
+    const text = `written on a phone ${Date.now()}`;
+
+    await page.goto("/scratchpad");
+
+    const box = page.getByRole("textbox", { name: "New entry" });
+    await box.click();
+    await page.keyboard.type(text);
+    await page.getByRole("button", { name: "Put it down" }).click();
+
+    const entry = page.getByRole("listitem").filter({ hasText: text });
+    await expect(entry).toBeVisible();
+
+    await entry.getByRole("button", { name: /^Copy / }).click();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(text);
+
+    // Taken away again, so that the next check starts where this one did.
+    await entry.getByRole("button", { name: /^Delete / }).click();
+    await page.getByRole("button", { name: "Delete for good" }).click();
+    await expect(entry).toHaveCount(0);
+  });
+
   test("never scrolls sideways", async ({ page }) => {
-    for (const address of ["/", "/settings/applications", "/trash", "/editor"]) {
+    for (const address of ["/", "/scratchpad", "/settings/applications", "/trash", "/editor"]) {
       await page.goto(address);
       await page.waitForLoadState("networkidle");
 

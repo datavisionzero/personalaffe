@@ -6,21 +6,30 @@ reaches no database, no file volume and no other affe product, and it knows an
 instance only through the client generated from
 [`docs/api/openapi.json`](./api/openapi.json).
 
-**Five verbs exist today.** Two are the foundation's and three are the
-credential's; the content verbs arrive with their applications. Everything else
-on this page — the ladders, the input rules, the exit codes — is the shape every
-later verb is written to, and it is here because it was settled in PERSONAL-5,
-before there was a second verb to settle it differently.
+**The first content verbs are here.** Two verbs are the foundation's, three are
+the credential's, two are the workspace's, and seven are the Scratchpad's — the
+first application to arrive (PERSONAL-E5). Knowledge, Tasks and Files bring
+theirs with them. Everything else on this page — the ladders, the input rules,
+the exit codes — is the shape every later verb is written to, and it is here
+because it was settled in PERSONAL-5, before there was a second verb to settle
+it differently.
 
 ```sh
-pea version         # what pea is, what the instance is
-pea status          # which instance, and where the credential is coming from
-pea login           # check a token and keep it in this machine's keychain
-pea whoami          # who the credential admits, and what it reaches
-pea logout          # take it out again
-pea applications    # which applications are switched on, and what this credential reaches
-pea trash list      # what was deleted and is still recoverable
-pea trash restore   # put one thing back
+pea version           # what pea is, what the instance is
+pea status            # which instance, and where the credential is coming from
+pea login             # check a token and keep it in this machine's keychain
+pea whoami            # who the credential admits, and what it reaches
+pea logout            # take it out again
+pea applications      # which applications are switched on, and what this credential reaches
+pea scratchpad list   # what is in the Scratchpad, newest first
+pea scratchpad add    # put a piece of text down, from a file or stdin
+pea scratchpad show   # the text of one entry, and nothing else
+pea scratchpad edit   # replace its text, its pin, or both
+pea scratchpad pin    # keep one: a pinned entry never expires
+pea scratchpad unpin  # put one back under the clock
+pea scratchpad rm     # destroy one. Permanent: there is no way back
+pea trash list        # what was deleted and is still recoverable
+pea trash restore     # put one thing back
 ```
 
 ## What it promises
@@ -134,10 +143,13 @@ inside are the person's and stay. Text that is not ASCII survives unchanged.
 Where a verb takes a stored file rather than text, every byte survives, the last
 newline included.
 
-*The verbs that use this arrive with their applications. The reading is
-implemented and tested now because every one of them will need it, and because
-what breaks first — Unicode, and newlines — breaks the same way for all of
-them.*
+`pea scratchpad add` and `pea scratchpad edit` are the first callers. The rest
+arrive with their applications, and they read their text through the same code:
+what breaks first — Unicode, and newlines — breaks the same way for all of them.
+
+The instance drops a trailing newline too, so text written straight to the API
+is normalised the same way. It drops **one**, never two: a second trailing
+newline is somebody's blank line ([`docs/api.md`](./api.md), The Scratchpad).
 
 ## Exit codes
 
@@ -150,7 +162,7 @@ A script branches on the code; nothing has to be parsed.
 | 2 | A mistake in the arguments, or in `PERSONALAFFE_URL` / `PERSONALAFFE_TOKEN`. |
 | 3 | `404` — nothing at that address. |
 | 4 | `400 validation` and every `422` — the instance refused what was asked. |
-| 5 | `409` — something else already occupies that name or place. |
+| 5 | `409` — `conflict`, something else already occupies that name or place, or `disabled`, the application is switched off. |
 | 6 | `412 stale` — the object changed since it was read. |
 | 7 | `401` and `403` — the door stayed shut. |
 | 9 | Version skew: this `pea` does not talk to that instance. |
@@ -277,6 +289,93 @@ which is exit 5 ([`docs/api.md`](./api.md), The applications). What is in it is
 kept and the retention sweep goes on running; switching it back on is the
 owner's doing, in the browser.
 
+### `pea scratchpad list`
+
+```sh
+pea scratchpad list
+pea scratchpad list --limit 20
+```
+
+```
+0199f0c4-…	2026-09-14T08:30:00Z	-	2026-09-21T08:30:00Z	the wifi password is hunter2 …
+0199f0c3-…	2026-09-01T08:30:00Z	pinned	never	ssh key fingerprint
+```
+
+One line per entry, tab separated, newest capture first: the id, when it was
+captured, whether it is pinned, when it expires, and the first line of the text,
+shortened. A pinned entry expires `never`, which is a column rather than a
+blank. The whole text is what `show` is for.
+
+An empty Scratchpad writes nothing to stdout and says so on stderr, so a
+pipeline reading it gets nothing rather than a sentence.
+
+### `pea scratchpad add --text-file FILE|-`
+
+```sh
+pea scratchpad add --text-file note.txt
+cat note.txt | pea scratchpad add --text-file -
+pea scratchpad add --text-file - --pinned < note.txt
+```
+
+The text comes from a file or from stdin and never from an editor
+([Text in](#text-in)). `--pinned` pins it at capture, so that it never expires.
+
+**What goes to stdout is the id**, so that `id=$(pea scratchpad add --text-file -)`
+is the whole of what a script has to do to hold on to what it wrote. When it
+goes is said on stderr. `--json` is the entry as the API answered it.
+
+### `pea scratchpad show ID`
+
+```sh
+pea scratchpad show 0199f0c4-0000-7000-8000-000000000001 > note.txt
+```
+
+**The text and nothing else**, byte for byte, so that this is the round trip of
+`add --text-file`. Whatever a person needs told goes to stderr. `--json` is the
+entry as the API answered it.
+
+### `pea scratchpad edit ID`
+
+```sh
+cat note.txt | pea scratchpad edit 0199f0c4-… --text-file -
+pea scratchpad edit 0199f0c4-… --text-file note.txt --pinned
+```
+
+Replaces the text, the pin, or both. **The pin is carried forward unless
+`--pinned` says otherwise**: one write carries both, so an edit that said
+nothing about the pin would otherwise unpin whatever it touched.
+
+A write says which version it replaces ([`docs/api.md`](./api.md), The guarded
+write), and `pea` does that part itself: it reads the entry and sends the
+version it found. `--if-match` skips that read where `pea` does not otherwise
+need the entry. A version that is no longer the entry's is exit 6.
+
+### `pea scratchpad pin ID`, `pea scratchpad unpin ID`
+
+A pinned entry never expires. **Unpinning gives an entry a full period from that
+moment** rather than from its capture, so nothing disappears the instant it is
+let go.
+
+Both read the entry first, because one write carries the text and the pin
+together and the text has to go back with it.
+
+### `pea scratchpad rm ID`
+
+```sh
+pea scratchpad rm 0199f0c4-0000-7000-8000-000000000001
+```
+
+Destroys it. **Permanent**: a Scratchpad entry is not set aside, never appears
+in the Trash, and neither the owner nor an operator can bring it back.
+
+Nothing prompts, because nothing in `pea` ever does, and there is no `--force`:
+a flag that made this one feel dangerous would make every other verb feel safe.
+It is guarded like any other write, and `--if-match` skips the read.
+
+**There is no verb that empties the Scratchpad.** A loop over `list` is a script
+anybody can write; a single verb that destroys everything is one typo away from
+being the thing this product is sorry about.
+
 ### `pea trash list`
 
 ```sh
@@ -317,16 +416,24 @@ refused as a conflict (exit 5) and `--name` puts it back under another one. If
 the folder it came from is gone for good, it goes to the root and `pea` says so
 on stderr — nothing here moves the owner's content quietly.
 
-### There is no verb that destroys anything
+### What `pea` cannot do
 
-`pea trash purge` does not exist, and neither does emptying the Trash,
-removing one entry for good, or switching an application off. Those are the
-owner's, and `pea` holds agent access: the same reason it cannot issue a
-credential or change a security setting. An agent that could permanently remove one entry could bypass the Trash
-in two steps instead of one, and the Trash exists precisely so that an agent
-acting on the owner's behalf cannot destroy the owner's content.
+`pea trash purge` does not exist, and neither does emptying the Trash, removing
+a piece of lasting content for good, issuing a credential, changing a security
+setting, or switching an application off. Those are the owner's, and `pea` holds
+agent access. An agent that could permanently remove one Trash entry could
+bypass the Trash in two steps instead of one, and the Trash exists precisely so
+that an agent acting on the owner's behalf cannot destroy the owner's *lasting*
+content.
 
-The browser is where the owner does it.
+**`pea scratchpad rm` is the exception, and it is not one.** A Scratchpad entry
+is destroyed immediately by design ([`docs/api.md`](./api.md), Deleting sets
+content aside), and agent write access has included that since PERSONAL-E2:
+`read_write` means deletion, which for the Scratchpad is permanent and for
+lasting content is into the Trash. Nothing about that verb is a hole in the
+rule above; it is the rule, applied to the one application that keeps nothing.
+
+The browser is where the owner does the rest.
 
 ## Building it
 
