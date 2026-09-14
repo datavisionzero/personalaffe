@@ -163,3 +163,13 @@ func Transport(err error) error {
 
 	return &Failure{Code: exit.Unexpected, Message: err.Error()}
 }
+
+// EntityTag is a version as the instance spells it on the wire: the object's
+// `updated_at`, RFC 3339 in UTC with microseconds, as a strong entity tag
+// (docs/api.md, The guarded write).
+//
+// It is here and in no command, so that the one spelling pea sends back is the
+// one spelling it knows — the same reason the instance keeps it in one file.
+func EntityTag(version time.Time) string {
+	return `"` + version.UTC().Format("2006-01-02T15:04:05.000000Z") + `"`
+}
