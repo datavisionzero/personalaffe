@@ -4,7 +4,6 @@ import { api, guardedBy, versionOf, type Schemas } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Busy, Empty, Failed } from "@/shell/States";
 import { applicationNamed } from "@/shell/applications";
-import type { TheApplications } from "@/shell/useApplications";
 import { useAsk } from "@/shared/ask";
 import { refusal } from "@/session/useSession";
 import { Refused } from "@/shared/Form";
@@ -23,11 +22,11 @@ import { Refused } from "@/shared/Form";
  * and the second restore is refused rather than applied to something that has
  * moved.
  */
-export function Trash({ applications }: { applications: TheApplications }) {
+export function Trash() {
   const [refused, setRefused] = useState<string>();
   const [working, setWorking] = useState<string>();
 
-  const { asked, again, refresh } = useAsk("/api/trash", (signal) =>
+  const { asked, again, refresh, unanswered } = useAsk("/api/trash", (signal) =>
     api.GET("/api/trash", { signal }),
   );
 
@@ -70,6 +69,15 @@ export function Trash({ applications }: { applications: TheApplications }) {
       </header>
 
       <Refused>{refused}</Refused>
+
+      {/* The list is still the last one the instance gave, and this says so.
+          Restoring from a list that is not current is what the guard on the
+          write catches; this is so that nobody is surprised by it. */}
+      {unanswered && asked.at === "known" && (
+        <p role="status" className="text-muted-foreground text-xs text-balance">
+          The instance stopped answering. This is what it last said.
+        </p>
+      )}
 
       {asked.at === "asking" && <Busy title="Reading the Trash…" />}
       {asked.at === "failed" && <Failed why={asked.why} again={again} />}
@@ -123,10 +131,6 @@ export function Trash({ applications }: { applications: TheApplications }) {
       <p className="text-muted-foreground text-xs text-balance">
         Nothing here is removed for good by this screen. What expires, expires on its own; removing
         something before then is the owner's doing over the API.
-      </p>
-
-      <p className="sr-only" role="status">
-        {applications.unanswered ? "The instance is not answering." : ""}
       </p>
     </main>
   );

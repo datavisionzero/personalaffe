@@ -133,7 +133,7 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
 
         <Routes>
           <Route path="/" element={<Home me={me} applications={applicationsAsked} />} />
-          <Route path="/trash" element={<Trash applications={applicationsAsked} />} />
+          <Route path="/trash" element={<Trash />} />
           {/* The shared Markdown field, with nothing behind it yet
               (`editor/Editing.tsx`). It goes when Knowledge arrives. */}
           <Route
