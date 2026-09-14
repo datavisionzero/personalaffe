@@ -19,7 +19,9 @@ import { admitUrl, insidePath } from "./links";
  * Links are foreign links: exactly `http`, `https` and `mailto`, and anything
  * else stays text (`shared/links.ts`). An address inside this workspace is
  * followed rather than opened — no new tab, no `noopener`, and the frame never
- * remounted — and PERSONAL-E7 is what gives a page one.
+ * remounted — and PERSONAL-E7 is what gives a page one. A `file:` link is a
+ * stored file and becomes its download address, which is behind the same door
+ * as everything else.
  */
 const components: Components = {
   h1: ({ className, ...props }) => <h2 className={cn("mt-6 mb-2 text-base font-semibold first:mt-0", className)} {...props} />,

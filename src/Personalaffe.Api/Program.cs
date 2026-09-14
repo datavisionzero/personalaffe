@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using Personalaffe.Api.Hosting;
 using Personalaffe.Api.Http;
 using Personalaffe.Application.Acts;
+using Personalaffe.Application.Acts.Files;
 using Personalaffe.Application.Acts.Scratchpad;
 using Personalaffe.Application.Ports;
 using Personalaffe.Domain;
@@ -166,6 +167,16 @@ builder.Services.AddScoped<CaptureAnEntry>();
 builder.Services.AddScoped<RewriteAnEntry>();
 builder.Services.AddScoped<DiscardAnEntry>();
 builder.Services.AddScoped<ExpireTheEntries>();
+builder.Services.AddScoped<ReadTheFolder>();
+builder.Services.AddScoped<ReadAFile>();
+builder.Services.AddScoped<DownloadAFile>();
+builder.Services.AddScoped<UploadAFile>();
+builder.Services.AddScoped<ReplaceTheBytes>();
+builder.Services.AddScoped<MakeAFolder>();
+builder.Services.AddScoped<MoveOrRenameAFile>();
+builder.Services.AddScoped<MoveOrRenameAFolder>();
+builder.Services.AddScoped<DiscardAFile>();
+builder.Services.AddScoped<DiscardAFolder>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();
@@ -268,6 +279,7 @@ api.MapAgents();
 api.MapApplications();
 api.MapTrash();
 api.MapScratchpad();
+api.MapFiles();
 
 // An address under the prefix that no endpoint took is an API mistake and
 // answers as one. Without this it would fall through to the web application's

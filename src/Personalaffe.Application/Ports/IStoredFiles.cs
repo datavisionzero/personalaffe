@@ -87,6 +87,17 @@ public interface IStoredFiles
     Task<(IReadOnlyList<Folder> Chain, bool ReachesTheRoot)> ChainAsync(
         Guid folder, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Everything under <paramref name="folder"/>, deleted ones included, the
+    /// folder itself first.
+    /// </summary>
+    /// <remarks>
+    /// What a move asks before it lets a folder go somewhere: a folder cannot be
+    /// put inside itself, and how deep the thing being moved is decides whether
+    /// it still fits under <see cref="Folder.MaxDepth"/> when it lands.
+    /// </remarks>
+    Task<IReadOnlyList<Folder>> SubtreeAsync(Guid folder, CancellationToken cancellationToken);
+
     /// <summary>Puts a file's row down, its bytes already on the volume.</summary>
     Task AddAsync(StoredFile file, CancellationToken cancellationToken);
 

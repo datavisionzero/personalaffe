@@ -122,6 +122,10 @@ public sealed class StoredFiles(PersonalaffeDbContext context) : IStoredFiles
         return (chain, false);
     }
 
+    public async Task<IReadOnlyList<Folder>> SubtreeAsync(
+        Guid folder, CancellationToken cancellationToken) =>
+        Subtree(await context.Folders.IgnoreQueryFilters().ToListAsync(cancellationToken), folder);
+
     public async Task AddAsync(StoredFile file, CancellationToken cancellationToken)
     {
         await context.Files.AddAsync(file, cancellationToken);

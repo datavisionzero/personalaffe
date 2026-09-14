@@ -89,4 +89,25 @@ describe("the Markdown pipeline", () => {
     expect(container.querySelector("pre")).toHaveTextContent("plain");
     expect(container.querySelector("pre")?.previousElementSibling).toBeNull();
   });
+
+  it("turns a file: link into the download address the id will always have", () => {
+    const id = "0199f0c4-1234-7abc-8def-0123456789ab";
+
+    render(<Markdown>{`[the report](file:${id})`}</Markdown>);
+
+    // The reference is the id and not the name, so renaming the file or moving
+    // it into another folder leaves this link working (`docs/mvp-plan.md`,
+    // PERSONAL-E6).
+    expect(screen.getByRole("link", { name: "the report" })).toHaveAttribute(
+      "href",
+      `/api/files/${id}/content`,
+    );
+  });
+
+  it("leaves a file: link that is not an id as text", () => {
+    render(<Markdown>{"[not one](file:../../etc/passwd)"}</Markdown>);
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText("not one")).toBeInTheDocument();
+  });
 });

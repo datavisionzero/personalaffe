@@ -4,10 +4,10 @@ using Personalaffe.Application.Ports;
 namespace Personalaffe.IntegrationTests;
 
 /// <summary>
-/// The place the owner's files will go, checked before anything is served.
-/// Nothing writes there yet — the Files application is PERSONAL-E6's — and the
+/// The place the owner's files go, checked before anything is served. The
 /// failures this catches are an operator's, made once, at
-/// <c>docker compose up</c>.
+/// <c>docker compose up</c>, and every one of them is invisible until the day
+/// something is stored — by which time it is the owner's file that is missing.
 /// </summary>
 [Collection(nameof(PostgresCollection))]
 public sealed class StorageTests(PostgresFixture postgres)

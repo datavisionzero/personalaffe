@@ -186,9 +186,8 @@ were cheaper than using it is an endpoint where it will be forgotten.
 The value is `updated_at` and not a version counter because every object carries
 it already and every client already reads it; a counter beside it would be a
 second thing that has to agree with the first. The transport is a header and not
-a field in the body because an upload's body is the file
-([`Files`](#extension-points-not-yet-implemented) is PERSONAL-E6's), and a guard
-that only half the writes in the product can use is not a guard.
+a field in the body because an upload's body is the file ([Files](#files)), and
+a guard that only half the writes in the product can use is not a guard.
 
 Both clients do this for the caller. `pea` keeps the tag from the read it made
 and sends it on the write that follows ([`docs/cli.md`](./cli.md)); the web
@@ -275,6 +274,76 @@ never in the Trash, and there is no way back. Write access is enough and an
 agent has it: `read_write` has always included deletion, which for the
 Scratchpad is permanent and for lasting content is into the Trash
 ([What an agent may do](#what-an-agent-may-do)).
+
+## Files
+
+The owner's own storage: files with names, in folders, on this instance's
+volume (`CONTEXT.md`, File and Folder). It is the second application, and the
+first one that puts anything in the Trash.
+
+```json
+{ "chain": [ { "id": "0199f0c4-…", "name": "Reisen", "parent": null,
+               "created_at": "2026-09-14T08:30:00.123456Z",
+               "updated_at": "2026-09-14T08:30:00.123456Z" } ],
+  "folders": [],
+  "files": [
+    { "id": "0199f0c5-…",
+      "name": "Reisekosten 2026.pdf",
+      "folder": "0199f0c4-…",
+      "size": 284119,
+      "media_type": "application/pdf",
+      "created_at": "2026-09-14T08:31:00.000000Z",
+      "updated_at": "2026-09-14T08:31:00.000000Z" } ],
+  "used_bytes": 284119,
+  "max_file_bytes": 67108864,
+  "max_total_bytes": 5368709120 }
+```
+
+**A file's id is its address, and its name is a label.** `GET
+/api/files/{id}/content` answers the bytes and goes on answering them after the
+file has been renamed and moved into another folder — which is what makes it
+the reference Knowledge links to in PERSONAL-E7, with no second attachment
+store. The bytes live at a path derived from that id and never from the name,
+so escaping the storage area is not something a request can ask for.
+
+**The body of an upload is the file.** `POST /api/files/content?name=…&folder=…`
+takes the bytes as the body and `Content-Type` as the media type to store them
+under; there is no multipart envelope, because an agent that has bytes should be
+able to send bytes. Anything that is not a media type is stored as
+`application/octet-stream`; the instance never guesses one from the name.
+
+**A download is always an attachment.** `Content-Disposition: attachment` and
+`X-Content-Type-Options: nosniff`, whatever the stored media type says. A stored
+HTML page served as a document of this instance's own origin would be script
+running with the owner's session, and the MVP has no previews to lose by it
+(VISION §11).
+
+**A name is one name and not a path.** At most **255 bytes of UTF-8**, never
+empty, never `.` or `..`, no `/`, no `\`, no control characters — and **names in
+one folder are one each whatever their capitals**. A name already taken is
+`conflict` and never a silent rename: two things with one name in one folder is
+a tree nobody can navigate, and a product that quietly appends "(2)" has made a
+decision the owner would have made differently. Files and folders share the one
+namespace.
+
+**The tree is 32 folders deep and a folder cannot be put inside itself.** Both
+are `conflict`: the request is well formed and it is the tree's current shape
+that refuses it. Moving a folder moves everything in it without changing a row
+of it — the children point at their parent, and nothing stores a path.
+
+**Two limits, and two refusals.** One file is at most
+`PERSONALAFFE_MAX_FILE_MIB` (64 MiB by default) and the application at most
+`PERSONALAFFE_MAX_STORAGE_MIB` (5 GiB) ([`docs/operations.md`](./operations.md)).
+Over the first is `too-large`; with no room for the second is `out-of-space`.
+Both are counted against the bytes that actually arrive and never against a
+declared `Content-Length`, and the stream is cut off at whichever limit is
+nearer. What is in the Trash counts towards the total: those bytes are still on
+the volume and still the owner's to restore.
+
+**Deleting sets a file aside**, unlike the Scratchpad's. Deleting a folder takes
+everything in it under one moment, so the whole thing comes back together; a
+child the owner deleted separately keeps its own expiry and does not
+([Putting something back into a tree](#putting-something-back-into-a-tree)).
 
 ## The applications
 
@@ -802,6 +871,61 @@ asks for what is already stored changes nothing and does not move `updated_at`
 Destroys it, with `If-Match`. `204`, and there is no way back. Read/write access
 to the Scratchpad is the whole of the access rule; this is the one destruction
 in this product an agent may make.
+
+### `GET /api/files`
+
+`folder` names one, and nothing names the top. Answers the folders and the files
+in it, the `chain` from the top down to it, and how much room is left. **No
+limit and no cursor**: this is one folder's contents, and the answer to a folder
+with too much in it is another folder.
+
+### `POST /api/files/folders`
+
+`{ "name": "Reisen", "parent": null }`. `201` with the `ETag` of what was made.
+
+### `PUT /api/files/folders/{id}`
+
+`{ "name": "Reisen", "folder": null }`, with `If-Match`. Renames it, moves it,
+or both; what is in it goes with it. `conflict` for a name already taken, for a
+folder put inside itself, and for a tree that would be too deep.
+
+### `DELETE /api/files/folders/{id}`
+
+Into the Trash, with `If-Match`, and everything in it under one moment. `204`.
+
+### `POST /api/files/content`
+
+`name` is required and `folder` names where it goes. **The body is the file**
+and `Content-Type` is the media type. `201` with `Location` and the `ETag` of
+what was written, so renaming or deleting what was just stored needs no read in
+between. `too-large` and `out-of-space` are the two refusals only this endpoint
+and the one below can make.
+
+### `GET /api/files/{id}`
+
+One file's metadata, with its `ETag`. A file in the Trash is `404 deleted` with
+`deleted_at` and `expires_at`.
+
+### `PUT /api/files/{id}`
+
+`{ "name": "…", "folder": "…" }`, with `If-Match`. Renames it, moves it, or
+both. **Its address does not change**, and neither do the bytes.
+
+### `PUT /api/files/{id}/content`
+
+New bytes for the same file, with `If-Match`. The id, the name and the place
+stay, so every link to it now answers with these. Nothing is kept of what it
+replaced.
+
+### `GET /api/files/{id}/content`
+
+The bytes, as an attachment, behind the same door as everything else. The
+address is the id, so a rename cannot break it.
+
+### `DELETE /api/files/{id}`
+
+Into the Trash, with `If-Match`. `204`. `pea trash restore files {id}` brings it
+back, and only the owner can remove it for good.
 
 ### `GET /api/trash`
 
