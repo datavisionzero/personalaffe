@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 
 /**
- * The three pieces every form on these screens is made of. They are here rather
- * than in `components/ui/` because they are three elements and a class list:
- * the owned primitives of the affe stack arrive with the shell that needs them
- * (`docs/codebase.md`), and inventing them early would be inventing them twice.
+ * The two pieces of a form that are not one of the owned primitives: the label
+ * with its hint, and the place a refusal is said out loud.
+ *
+ * Everything else a form is made of comes from `components/ui/`
+ * (`docs/codebase.md`) — `Input`, `Button` — which is why this file is two
+ * components and not a widget library. A `<select>` is the one control the
+ * adopted set does not carry, so the class it wears is here, beside the two.
  */
 export function Field({
   label,
@@ -25,43 +28,27 @@ export function Field({
         <span className="font-medium">{label}</span>
         {children}
       </label>
-      {hint !== undefined && <span className="text-muted text-xs text-balance">{hint}</span>}
+      {hint !== undefined && (
+        <span className="text-muted-foreground text-xs text-balance">{hint}</span>
+      )}
     </div>
   );
 }
 
-export const inputClass =
-  "border-line focus-visible:outline-accent rounded-md border bg-transparent px-3 py-2 " +
-  "text-sm focus-visible:outline-2 focus-visible:outline-offset-1";
-
-export function Button({
-  children,
-  kind = "ordinary",
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { kind?: "primary" | "ordinary" | "quiet" }) {
-  const look = {
-    primary: "bg-accent text-paper border-accent",
-    ordinary: "border-line hover:border-accent",
-    quiet: "border-transparent text-muted hover:text-ink",
-  }[kind];
-
-  return (
-    <button
-      {...rest}
-      className={
-        `focus-visible:outline-accent rounded-md border px-3 py-1.5 text-sm ` +
-        `focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 ${look}`
-      }
-    >
-      {children}
-    </button>
-  );
-}
+/**
+ * A native `<select>`, wearing what `Input` wears. The adopted set has a
+ * `Picker`, and a closed set of three words on a settings screen does not need
+ * a listbox in a popup to be usable with a keyboard.
+ */
+export const selectClass =
+  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm " +
+  "transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 " +
+  "focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30";
 
 /** What went wrong, where a screen reader will be told about it. */
 export function Refused({ children }: { children: ReactNode }) {
   return children === undefined || children === null || children === "" ? null : (
-    <p role="alert" className="text-sm text-balance">
+    <p role="alert" className="text-destructive text-sm text-balance">
       {children}
     </p>
   );

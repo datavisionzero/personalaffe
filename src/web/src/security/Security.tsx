@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { api, type Schemas } from "@/api/client";
-import { Button, Field, Refused, inputClass } from "@/shared/Form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, Refused } from "@/shared/Form";
 import { refusal } from "@/session/useSession";
 
 type SecurityState = Schemas["SecurityResponse"];
@@ -115,7 +117,7 @@ export function Security() {
       <Refused>{refused}</Refused>
 
       {state?.recovered_at && (
-        <p className="border-line rounded-md border px-3 py-2 text-sm text-balance">
+        <p className="border-border rounded-md border px-3 py-2 text-sm text-balance">
           This instance was recovered from its server on{" "}
           {new Date(state.recovered_at).toLocaleString()}. If that was not you, whoever has the
           machine has this workspace.
@@ -136,7 +138,7 @@ export function Security() {
       {offer && <Enrolment offer={offer} onConfirm={confirm} />}
 
       {state?.second_factor_enabled && (
-        <div className="border-line flex flex-col gap-5 rounded-lg border p-5">
+        <div className="border-border flex flex-col gap-5 rounded-lg border p-5">
           <p className="text-sm">
             A second factor is on, and {state.recovery_codes_remaining} recovery{" "}
             {state.recovery_codes_remaining === 1 ? "code is" : "codes are"} left.
@@ -169,13 +171,13 @@ export function Security() {
           {sessions.map((session) => (
             <li
               key={session.id}
-              className="border-line flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
+              className="border-border flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
             >
               <span className="text-balance">
                 {session.description ?? "A browser that did not say what it is"}
-                {session.current && <span className="text-accent"> — this one</span>}
+                {session.current && <span className="text-brand"> — this one</span>}
               </span>
-              <Button type="button" onClick={() => void revoke(session.id)}>
+              <Button type="button" variant="outline" onClick={() => void revoke(session.id)}>
                 {session.current ? "Sign out here" : "Sign it out"}
               </Button>
             </li>
@@ -198,7 +200,7 @@ function Enrolment({
 
   return (
     <form
-      className="border-line flex flex-col gap-4 rounded-lg border p-5"
+      className="border-border flex flex-col gap-4 rounded-lg border p-5"
       onSubmit={(event: FormEvent) => {
         event.preventDefault();
         void onConfirm(code);
@@ -209,17 +211,16 @@ function Enrolment({
         changed.
       </p>
 
-      <code className="border-line bg-line/20 rounded-md border px-3 py-2 font-mono text-sm break-all">
+      <code className="border-border bg-muted rounded-md border px-3 py-2 font-mono text-sm break-all">
         {offer.secret}
       </code>
 
-      <a className="text-accent text-xs break-all underline" href={offer.uri}>
+      <a className="text-brand text-xs break-all underline" href={offer.uri}>
         {offer.uri}
       </a>
 
       <Field label="The code it shows">
-        <input
-          className={inputClass}
+        <Input
           name="code"
           autoComplete="one-time-code"
           required
@@ -229,7 +230,7 @@ function Enrolment({
       </Field>
 
       <div>
-        <Button type="submit" kind="primary">
+        <Button type="submit">
           Turn it on
         </Button>
       </div>
@@ -242,7 +243,7 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
   return (
     <div className="border-accent flex flex-col gap-3 rounded-lg border p-5" role="status">
       <h3 className="font-medium">Your recovery codes</h3>
-      <p className="text-muted text-sm text-balance">
+      <p className="text-muted-foreground text-sm text-balance">
         Each works once, and this is the only time they are shown. Keep them somewhere that is not
         the phone with the authenticator on it.
       </p>
@@ -252,7 +253,7 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
         ))}
       </ul>
       <div>
-        <Button type="button" onClick={onDone}>
+        <Button type="button" variant="outline" onClick={onDone}>
           I have them
         </Button>
       </div>
@@ -284,11 +285,10 @@ function PasswordForm({
       }}
     >
       <h3 className="text-sm font-medium">{title}</h3>
-      <p className="text-muted text-sm text-balance">{explanation}</p>
+      <p className="text-muted-foreground text-sm text-balance">{explanation}</p>
 
       <Field label={`Your password, to ${submit.toLowerCase()}`}>
-        <input
-          className={inputClass}
+        <Input
           type="password"
           name="password"
           autoComplete="current-password"
@@ -299,7 +299,7 @@ function PasswordForm({
       </Field>
 
       <div>
-        <Button type="submit">{submit}</Button>
+        <Button type="submit" variant="outline">{submit}</Button>
       </div>
     </form>
   );
@@ -339,11 +339,10 @@ function ChangePassword({
   return (
     <form onSubmit={change} className="flex flex-col gap-3">
       <h3 className="text-sm font-medium">Change your password</h3>
-      <p className="text-muted text-sm text-balance">Every other browser is signed out.</p>
+      <p className="text-muted-foreground text-sm text-balance">Every other browser is signed out.</p>
 
       <Field label="Your password now">
-        <input
-          className={inputClass}
+        <Input
           type="password"
           name="current_password"
           autoComplete="current-password"
@@ -354,8 +353,7 @@ function ChangePassword({
       </Field>
 
       <Field label="Your new password" hint="At least 12 characters.">
-        <input
-          className={inputClass}
+        <Input
           type="password"
           name="password"
           autoComplete="new-password"
@@ -369,7 +367,7 @@ function ChangePassword({
       {done && <p role="status" className="text-sm">Changed.</p>}
 
       <div>
-        <Button type="submit">Change it</Button>
+        <Button type="submit" variant="outline">Change it</Button>
       </div>
     </form>
   );

@@ -26,7 +26,7 @@ describe("the guarded write", () => {
 
   it("sends the version back in the header the instance reads", () => {
     expect(guardedBy(versionOf("2026-09-14T08:30:00.123456Z"))).toEqual({
-      headers: { "If-Match": '"2026-09-14T08:30:00.123456Z"' },
+      header: { "If-Match": '"2026-09-14T08:30:00.123456Z"' },
     });
   });
 
@@ -34,7 +34,7 @@ describe("the guarded write", () => {
     const answered = new Response(null, { headers: { ETag: '"2026-09-14T08:30:00.123456Z"' } });
     const version = versionFrom(answered)!;
 
-    expect(guardedBy(version).headers["If-Match"]).toBe(answered.headers.get("ETag"));
+    expect(guardedBy(version).header["If-Match"]).toBe(answered.headers.get("ETag"));
   });
 });
 

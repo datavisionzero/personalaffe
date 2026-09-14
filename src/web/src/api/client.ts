@@ -59,12 +59,14 @@ export function versionFrom(response: Response): Version | undefined {
 }
 
 /**
- * What a guarded write carries. Every write that replaces something takes one:
- * the type is what makes forgetting it a compile error on the screen rather
- * than a `412` in front of the owner.
+ * What a guarded write carries, as the generated client takes it: `If-Match` is
+ * a header parameter in the contract, so it goes in `params.header` beside the
+ * path. Every write that replaces something takes one, and the generated types
+ * make forgetting it a compile error on the screen rather than a `412` in front
+ * of the owner.
  */
-export function guardedBy(version: Version): { headers: { "If-Match": string } } {
-  return { headers: { "If-Match": version } };
+export function guardedBy(version: Version): { header: { "If-Match": string } } {
+  return { header: { "If-Match": version } };
 }
 
 /**

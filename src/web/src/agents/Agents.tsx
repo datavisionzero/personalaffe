@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { api, type Schemas } from "@/api/client";
-import { Button, Field, Refused, inputClass } from "@/shared/Form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, Refused, selectClass } from "@/shared/Form";
 import { refusal } from "@/session/useSession";
 
 type Agent = Schemas["AgentResponse"];
@@ -110,7 +112,7 @@ export function Agents() {
         <h2 id="agents" className="text-lg font-semibold">
           Agent access
         </h2>
-        <p className="text-muted text-sm text-balance">
+        <p className="text-muted-foreground text-sm text-balance">
           A named key to part of this workspace, revocable on its own. It is not a second account:
           an agent cannot issue credentials, change how you sign in, or reset the instance.
         </p>
@@ -147,15 +149,15 @@ function Token({
   return (
     <div className="border-accent flex flex-col gap-3 rounded-lg border p-5" role="status">
       <h3 className="font-medium">The token for {issued.name}</h3>
-      <p className="text-muted text-sm text-balance">
+      <p className="text-muted-foreground text-sm text-balance">
         This is the only time it is shown. What this instance keeps is a digest of it, so a token
         that is lost is reissued rather than recovered.
       </p>
-      <code className="border-line bg-line/20 rounded-md border px-3 py-2 font-mono text-sm break-all">
+      <code className="border-border bg-muted rounded-md border px-3 py-2 font-mono text-sm break-all">
         {issued.token}
       </code>
       <div>
-        <Button type="button" onClick={onDone}>
+        <Button type="button" variant="outline" onClick={onDone}>
           I have it
         </Button>
       </div>
@@ -177,12 +179,11 @@ function Grant({ onGrant }: { onGrant: (name: string, permissions: Granted) => P
   }
 
   return (
-    <form onSubmit={grant} className="border-line flex flex-col gap-4 rounded-lg border p-5">
+    <form onSubmit={grant} className="border-border flex flex-col gap-4 rounded-lg border p-5">
       <h3 className="text-sm font-medium">Let an agent in</h3>
 
       <Field label="Name" hint="What this key is for, so that a list of them answers that question.">
-        <input
-          className={inputClass}
+        <Input
           name="name"
           required
           maxLength={100}
@@ -194,7 +195,7 @@ function Grant({ onGrant }: { onGrant: (name: string, permissions: Granted) => P
       <Permissions permissions={permissions} onChange={setPermissions} />
 
       <div>
-        <Button type="submit" kind="primary">
+        <Button type="submit">
           Let it in
         </Button>
       </div>
@@ -214,14 +215,14 @@ function Row({
   onRevoke: () => Promise<void>;
 }) {
   return (
-    <li className="border-line flex flex-col gap-4 rounded-lg border p-4">
+    <li className="border-border flex flex-col gap-4 rounded-lg border p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-medium">{agent.name}</h3>
-        <code className="text-muted font-mono text-xs">{agent.token_prefix}…</code>
+        <code className="text-muted-foreground font-mono text-xs">{agent.token_prefix}…</code>
       </div>
 
       {agent.revoked_at ? (
-        <p className="text-muted text-sm">
+        <p className="text-muted-foreground text-sm">
           Revoked. It is kept here because it is what acted, wherever it acted.
         </p>
       ) : (
@@ -229,10 +230,10 @@ function Row({
           <Permissions permissions={agent.permissions} onChange={(next) => void onChange(next)} />
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => void onReissue()}>
+            <Button type="button" variant="outline" onClick={() => void onReissue()}>
               New token
             </Button>
-            <Button type="button" onClick={() => void onRevoke()}>
+            <Button type="button" variant="outline" onClick={() => void onRevoke()}>
               Revoke
             </Button>
           </div>
@@ -254,7 +255,8 @@ function Permissions({
       {applications.map((application) => (
         <Field key={application} label={application}>
           <select
-            className={inputClass}
+            name={application}
+            className={selectClass}
             aria-label={application}
             value={permissions[application]}
             onChange={(event) =>

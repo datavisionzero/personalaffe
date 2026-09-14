@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 
 import { api } from "@/api/client";
-import { Button, Field, Refused, inputClass } from "@/shared/Form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, Refused } from "@/shared/Form";
 import { refusal, type Me } from "@/session/useSession";
 
 /**
@@ -68,8 +70,7 @@ export function SignIn({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
       </h2>
 
       <Field label="Email address">
-        <input
-          className={inputClass}
+        <Input
           type="email"
           name="email"
           autoComplete="username"
@@ -80,8 +81,7 @@ export function SignIn({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
       </Field>
 
       <Field label="Password">
-        <input
-          className={inputClass}
+        <Input
           type="password"
           name="password"
           autoComplete="current-password"
@@ -96,8 +96,7 @@ export function SignIn({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
           label="Code from your authenticator"
           hint="Or one of your recovery codes, if the authenticator is gone."
         >
-          <input
-            className={inputClass}
+          <Input
             name="second_factor"
             autoComplete="one-time-code"
             inputMode="text"
@@ -114,7 +113,7 @@ export function SignIn({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
       <Refused>{refused}</Refused>
 
       <div>
-        <Button type="submit" kind="primary" disabled={working}>
+        <Button type="submit"  disabled={working}>
           {working ? "Signing in…" : "Sign in"}
         </Button>
       </div>
