@@ -6,12 +6,12 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 [`CONTEXT.md`](CONTEXT.md) is the language it uses;
 [`docs/mvp-plan.md`](docs/mvp-plan.md) says in what order it is built.
 
-> **It is not a workspace yet.** What exists is the foundation of PERSONAL-E1 —
-> a .NET host, a PostgreSQL schema that migrates itself, a checked-in HTTP
-> contract, and a web page and a CLI that read it — and the door of
-> PERSONAL-E2: an instance is claimed once by its one owner, who signs in with
-> an email address, a password and, if they want one, a code from an
-> authenticator; agents are let in with named tokens and a permission per
+> **It is a workspace with nothing in it yet.** What exists is the foundation of
+> PERSONAL-E1 — a .NET host, a PostgreSQL schema that migrates itself, a
+> checked-in HTTP contract, and a web application and a CLI that read it — and
+> the door of PERSONAL-E2: an instance is claimed once by its one owner, who
+> signs in with an email address, a password and, if they want one, a code from
+> an authenticator; agents are let in with named tokens and a permission per
 > application; and everything but five operations is behind that door.
 >
 > PERSONAL-E3 adds the safeguards over content: a write says which version it
@@ -19,10 +19,18 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > a Trash that empties itself after thirty days; restoring brings back the
 > folders it needs; and removing anything for good is the owner's alone.
 >
+> PERSONAL-E4 adds the workspace they are drawn in: the four applications, each
+> of which the owner can switch off without losing what is in it; the frame
+> around them, with its navigation, its command palette and its keys, on a desk
+> and on a phone; the Markdown editor every application will write through; and
+> screens that bring a change made on another device or by an agent onto
+> themselves without a reload, and without taking away what somebody is in the
+> middle of typing.
+>
 > **There is still no content of any kind** — no Scratchpad, no Knowledge, no
-> Tasks, no Files, and no shell to reach them through. An instance answers an
-> empty Trash because nothing has anything to put in it. Those are PERSONAL-E4
-> and the epics after it, so
+> Tasks, no Files. Each of the four answers "not in this build yet" at its own
+> address, and an instance answers an empty Trash because nothing has anything
+> to put in it. Those are PERSONAL-E5 through PERSONAL-E8, so
 > **do not put anything personal in an instance of it yet.**
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
@@ -115,6 +123,30 @@ npm run build
 Each of those generates the API layer from the contract first, which is why
 `src/web/src/api/schema.d.ts` is not committed.
 
+### The browser checks
+
+`npm run test` is jsdom, which lays nothing out. What it cannot answer — whether
+the navigation is a drawer at a phone's width, whether the Markdown editor works
+at all, whether a screen picks up a change made somewhere else without a
+reload — is `src/web/browser/`, run in Chromium against a real instance.
+
+```sh
+docker compose -f deploy/docker-compose.dev.yml up -d
+cd src/web
+npm run build                                # into the host's wwwroot
+npx playwright install chromium              # once per machine
+
+# In another terminal, on :5142 — the address the checks expect.
+ASPNETCORE_HTTP_PORTS=5142 dotnet run --project src/Personalaffe.Api
+
+npm run browser
+```
+
+They claim the instance they are pointed at and switch its applications on and
+off, so point them at one you are willing to lose — `PERSONALAFFE_URL` says
+which. CI gives them a database that lives for two minutes
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+
 ## Running the CLI
 
 `pea` is a client of the public API and nothing else. It is built from its own
@@ -204,12 +236,13 @@ writes nothing into the repository and needs no credential.
 
 ## Known limits
 
-Everything here is PERSONAL-E1, PERSONAL-E2 and PERSONAL-E3, and nothing more.
+Everything here is PERSONAL-E1 to PERSONAL-E4, and nothing more.
 
 - **There is no content.** No scratchpad, no knowledge pages, no tasks, no
   files: what the database carries is an owner, their sessions, their recovery
-  codes and the agents they let in. The four applications are PERSONAL-E5
-  through PERSONAL-E8.
+  codes, the agents they let in, and which of the four applications is switched
+  on. The four applications are PERSONAL-E5 through PERSONAL-E8, and each of
+  them answers "not in this build yet" at its own address.
 - **Nothing an agent is given reaches anything yet.** The permissions are real
   and enforced, and the applications they guard do not exist.
 - **The Trash is real and empty, and it will stay empty.** The guard on a write,
@@ -219,6 +252,13 @@ Everything here is PERSONAL-E1, PERSONAL-E2 and PERSONAL-E3, and nothing more.
   ([`docs/codebase.md`](docs/codebase.md)).
 - **The file storage volume is checked but never written to.** The Files
   application is PERSONAL-E6's.
+- **The Markdown editor has one screen and it is a scaffold.** `/editor` is
+  where the shared field can be tried and where the browser checks drive it,
+  because nothing stores prose yet. It writes nowhere, and it goes when
+  Knowledge arrives (PERSONAL-E7).
+- **The home page is not the dashboard.** It says which applications this
+  workspace has; the tiles of what is pending and what was touched are
+  PERSONAL-E9's, and so is searching.
 - **There is no release.** No image is published anywhere, and CI deliberately
   has no credential to publish one with. Release artifacts are PERSONAL-E10's.
 - **Backups are two volumes and no procedure.** Taking them consistently
