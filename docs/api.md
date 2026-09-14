@@ -66,6 +66,9 @@ generators by hand, and both were run against it when it was first captured.*
 - **Timestamps are RFC 3339 in UTC with microseconds** —
   `2026-09-13T14:03:07.123456Z` — one spelling everywhere, so that the value a
   client reads is the value it can send back.
+- **A write says which version it replaces.** It sends back the `ETag` the read
+  it is based on answered, in `If-Match`, and a write holding an older one is
+  refused as `stale`. See [The guarded write](#the-guarded-write).
 - **Every response carries `Personalaffe-Version`**, the refused and the failed
   ones included: a 401 is an answer, and a client reporting version skew has to
   be able to read it off whatever it got. The API itself carries no version in
@@ -120,14 +123,68 @@ grows with the epics that need it — `deleted` with recoverable deletion
 (PERSONAL-E3), `disabled` with the application switch (PERSONAL-E4). **Each
 addition is a row in this table in the same commit.**
 
-Of the nine, eight can be raised today. Only `stale` cannot: it is the shape
-PERSONAL-E3's writes are written to.
+All nine can be raised. `stale` was the last one that could not, until
+[the guarded write](#the-guarded-write) gave it something to guard.
 
 ### Exit codes
 
 `pea` derives its exit code from the status and the code, so that a script
 branches without parsing anything. The table lives in
 [`docs/cli.md`](./cli.md) with the CLI that implements it (PERSONAL-5).
+
+## The guarded write
+
+Two people change one thing. The owner has a page open in a browser; an agent
+edits the same page over the API. One of those writes was made without knowing
+about the other, and the product's answer is that it is **refused**, not that it
+silently wins.
+
+**A read of one object answers `ETag`.** The value is that object's `updated_at`
+in the one timestamp spelling above, as a strong entity tag:
+
+```http
+GET /api/trash
+...
+ETag: "2026-09-14T08:30:00.123456Z"
+```
+
+**A write sends it back in `If-Match`**, exactly as it was answered, quotation
+marks included:
+
+```http
+POST /api/trash/knowledge/0199.../restore
+If-Match: "2026-09-14T08:30:00.123456Z"
+```
+
+If the object has changed since, the write is refused `412 stale` and changes
+nothing. The document carries the object's current `updated_at`, so a client can
+tell "somebody got there first" from "I sent something malformed" without asking
+again:
+
+```json
+{ "type": "/problems/stale",
+  "title": "The object has changed since it was read",
+  "status": 412,
+  "detail": "The page has changed since it was read. Read it again: …",
+  "updated_at": "2026-09-14T08:31:12.004000Z" }
+```
+
+**A guarded write with no `If-Match` is refused the same way**, and so is `*`, a
+weak tag, more than one tag, and anything that is not a timestamp this instance
+wrote. One code for all of them, because the caller's move is the same in every
+case: read the object again and decide. An endpoint where forgetting the guard
+were cheaper than using it is an endpoint where it will be forgotten.
+
+The value is `updated_at` and not a version counter because every object carries
+it already and every client already reads it; a counter beside it would be a
+second thing that has to agree with the first. The transport is a header and not
+a field in the body because an upload's body is the file
+([`Files`](#extension-points-not-yet-implemented) is PERSONAL-E6's), and a guard
+that only half the writes in the product can use is not a guard.
+
+Both clients do this for the caller. `pea` keeps the tag from the read it made
+and sends it on the write that follows ([`docs/cli.md`](./cli.md)); the web
+application's client does the same.
 
 ## The door
 
@@ -242,12 +299,8 @@ now out.
 ## Extension points, not yet implemented
 
 These are named so that the operations of later epics do not each invent their
-own spelling. **None of them is implemented.**
+own spelling.
 
-- **Stale-update handling** (PERSONAL-E3): a write that replaces something says
-  which version it read, and a write based on an older one is refused as
-  `stale` rather than silently winning. The value is the object's `updated_at`
-  in the spelling above.
 - **Recoverable deletion** (PERSONAL-E3) adds `deleted`, which is a 404 that
   says the object can still be restored.
 - **Application enablement** (PERSONAL-E4) adds `disabled`: an application the
