@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Personalaffe.Domain;
+using Personalaffe.Domain.Scratchpad;
 
 namespace Personalaffe.Infrastructure.Persistence;
 
@@ -48,6 +49,13 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// that creates the table.
     /// </summary>
     public DbSet<ApplicationState> Applications => Set<ApplicationState>();
+
+    /// <summary>
+    /// The temporary plain text the owner keeps for cross-device use
+    /// (<see cref="ScratchpadEntry"/>). The one table here with no
+    /// <c>deleted_at</c>: what is deleted from it is destroyed.
+    /// </summary>
+    public DbSet<ScratchpadEntry> ScratchpadEntries => Set<ScratchpadEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

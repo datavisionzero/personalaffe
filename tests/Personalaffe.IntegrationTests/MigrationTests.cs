@@ -43,6 +43,21 @@ public sealed class MigrationTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task The_scratchpad_table_carries_no_deleted_at()
+    {
+        // The one table in this schema with no way back out of a deletion
+        // (`docs/api.md`, Deleting sets content aside). A `deleted_at` here
+        // would be a column inviting somebody to wire the Scratchpad into the
+        // Trash by habit, so its absence is asserted rather than remembered.
+        await using var context = AnInstance.ContextFor(await postgres.CreateDatabaseAsync());
+        await AnInstance.MigratorFor(context).ApplyAsync(TestContext.Current.CancellationToken);
+
+        var columns = await ColumnsOfAsync(context, "scratchpad_entries");
+
+        Assert.Equal(["created_at", "id", "pinned", "text", "updated_at"], columns);
+    }
+
+    [Fact]
     public async Task Two_starts_at_once_do_not_migrate_against_each_other()
     {
         var connectionString = await postgres.CreateDatabaseAsync();
@@ -117,6 +132,29 @@ public sealed class MigrationTests(PostgresFixture postgres)
     /// which is what a database another version has migrated looks like from
     /// here.
     /// </summary>
+    private static async Task<IReadOnlyList<string>> ColumnsOfAsync(
+        PersonalaffeDbContext context, string table)
+    {
+        var columns = new List<string>();
+
+        await using var connection = new NpgsqlConnection(context.Database.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        await using var command = new NpgsqlCommand(
+            "select column_name from information_schema.columns where table_name = @table order by column_name",
+            connection);
+        command.Parameters.AddWithValue("table", table);
+
+        await using var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+
+        while (await reader.ReadAsync(TestContext.Current.CancellationToken))
+        {
+            columns.Add(reader.GetString(0));
+        }
+
+        return columns;
+    }
+
     private static async Task MigratedByANewerVersionAsync(string connectionString, string migration)
     {
         await using var connection = new NpgsqlConnection(connectionString);

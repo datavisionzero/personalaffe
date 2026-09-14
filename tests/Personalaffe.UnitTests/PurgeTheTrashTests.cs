@@ -89,7 +89,11 @@ public sealed class PurgeTheTrashTests
     }
 
     private static PurgeTheTrash Sweeping(IEnumerable<ITrash> contributors, int days) =>
-        new(contributors, new NobodyElse(), new RetentionSettings(TimeSpan.FromDays(days)), new Fixed(Now));
+        new(
+            contributors,
+            new NobodyElse(),
+            new RetentionSettings(TimeSpan.FromDays(days), RetentionSettings.Default.Scratchpad),
+            new Fixed(Now));
 
     private sealed class Fixed(DateTimeOffset now) : TimeProvider
     {

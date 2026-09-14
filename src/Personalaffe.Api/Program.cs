@@ -92,9 +92,12 @@ try
     builder.Services.AddSingleton(StorageSettings.FromVariables(
         builder.Configuration[StorageSettings.Variable]));
 
-    // How long the Trash keeps what the owner deleted (docs/operations.md).
+    // The two periods this instance keeps things for (docs/operations.md): how
+    // long the Trash keeps what the owner deleted, and how long an unpinned
+    // Scratchpad entry lasts. Two numbers, because they answer two questions.
     builder.Services.AddSingleton(RetentionSettings.FromVariables(
-        builder.Configuration[RetentionSettings.Variable]));
+        builder.Configuration[RetentionSettings.Variable],
+        builder.Configuration[RetentionSettings.ScratchpadVariable]));
 
     // Who may speak for the caller. Unset, nobody may, and the instance reads
     // the socket.
