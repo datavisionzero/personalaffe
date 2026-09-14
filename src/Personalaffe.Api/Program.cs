@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using Personalaffe.Api.Hosting;
 using Personalaffe.Api.Http;
 using Personalaffe.Application.Acts;
+using Personalaffe.Application.Acts.Scratchpad;
 using Personalaffe.Application.Ports;
 using Personalaffe.Domain;
 using Personalaffe.Infrastructure;
@@ -152,6 +153,11 @@ builder.Services.AddScoped<RestoreFromTheTrash>();
 builder.Services.AddScoped<RemoveFromTheTrash>();
 builder.Services.AddScoped<EmptyTheTrash>();
 builder.Services.AddScoped<PurgeTheTrash>();
+builder.Services.AddScoped<ReadTheEntries>();
+builder.Services.AddScoped<ReadAnEntry>();
+builder.Services.AddScoped<CaptureAnEntry>();
+builder.Services.AddScoped<RewriteAnEntry>();
+builder.Services.AddScoped<DiscardAnEntry>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();
@@ -253,6 +259,7 @@ api.MapSecurity();
 api.MapAgents();
 api.MapApplications();
 api.MapTrash();
+api.MapScratchpad();
 
 // An address under the prefix that no endpoint took is an API mistake and
 // answers as one. Without this it would fall through to the web application's

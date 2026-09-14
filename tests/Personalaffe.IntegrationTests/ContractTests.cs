@@ -50,6 +50,8 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/health/live",
                 "/api/health/ready",
                 "/api/me",
+                "/api/scratchpad/entries",
+                "/api/scratchpad/entries/{id}",
                 "/api/security",
                 "/api/security/password",
                 "/api/security/recovery-codes",
@@ -91,6 +93,10 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Contains("TrashEmptiedResponse", schemas);
         Assert.Contains("RestoredResponse", schemas);
         Assert.Contains("Actor", schemas);
+        Assert.Contains("ScratchpadResponse", schemas);
+        Assert.Contains("ScratchpadEntryResponse", schemas);
+        Assert.Contains("CaptureEntryRequest", schemas);
+        Assert.Contains("RewriteEntryRequest", schemas);
         Assert.Contains("Permission", schemas);
     }
 

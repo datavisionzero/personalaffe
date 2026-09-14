@@ -207,7 +207,8 @@ answers `404 deleted` rather than `404 not-found` while it is there:
 **A Scratchpad entry is the exception and is destroyed immediately.** It is
 temporary by definition (`CONTEXT.md`), an owner who deletes one means it, and a
 Trash full of the text somebody pasted between two devices is not a service to
-anybody.
+anybody. [The Scratchpad](#the-scratchpad) is where that application says so in
+full.
 
 Deletion is a write in both senses the product has: it needs read/write access
 to the application, and it carries `If-Match` like any other write, so nothing
@@ -217,6 +218,57 @@ can delete a version it never read.
 name the access had at the time — and nothing links back to the agent access
 row. The question the owner is asking of that list is which of their agents did
 this, and a name that disappears when the access is revoked is no answer.
+
+## The Scratchpad
+
+Temporary plain text, put down in seconds on one device and read on another
+(`CONTEXT.md`, Scratchpad entry). It is the first of the four applications, and
+the only one whose deletion is final.
+
+```json
+{ "items": [
+    { "id": "0199f0c4-…",
+      "text": "the wifi password is hunter2",
+      "pinned": false,
+      "created_at": "2026-09-14T08:30:00.123456Z",
+      "updated_at": "2026-09-14T08:30:00.123456Z",
+      "expires_at": "2026-09-21T08:30:00.123456Z" } ],
+  "has_more": false }
+```
+
+**Plain text, and nothing around it.** No title, no tags, no Markdown, no
+folder, and no conversion into a knowledge page or a task. An entry is at most
+**64 KiB of UTF-8**; text that is empty or only whitespace is `validation`, and
+so is text over the limit, with the number in the message.
+
+**One trailing newline is dropped and never two.** A trailing newline is how a
+shell ends a line and not something the person typed; a second one is their
+blank line and stays. Everything else survives byte for byte — characters
+outside ASCII, emoji, tabs, and the newlines in the middle.
+
+**`expires_at` is when the instance's own sweep will destroy the entry, and it
+is the only warning there is.** Nothing is set aside, nothing asks first, and
+`deleted` is a code this application never answers. It is `null` while the entry
+is pinned.
+
+**The period counts from `updated_at`, not from `created_at`** — seven days by
+default, and `PERSONALAFFE_SCRATCHPAD_RETENTION` for an operator who wants
+another number ([`docs/operations.md`](./operations.md)). An entry edited this
+morning does not disappear tonight because it was pasted a week ago, and an
+entry unpinned after a year gets a full period from the moment it was unpinned
+rather than going on the next sweep. Retention does not stop for anything: not
+for the Scratchpad being switched off, and not for the instance being down.
+
+**Pinning is how an entry is kept**, and it is a field on the entry rather than
+an address of its own: `PUT` carries the text and the pin together, because a
+pin is a change to the entry and a second address carrying one boolean would be
+a second place the guard has to be got right.
+
+**Deleting destroys the row.** A second delete is `404 not-found`, the entry is
+never in the Trash, and there is no way back. Write access is enough and an
+agent has it: `read_write` has always included deletion, which for the
+Scratchpad is permanent and for lasting content is into the Trash
+([What an agent may do](#what-an-agent-may-do)).
 
 ## The applications
 
@@ -308,10 +360,12 @@ removes one for good — thirty days after the deletion by default, and
 ([`docs/operations.md`](./operations.md)). Retention does not stop for anything:
 not for an application being switched off, and not for the instance being down.
 
-**An instance today answers an empty Trash**, because Scratchpad, Knowledge,
-Tasks and Files are PERSONAL-E5 to PERSONAL-E8 and none of them exists yet.
-That is the shape working rather than missing: a module joins the Trash by
-contributing to it and by nothing else.
+**An instance today answers an empty Trash**, and goes on doing so however much
+is in it. The Scratchpad exists (PERSONAL-E5) and deliberately contributes
+nothing — what it deletes is destroyed — and Knowledge, Tasks and Files are
+PERSONAL-E6 to PERSONAL-E8 and are not built yet. That is the shape working
+rather than missing: a module joins the Trash by contributing to it and by
+nothing else, and the Scratchpad is the one that never will.
 
 ## Putting something back into a tree
 
@@ -711,6 +765,37 @@ door, and that is the whole of its access rule.
 
 `{ "enabled": false }`, with `If-Match`. **The owner alone.** Answers the
 application in its new state.
+
+### `GET /api/scratchpad/entries`
+
+`limit` bounds it, 1 to 1000, 200 by default. Newest capture first, with
+`has_more` and **no cursor**, for the reason the Trash gives. Each item carries
+its own `updated_at` and `expires_at`, so the list alone is enough to pin or
+delete from without a second read.
+
+### `POST /api/scratchpad/entries`
+
+`{ "text": "…", "pinned": false }`. `201` with `Location` and the `ETag` of what
+was written, so pinning or deleting what was just captured needs no read in
+between.
+
+### `GET /api/scratchpad/entries/{id}`
+
+One entry, with its `ETag`. An entry that was deleted or has expired is
+`not-found` — never `deleted`, because nobody can have it back.
+
+### `PUT /api/scratchpad/entries/{id}`
+
+`{ "text": "…", "pinned": true }`, with `If-Match`. The text and the pin
+together, and the answer carries the version the write produced. A write that
+asks for what is already stored changes nothing and does not move `updated_at`
+— the guard is still checked.
+
+### `DELETE /api/scratchpad/entries/{id}`
+
+Destroys it, with `If-Match`. `204`, and there is no way back. Read/write access
+to the Scratchpad is the whole of the access rule; this is the one destruction
+in this product an agent may make.
 
 ### `GET /api/trash`
 
