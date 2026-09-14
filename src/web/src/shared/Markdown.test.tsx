@@ -53,10 +53,11 @@ describe("the Markdown pipeline", () => {
     expect(admitUrl("http://example.org", "href", { type: "element", tagName: "a", properties: {}, children: [] })).toBe("http://example.org");
   });
 
-  // Nothing leads inside this workspace yet: a page gets an address in
-  // PERSONAL-E7 and a file in PERSONAL-E6, and `insidePath` is the seam they
-  // plug into. Until then every link in a body is somebody else's.
-  it("treats a scheme of its own as text, because there is none yet", () => {
+  // A file has an address since PERSONAL-E6 and a page gets one in PERSONAL-E7,
+  // which is what `insidePath` is the seam for. A scheme with nothing behind it
+  // yet, and a `file:` that is not an id, are both somebody else's address and
+  // stay text.
+  it("treats a scheme it does not know as text", () => {
     render(<Markdown>{"[a](page:architecture) [b](file:invoice.pdf)"}</Markdown>);
 
     for (const name of ["a", "b"]) {

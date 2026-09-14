@@ -435,12 +435,12 @@ removes one for good — thirty days after the deletion by default, and
 ([`docs/operations.md`](./operations.md)). Retention does not stop for anything:
 not for an application being switched off, and not for the instance being down.
 
-**An instance today answers an empty Trash**, and goes on doing so however much
-is in it. The Scratchpad exists (PERSONAL-E5) and deliberately contributes
-nothing — what it deletes is destroyed — and Knowledge, Tasks and Files are
-PERSONAL-E6 to PERSONAL-E8 and are not built yet. That is the shape working
-rather than missing: a module joins the Trash by contributing to it and by
-nothing else, and the Scratchpad is the one that never will.
+**Files is what fills it today** (PERSONAL-E6): a deleted file or folder is
+here, with its bytes, until it is restored or its retention runs out. The
+Scratchpad deliberately contributes nothing — what it deletes is destroyed — and
+Knowledge and Tasks are PERSONAL-E7 and PERSONAL-E8. A module joins the Trash by
+contributing to it and by nothing else, and the Scratchpad is the one that never
+will.
 
 ## Putting something back into a tree
 

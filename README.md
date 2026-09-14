@@ -6,7 +6,7 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 [`CONTEXT.md`](CONTEXT.md) is the language it uses;
 [`docs/mvp-plan.md`](docs/mvp-plan.md) says in what order it is built.
 
-> **One of the four applications works; three are still empty.** What exists is
+> **Two of the four applications work; two are still empty.** What exists is
 > the foundation of PERSONAL-E1 — a .NET host, a PostgreSQL schema that migrates
 > itself, a checked-in HTTP contract, and a web application and a CLI that read
 > it — and the door of PERSONAL-E2: an instance is claimed once by its one
@@ -34,10 +34,18 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > the browser, over the API, and from `pea scratchpad`. Its deletion is the one
 > in this product that cannot be taken back: an entry is never in the Trash.
 >
-> **Knowledge, Tasks and Files are still empty.** Each answers "not in this
-> build yet" at its own address; those are PERSONAL-E6 through PERSONAL-E8. What
-> is stored today is what the Scratchpad stores, so **anything you would mind
-> losing still belongs somewhere else.**
+> PERSONAL-E6 adds the second: **Files**. The owner's own storage on this
+> instance's disk, with folders to organise it, a download that is one link, and
+> a reference that survives every rename — a file's address is its id, so a link
+> to it keeps working wherever it is moved. It is the first application to put
+> anything in the Trash, and the first whose state is not all in the database:
+> the bytes are written before the row, so an instance killed mid-upload leaves
+> disk to tidy up rather than a file that is gone.
+>
+> **Knowledge and Tasks are still empty.** Each answers "not in this build yet"
+> at its own address; those are PERSONAL-E7 and PERSONAL-E8. And no backup of
+> this has been through a restore anybody has proved — that is PERSONAL-E10 —
+> so **anything you would mind losing still belongs somewhere else as well.**
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
@@ -272,25 +280,26 @@ writes nothing into the repository and needs no credential.
 
 ## Known limits
 
-Everything here is PERSONAL-E1 to PERSONAL-E5, and nothing more.
+Everything here is PERSONAL-E1 to PERSONAL-E6, and nothing more.
 
-- **Three of the four applications are empty.** No knowledge pages, no tasks, no
-  files: what the database carries is an owner, their sessions, their recovery
-  codes, the agents they let in, which of the four applications is switched on,
-  and the Scratchpad's entries. Knowledge, Tasks and Files are PERSONAL-E6
-  through PERSONAL-E8, and each answers "not in this build yet" at its own
-  address.
-- **An agent reaches the Scratchpad and nothing else yet.** The permissions are
-  real and enforced everywhere; three of the four applications they guard do not
-  exist.
-- **The Trash is real and empty, and the Scratchpad will never fill it.** The
-  guard on a write, recoverable deletion, the hourly sweep and the restore rules
-  all work. The one application that exists deliberately does not contribute to
-  the Trash — a Scratchpad entry is destroyed when it is deleted — so the Trash
-  fills up when Knowledge, Tasks and Files arrive and not before
+- **Two of the four applications are empty.** No knowledge pages and no tasks:
+  what the database carries is an owner, their sessions, their recovery codes,
+  the agents they let in, which of the four applications is switched on, the
+  Scratchpad's entries, and the metadata of the owner's files. Knowledge and
+  Tasks are PERSONAL-E7 and PERSONAL-E8, and each answers "not in this build
+  yet" at its own address.
+- **An agent reaches the Scratchpad and Files and nothing else yet.** The
+  permissions are real and enforced everywhere; two of the four applications
+  they guard do not exist.
+- **The Trash has one contributor.** The guard on a write, recoverable deletion,
+  the hourly sweep and the restore rules all work, and Files is what fills them.
+  The Scratchpad deliberately does not — an entry is destroyed when it is
+  deleted — and Knowledge and Tasks will when they arrive
   ([`docs/codebase.md`](docs/codebase.md)).
-- **The file storage volume is checked but never written to.** The Files
-  application is PERSONAL-E6's.
+- **Files stores small files and nothing looks inside them.** No previews, no
+  sharing links, no versioning of the bytes, and no search of their contents. A
+  file is at most 64 MiB and the application at most 5 GiB by default, and both
+  are an operator's variable ([`docs/operations.md`](docs/operations.md)).
 - **The Markdown editor has one screen and it is a scaffold.** `/editor` is
   where the shared field can be tried and where the browser checks drive it,
   because nothing stores prose yet — the Scratchpad is plain text and its
@@ -301,8 +310,9 @@ Everything here is PERSONAL-E1 to PERSONAL-E5, and nothing more.
   PERSONAL-E9's, and so is searching.
 - **There is no release.** No image is published anywhere, and CI deliberately
   has no credential to publish one with. Release artifacts are PERSONAL-E10's.
-- **Backups are two volumes and no procedure.** Taking them consistently
-  together is PERSONAL-E10's.
+- **Backups are two volumes and no procedure.** A file is a row in one and bytes
+  in the other, and neither on its own is the file. Taking them consistently
+  together, and proving a restore, is PERSONAL-E10's.
 
 Where each of those plugs in is written down in
 [`docs/codebase.md`](docs/codebase.md), under *What the next epics plug into*.

@@ -25,9 +25,9 @@ namespace Personalaffe.Api.Http;
 /// the guard is silently cheaper than using it.
 /// </para>
 /// <para>
-/// The transport is a header and not a field in the body, because
-/// PERSONAL-E6's uploads are writes whose body is the file itself. A guard only
-/// half the writes in the product can use is not a guard.
+/// The transport is a header and not a field in the body, because an upload is
+/// a write whose body is the file itself (PERSONAL-E6). A guard only half the
+/// writes in the product can use is not a guard.
 /// </para>
 /// </remarks>
 public static class EntityTags
