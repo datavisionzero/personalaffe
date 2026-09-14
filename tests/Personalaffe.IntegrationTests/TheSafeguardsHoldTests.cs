@@ -245,13 +245,7 @@ public sealed class TheSafeguardsHoldTests(PostgresFixture postgres)
     }
 
     private Task<AnInstance> Holding(params AFakeTrash[] contributors) =>
-        AnInstance.StartedWithAsync(postgres, services =>
-        {
-            foreach (var contributor in contributors)
-            {
-                services.AddSingleton<ITrash>(contributor);
-            }
-        });
+        AnInstance.StartedWithTrashAsync(postgres, [.. contributors]);
 
     private static IEnumerable<(string Method, string Path, JsonNode Operation)> Contract()
     {
@@ -275,9 +269,7 @@ public sealed class TheSafeguardsHoldTests(PostgresFixture postgres)
     {
         using var request = new HttpRequestMessage(
             new HttpMethod(method),
-            path
-                .Replace("{application}", "knowledge", StringComparison.Ordinal)
-                .Replace("{id}", (id ?? Guid.CreateVersion7()).ToString(), StringComparison.Ordinal))
+            AnAddress.Filled(path, id))
         {
             Content = new StringContent("{}", Encoding.UTF8, "application/json"),
         };

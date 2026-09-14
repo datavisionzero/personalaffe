@@ -104,8 +104,8 @@ export function Awaited({ what, epic }: { what: string; epic: string }) {
         It arrives with {epic}. The navigation, the switch, the editor and the refresh around it are
         here; what goes inside is not. Nothing is stored in it, so nothing can be lost from it.
       </p>
-      <Button render={<Link to="/editor" />} variant="outline">
-        Try the editor it will use
+      <Button render={<Link to="/knowledge" />} variant="outline">
+        See the editor it will use
       </Button>
     </Frame>
   );

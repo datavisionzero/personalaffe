@@ -75,9 +75,12 @@ describe("the frame", () => {
     renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
 
     const navigation = await screen.findByRole("navigation", { name: "The workspace" });
-    await userEvent.click(within(navigation).getByRole("link", { name: "Knowledge" }));
 
-    expect(await screen.findByText(/Knowledge is not in this build yet/)).toBeInTheDocument();
+    // Tasks is the one application left with no screen, so it is the one that
+    // proves the frame draws something for an application that has none.
+    await userEvent.click(within(navigation).getByRole("link", { name: "Tasks" }));
+
+    expect(await screen.findByText(/Tasks is not in this build yet/)).toBeInTheDocument();
 
     await userEvent.click(within(navigation).getByRole("link", { name: "Home" }));
     expect(await screen.findByRole("heading", { name: "Your workspace" })).toBeInTheDocument();

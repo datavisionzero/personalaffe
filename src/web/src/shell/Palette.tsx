@@ -102,7 +102,6 @@ function PaletteBody({
         run: go(application.path),
       })),
       { id: "go:trash", label: "Trash", hint: "What was deleted and is still recoverable.", group: "Go to", run: go("/trash") },
-      { id: "go:editor", label: "The editor", hint: "The Markdown field the applications will use.", group: "Go to", run: go("/editor") },
       { id: "go:settings", label: "Settings", hint: "Applications, security, agent access.", group: "Go to", run: go("/settings") },
       { id: "go:applications", label: "Applications", hint: "Switch one on or off.", group: "Settings", run: go("/settings/applications") },
       { id: "go:security", label: "Security", hint: "Password, second factor, signed-in browsers.", group: "Settings", run: go("/settings/security") },

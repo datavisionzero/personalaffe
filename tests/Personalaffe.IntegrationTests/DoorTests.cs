@@ -84,8 +84,10 @@ public sealed class DoorTests(PostgresFixture postgres)
         await using var instance = await AnInstance.StartedAsync(postgres);
         using var client = instance.CreateClient();
 
+        // An address no endpoint will ever take. It used to be an application
+        // that had not landed yet, which stopped being one the day it did.
         using var response = await client.GetAsync(
-            "/api/knowledge/pages", TestContext.Current.CancellationToken);
+            "/api/nothing-is-here", TestContext.Current.CancellationToken);
 
         // Which endpoints this build has is in the contract, which anybody can
         // read. Answering 401 would stop a client telling "your credential is

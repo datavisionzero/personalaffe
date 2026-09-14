@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Personalaffe.Application.Ports;
 using Personalaffe.Infrastructure.Persistence;
 
 namespace Personalaffe.IntegrationTests;
@@ -28,10 +30,64 @@ internal sealed class AnInstance(
         new(await postgres.CreateDatabaseAsync());
 
     /// <summary>
-    /// An instance with something else registered as well — a Trash
-    /// contributor, for the surfaces whose four real implementations are later
-    /// epics'. The registrations are appended to the host's, so what they add
-    /// to an <c>IEnumerable</c> arrives beside whatever the product registered.
+    /// An instance whose Trash is exactly the contributors given, and none of
+    /// the product's own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What these tests are about is the Trash itself — the fan-out, the
+    /// permission filter, the guard on a restore, who may remove something for
+    /// good — and a fake contributor is how that is said without dragging a
+    /// content module in behind it.
+    /// </para>
+    /// <para>
+    /// <strong>The product's own are removed rather than added to.</strong>
+    /// Registrations are appended, and <c>Trash.Of</c> takes the first
+    /// contributor for an application; leaving the real one in front of the
+    /// fake would mean the test quietly asking a module it never set up. That
+    /// is exactly what happened when Knowledge landed and the fake behind it
+    /// stopped being reached. The real contributors have suites of their own.
+    /// </para>
+    /// </remarks>
+    public static async Task<AnInstance> StartedWithTrashAsync(
+        PostgresFixture postgres,
+        params ITrash[] contributors) =>
+        new(
+            await postgres.CreateDatabaseAsync(),
+            configuration: null,
+            services => OnlyThisTrash(services, contributors));
+
+    /// <inheritdoc cref="StartedWithTrashAsync(PostgresFixture, ITrash[])"/>
+    public static async Task<AnInstance> StartedWithTrashAsync(
+        PostgresFixture postgres,
+        IReadOnlyDictionary<string, string?> configuration,
+        params ITrash[] contributors) =>
+        new(
+            await postgres.CreateDatabaseAsync(),
+            configuration,
+            services => OnlyThisTrash(services, contributors));
+
+    /// <summary>The same, against a database that already exists.</summary>
+    public static AnInstance AgainstWithTrash(
+        string connectionString,
+        IReadOnlyDictionary<string, string?>? configuration,
+        params ITrash[] contributors) =>
+        new(connectionString, configuration, services => OnlyThisTrash(services, contributors));
+
+    private static void OnlyThisTrash(IServiceCollection services, IReadOnlyList<ITrash> contributors)
+    {
+        services.RemoveAll<ITrash>();
+
+        foreach (var contributor in contributors)
+        {
+            services.AddSingleton(contributor);
+        }
+    }
+
+    /// <summary>
+    /// An instance with something else registered as well. The registrations
+    /// are appended to the host's, so what they add to an <c>IEnumerable</c>
+    /// arrives beside whatever the product registered.
     /// </summary>
     public static async Task<AnInstance> StartedWithAsync(
         PostgresFixture postgres,

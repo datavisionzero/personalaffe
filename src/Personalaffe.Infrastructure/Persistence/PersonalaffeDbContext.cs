@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Personalaffe.Domain;
 using Personalaffe.Domain.Files;
+using Personalaffe.Domain.Knowledge;
 using Personalaffe.Domain.Scratchpad;
 
 namespace Personalaffe.Infrastructure.Persistence;
@@ -12,10 +13,10 @@ namespace Personalaffe.Infrastructure.Persistence;
 /// EF Core owns every table and the migrations that apply themselves on
 /// startup. What it declares is what something already stores rows in: the
 /// owner and what gets them in, from PERSONAL-E2, the application switch from
-/// PERSONAL-E4, the Scratchpad from PERSONAL-E5 and the Files application from
-/// PERSONAL-E6. The two applications still to come bring their own tables with
-/// them — a table invented here before something stores rows in it would be a
-/// shape nobody has had to live with.
+/// PERSONAL-E4, the Scratchpad from PERSONAL-E5, the Files application from
+/// PERSONAL-E6 and Knowledge from PERSONAL-E7. Tasks still to come brings its
+/// own tables with it — a table invented here before something stores rows in
+/// it would be a shape nobody has had to live with.
 /// </remarks>
 public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext> options) : DbContext(options)
 {
@@ -70,6 +71,17 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// a folder with no parent is at the top.
     /// </summary>
     public DbSet<Folder> Folders => Set<Folder>();
+
+    /// <summary>
+    /// The owner's lasting knowledge, as Markdown in a tree (<see cref="Page"/>).
+    /// </summary>
+    public DbSet<Page> Pages => Set<Page>();
+
+    /// <summary>
+    /// What those pages used to say (<see cref="PageRevision"/>). A revision has
+    /// no state of its own: it goes wherever its page goes.
+    /// </summary>
+    public DbSet<PageRevision> PageRevisions => Set<PageRevision>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

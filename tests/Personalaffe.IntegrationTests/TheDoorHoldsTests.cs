@@ -273,11 +273,7 @@ public sealed class TheDoorHoldsTests(PostgresFixture postgres)
     private static async Task<HttpResponseMessage> Sent(
         HttpClient client, string method, string path, string? token)
     {
-        using var request = new HttpRequestMessage(
-            new HttpMethod(method),
-            // A path parameter that names nothing: what is being asked is who
-            // may ask, and the answer must not depend on the thing existing.
-            path.Replace("{id}", Guid.CreateVersion7().ToString(), StringComparison.Ordinal))
+        using var request = new HttpRequestMessage(new HttpMethod(method), AnAddress.Filled(path))
         {
             Content = new StringContent("{}", Encoding.UTF8, "application/json"),
         };
@@ -294,4 +290,5 @@ public sealed class TheDoorHoldsTests(PostgresFixture postgres)
 
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
+
 }

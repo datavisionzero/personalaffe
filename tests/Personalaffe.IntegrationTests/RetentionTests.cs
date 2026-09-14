@@ -32,8 +32,7 @@ public sealed class RetentionTests(PostgresFixture postgres)
         var expired = knowledge.Holding("architecture", now.AddDays(-40), TheOwner);
         var kept = knowledge.Holding("groceries", now.AddDays(-1), TheOwner);
 
-        await using var instance = await AnInstance.StartedWithAsync(
-            postgres, services => services.AddSingleton<ITrash>(knowledge));
+        await using var instance = await AnInstance.StartedWithTrashAsync(postgres, knowledge);
 
         using var client = instance.CreateClient();
         using var ready = await client.GetAsync("/api/health/ready", Token);
@@ -60,10 +59,10 @@ public sealed class RetentionTests(PostgresFixture postgres)
 
         var recent = knowledge.Holding("architecture", now.AddDays(-3), TheOwner);
 
-        await using var instance = await AnInstance.StartedWithAsync(
+        await using var instance = await AnInstance.StartedWithTrashAsync(
             postgres,
-            services => services.AddSingleton<ITrash>(knowledge),
-            new Dictionary<string, string?> { [RetentionSettings.Variable] = "1" });
+            new Dictionary<string, string?> { [RetentionSettings.Variable] = "1" },
+            knowledge);
 
         using var client = instance.CreateClient();
         using var ready = await client.GetAsync("/api/health/ready", Token);

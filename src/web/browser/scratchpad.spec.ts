@@ -33,7 +33,7 @@ test.describe("the Scratchpad", () => {
     // lazy chunks of PERSONAL-E4 exist for exactly this, and asserting it
     // against what the browser asked for is the only way to keep it true.
     expect(
-      chunks.filter((path) => /\/(Editor|Editing)-/.test(path)),
+      chunks.filter((path) => /\/Editor-/.test(path)),
       `an editor chunk was fetched: ${chunks.join(", ")}`,
     ).toEqual([]);
   });

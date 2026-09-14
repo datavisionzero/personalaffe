@@ -34,23 +34,32 @@ export function fileHref(href: string | undefined): string | undefined {
 }
 
 /**
+ * The scheme a Markdown body names another page with: `page:` and the page's
+ * id, which is made once and never changes.
+ *
+ * `[die Architektur](page:0199f0c6-…)` is a link to `/knowledge/0199f0c6-…`.
+ * Renaming the page or moving it in the tree does not break it — that is what
+ * the reference being the id is for (`docs/mvp-plan.md`, PERSONAL-E7).
+ */
+const paged = /^page:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+/**
  * Where a link leads inside this workspace, or nothing where it leads outside
  * it.
  *
- * <b>Knowledge is where the rest of this plugs in.</b> PERSONAL-E7 gives a page
- * an address that survives renaming and moving (`docs/mvp-plan.md`), and a body
- * naming another page is a scheme handled here — `[the architecture](page:0199…)`
- * — so that it is followed rather than opened: no new tab, no `noopener`, and
- * the frame never remounted.
+ * <b>A `page:` link is followed rather than opened</b>: no new tab, no
+ * `noopener`, and the frame never remounted. It is an address this application
+ * has a screen for, so following it is what a reader expects and what keeps the
+ * tree beside them where it was.
  *
- * A `file:` link is deliberately not one of these. It is a download and not a
- * route: following it inside the application would mean the router being asked
- * for an address only the instance can answer.
+ * <b>A `file:` link is deliberately not one of these.</b> It is a download and
+ * not a route: following it inside the application would mean the router being
+ * asked for an address only the instance can answer.
  */
 export function insidePath(href: string | undefined): string | undefined {
-  void href;
+  const named = paged.exec(href ?? "");
 
-  return undefined;
+  return named === null ? undefined : `/knowledge/${named[1]}`;
 }
 
 export const admitUrl: UrlTransform = (url) => {

@@ -68,3 +68,30 @@ export async function switchApplication(page: Page, application: string, enabled
 
   expect(written.ok(), await written.text()).toBeTruthy();
 }
+
+/**
+ * A knowledge page of its own, opened and ready to write in.
+ *
+ * Every check that needs somewhere to write makes one rather than sharing: the
+ * instance these run against keeps whatever the last check wrote, and two
+ * checks editing one page would be two checks with a guard between them.
+ */
+export async function aPage(page: Page, title: string) {
+  await page.goto("/knowledge");
+  await expect(page.getByRole("heading", { name: "Knowledge" })).toBeVisible();
+
+  await page.getByRole("button", { name: "New page", exact: true }).click();
+
+  const dialog = page.getByRole("dialog");
+
+  await dialog.getByRole("textbox", { name: "Title" }).fill(title);
+  await dialog.getByRole("button", { name: "Write it" }).click();
+
+  await expect(page).toHaveURL(/\/knowledge\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("textbox", { name: "The page" })).toBeVisible();
+
+  // The editor is a lazy chunk and the toolbar is dead until it is there, so
+  // waiting for a mark to come alive is waiting for CodeMirror rather than
+  // racing it. Typing before that goes to the page instead of into the field.
+  await expect(page.getByRole("button", { name: "Bold" })).toBeEnabled();
+}
