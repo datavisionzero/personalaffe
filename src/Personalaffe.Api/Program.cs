@@ -92,6 +92,10 @@ try
     builder.Services.AddSingleton(StorageSettings.FromVariables(
         builder.Configuration[StorageSettings.Variable]));
 
+    // How long the Trash keeps what the owner deleted (docs/operations.md).
+    builder.Services.AddSingleton(RetentionSettings.FromVariables(
+        builder.Configuration[RetentionSettings.Variable]));
+
     // Who may speak for the caller. Unset, nobody may, and the instance reads
     // the socket.
     trustedProxies = TrustedProxies.FromVariable(builder.Configuration[TrustedProxies.Variable]);
@@ -141,6 +145,7 @@ builder.Services.AddScoped<ReadTheTrash>();
 builder.Services.AddScoped<RestoreFromTheTrash>();
 builder.Services.AddScoped<RemoveFromTheTrash>();
 builder.Services.AddScoped<EmptyTheTrash>();
+builder.Services.AddScoped<PurgeTheTrash>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();
@@ -150,6 +155,11 @@ builder.Services.AddPersonalaffeAuthentication();
 // is the cheaper of the two to get wrong and the faster to answer.
 builder.Services.AddHostedService<StorageService>();
 builder.Services.AddHostedService<SchemaMigrationService>();
+
+// After the migrator, because the first thing it does is read a table. It is a
+// BackgroundService and the two before it are not, so it starts once they have
+// finished rather than beside them.
+builder.Services.AddHostedService<RetentionService>();
 
 builder.Services.AddPersonalaffeOpenApi();
 

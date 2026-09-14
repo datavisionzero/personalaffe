@@ -75,6 +75,40 @@ internal sealed class AFakeTrash(WorkspaceApplication application) : ITrash
         return Task.FromResult(true);
     }
 
+    public List<DateTimeOffset> Purged { get; } = [];
+
+    /// <summary>
+    /// Completes the first time the instance sweeps, so that a test can wait
+    /// for the background service rather than sleep and hope.
+    /// </summary>
+    public Task<DateTimeOffset> Swept => _swept.Task;
+
+    private readonly TaskCompletionSource<DateTimeOffset> _swept =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// What every real contributor does: remove what was deleted on or before
+    /// the moment it was handed, and nothing else. The retention itself never
+    /// reaches here.
+    /// </summary>
+    public Task<int> PurgeAsync(DateTimeOffset expiredBefore, CancellationToken cancellationToken)
+    {
+        Purged.Add(expiredBefore);
+        _swept.TrySetResult(expiredBefore);
+
+        var expired = _entries.Values
+            .Where(entry => entry.DeletedAt <= expiredBefore)
+            .Select(entry => entry.Id)
+            .ToArray();
+
+        foreach (var id in expired)
+        {
+            _entries.Remove(id);
+        }
+
+        return Task.FromResult(expired.Length);
+    }
+
     public Task<int> EmptyAsync(CancellationToken cancellationToken)
     {
         Emptied += _entries.Count;

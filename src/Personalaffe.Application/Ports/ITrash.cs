@@ -70,4 +70,23 @@ public interface ITrash
 
     /// <summary>Removes everything in this application's Trash, and says how much.</summary>
     Task<int> EmptyAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes everything deleted on or before <paramref name="expiredBefore"/>
+    /// — the rows, and the bytes where there are any — and says how much.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The retention itself never reaches a contributor: the sweep does that
+    /// arithmetic once, so four modules cannot come to four different answers
+    /// about when something expires.
+    /// </para>
+    /// <para>
+    /// <strong>It takes no caller and no enablement.</strong> The purge is the
+    /// instance acting, not the owner or an agent, and disabling an application
+    /// (PERSONAL-E4) must not suspend a retention deadline — there is no
+    /// parameter here for it to be passed through.
+    /// </para>
+    /// </remarks>
+    Task<int> PurgeAsync(DateTimeOffset expiredBefore, CancellationToken cancellationToken);
 }

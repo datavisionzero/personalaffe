@@ -34,8 +34,17 @@ internal sealed class AnInstance(
     /// to an <c>IEnumerable</c> arrives beside whatever the product registered.
     /// </summary>
     public static async Task<AnInstance> StartedWithAsync(
-        PostgresFixture postgres, Action<IServiceCollection> registrations) =>
-        new(await postgres.CreateDatabaseAsync(), configuration: null, registrations);
+        PostgresFixture postgres,
+        Action<IServiceCollection> registrations,
+        IReadOnlyDictionary<string, string?>? configuration = null) =>
+        new(await postgres.CreateDatabaseAsync(), configuration, registrations);
+
+    /// <summary>The same, against a database that already exists.</summary>
+    public static AnInstance AgainstWith(
+        string connectionString,
+        Action<IServiceCollection> registrations,
+        IReadOnlyDictionary<string, string?>? configuration = null) =>
+        new(connectionString, configuration, registrations);
 
     public static AnInstance Against(string connectionString) => new(connectionString);
 

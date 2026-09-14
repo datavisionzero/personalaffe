@@ -263,6 +263,12 @@ owner's behalf cannot destroy the owner's content. `pea` therefore has no verb
 that destroys anything, the same way it has none that issues a credential
 ([`docs/cli.md`](./cli.md)).
 
+**Entries leave by themselves.** `expires_at` is when the instance's own sweep
+removes one for good — thirty days after the deletion by default, and
+`PERSONALAFFE_TRASH_RETENTION` for an operator who wants another number
+([`docs/operations.md`](./operations.md)). Retention does not stop for anything:
+not for an application being switched off, and not for the instance being down.
+
 **An instance today answers an empty Trash**, because Scratchpad, Knowledge,
 Tasks and Files are PERSONAL-E5 to PERSONAL-E8 and none of them exists yet.
 That is the shape working rather than missing: a module joins the Trash by
