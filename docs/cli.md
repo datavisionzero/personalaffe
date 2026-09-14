@@ -6,13 +6,12 @@ reaches no database, no file volume and no other affe product, and it knows an
 instance only through the client generated from
 [`docs/api/openapi.json`](./api/openapi.json).
 
-**The first content verbs are here.** Two verbs are the foundation's, three are
-the credential's, two are the workspace's, and seven are the Scratchpad's — the
-first application to arrive (PERSONAL-E5). Knowledge, Tasks and Files bring
-theirs with them. Everything else on this page — the ladders, the input rules,
-the exit codes — is the shape every later verb is written to, and it is here
-because it was settled in PERSONAL-5, before there was a second verb to settle
-it differently.
+**Two applications are here.** Two verbs are the foundation's, three are the
+credential's, two are the workspace's, seven are the Scratchpad's (PERSONAL-E5)
+and six are Files' (PERSONAL-E6). Knowledge and Tasks bring theirs with them.
+Everything else on this page — the ladders, the input rules, the exit codes — is
+the shape every later verb is written to, and it is here because it was settled
+in PERSONAL-5, before there was a second verb to settle it differently.
 
 ```sh
 pea version           # what pea is, what the instance is
@@ -28,6 +27,12 @@ pea scratchpad edit   # replace its text, its pin, or both
 pea scratchpad pin    # keep one: a pinned entry never expires
 pea scratchpad unpin  # put one back under the clock
 pea scratchpad rm     # destroy one. Permanent: there is no way back
+pea files ls          # what is in a folder, or in the top of the tree
+pea files put         # store a file, from a file or stdin
+pea files get         # its bytes back, byte for byte
+pea files mkdir       # make a folder
+pea files mv          # rename something, move it, or both
+pea files rm          # into the Trash. `pea trash restore files ID` brings it back
 pea trash list        # what was deleted and is still recoverable
 pea trash restore     # put one thing back
 ```
@@ -161,7 +166,7 @@ A script branches on the code; nothing has to be parsed.
 | 1 | A 500, an answer `pea` could not parse, or a bug in `pea`. |
 | 2 | A mistake in the arguments, or in `PERSONALAFFE_URL` / `PERSONALAFFE_TOKEN`. |
 | 3 | `404` — nothing at that address. |
-| 4 | `400 validation` and every `422` — the instance refused what was asked. |
+| 4 | `400 validation`, every `422`, and the two storage refusals `413 too-large` and `507 out-of-space` — the instance would not take what was sent. |
 | 5 | `409` — `conflict`, something else already occupies that name or place, or `disabled`, the application is switched off. |
 | 6 | `412 stale` — the object changed since it was read. |
 | 7 | `401` and `403` — the door stayed shut. |
@@ -180,6 +185,11 @@ means no script has to relearn a number when one does.
 The codes come from the status and the problem document's code together
 ([`docs/api.md`](./api.md), Errors), which is why 3 and 7 stay separate however
 many refusals share a status.
+
+`too-large` and `out-of-space` share exit 4 and are two codes in the document,
+because the script's branch is the same — this write did not go through — while
+what to do about it is not: send something smaller, or delete something.
+`--json` is what tells them apart.
 
 ### Skew
 
@@ -375,6 +385,111 @@ It is guarded like any other write, and `--if-match` skips the read.
 **There is no verb that empties the Scratchpad.** A loop over `list` is a script
 anybody can write; a single verb that destroys everything is one typo away from
 being the thing this product is sorry about.
+
+### `pea files ls [PATH|ID]`
+
+```sh
+pea files ls
+pea files ls /Reisen/2026
+```
+
+```
+0199f0c4-…	folder	-	2026-09-14T08:00:00Z	Belege
+0199f0c5-…	file	284119	2026-09-14T08:31:00Z	Reisekosten 2026.pdf
+```
+
+One line per entry, tab separated: the id, whether it is a folder or a file, its
+size in bytes, when it last changed, and its name. Folders come first and a
+folder's size column is `-`. `--json` is the object the API answered, quota
+included.
+
+An empty folder writes nothing to stdout and says so on stderr.
+
+**A path is `pea`'s convenience and never the API's.** `/Reisen/2026` is walked
+a segment at a time and the wire carries ids, so nothing server-side has to keep
+a second name for anything. Capitals do not matter, because names in a folder
+are one each whatever their capitals
+([`docs/api.md`](./api.md)). **An id is accepted wherever a path is**, because
+that is what the other verbs print; an id is tried first, so a folder somebody
+called `0199f0c4-…` shadows nothing. A segment that names nothing is exit 3 and
+says which one.
+
+### `pea files put --file FILE|- [--to PATH] [--name NAME]`
+
+```sh
+pea files put --file "Reisekosten 2026.pdf" --to /Reisen/2026
+tar c notes | pea files put --file - --name notes.tar
+```
+
+The bytes come from a file or from stdin, byte for byte — nothing is trimmed and
+nothing added, so the last byte of an archive survives. `--name` is what it is
+called on the instance; without it the base name of `--file` is used, which is
+why `--file -` needs one rather than being given a name `pea` invented. `--to`
+names the folder, and the top of the tree is where it goes without one.
+
+What goes to stdout is the id, so that `id=$(pea files put --file - --name x)`
+is the whole of what a script does to hold on to what it wrote. **That id is the
+file's address for good**: renaming it and moving it do not change where it is
+downloaded from.
+
+Over `PERSONALAFFE_MAX_FILE_MIB` is exit 4 naming the limit, and so is an upload
+with no room left — `--json` says which of the two it was.
+
+### `pea files get PATH|ID [--out FILE|-]`
+
+```sh
+pea files get /Reisen/2026/bahn.pdf --out bahn.pdf
+pea files get 0199f0c5-… --out - | sha256sum
+```
+
+The bytes go where `--out` says, and `-` is stdout: that is the round trip of
+`put --file -`. Without `--out` they go to the file's own name in the working
+directory, and **`pea` refuses rather than overwrite something already there** —
+a download that silently replaced a file would be the one destructive thing a
+read can do.
+
+`--json` is the file's metadata instead of its bytes.
+
+### `pea files mkdir PATH`
+
+```sh
+pea files mkdir /Reisen
+pea files mkdir --parents /Reisen/2026/Belege
+```
+
+Without `--parents`, every folder above the last one has to be there already and
+a missing one is exit 3 naming the segment — and nothing is made. The id goes to
+stdout.
+
+### `pea files mv PATH|ID DEST`
+
+```sh
+pea files mv /plan.md /Reisen              # into the folder, keeping its name
+pea files mv /plan.md /Reisen/der-plan.md  # and renamed
+pea files mv /plan.md /der-plan.md         # renamed where it is
+```
+
+`DEST` that names an existing folder means "into it", which is what `mv` means
+everywhere else; anything else is the place and the name together. The place has
+to exist — `mv` has never made directories. A name already taken there is exit 5
+and never a silent rename.
+
+One write carries the name and the place together, because both are changes to
+the same row. `pea` reads the thing first and sends the version it found;
+`--if-match` skips that read.
+
+### `pea files rm PATH|ID`
+
+```sh
+pea files rm /Reisen/2026/bahn.pdf
+```
+
+**Nothing is destroyed here.** It goes to the Trash, leaves every ordinary read,
+and comes back with `pea trash restore files ID` — which the sentence on stderr
+says, with the id in it. A folder takes everything in it, under one moment, so
+the whole thing comes back together.
+
+Guarded like any other write; `--if-match` skips the read.
 
 ### `pea trash list`
 

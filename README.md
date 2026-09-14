@@ -181,6 +181,20 @@ id=$(echo "the wifi password is hunter2" | ./pea scratchpad add --text-file -)
 ./pea scratchpad rm "$id"       # permanent: it is never in the Trash
 ```
 
+Files are the second, and the one that moves bytes. A path is `pea`'s
+convenience — it walks it a segment at a time and the wire carries ids — and
+`--file -` and `--out -` are stdin and stdout, so the two are a round trip:
+
+```sh
+./pea files mkdir --parents /Reisen/2026
+file=$(./pea files put --file "Reisekosten 2026.pdf" --to /Reisen/2026)
+./pea files ls /Reisen/2026
+./pea files get "$file" --out - | sha256sum
+./pea files mv "$file" /Reisen/2026/Bahn.pdf   # its address does not change
+./pea files rm "$file"                         # into the Trash, not gone
+./pea trash restore files "$file"
+```
+
 [`docs/cli.md`](docs/cli.md) has the configuration ladders, the input rules and
 the exit codes.
 
