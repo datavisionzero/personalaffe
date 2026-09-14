@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Personalaffe.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using Personalaffe.Infrastructure.Persistence;
 namespace Personalaffe.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PersonalaffeDbContext))]
-    partial class PersonalaffeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914230502_TheTaskLists")]
+    partial class TheTaskLists
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
