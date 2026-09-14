@@ -15,8 +15,13 @@ permissions:
 # This workflow is the whole gate. `main` is the only long-lived branch and
 # there is no environment between a commit and a release, so what is here is
 # what stands between a mistake and the trunk. It has to stay fast enough that
-# nobody is tempted to push past it, which is why the four toolchains run beside
-# each other rather than in one job.
+# nobody is tempted to push past it, which is why the toolchains run beside each
+# other rather than in one job.
+#
+# A feature epic extends these jobs rather than adding its own: a new
+# application's tests are more tests in the projects that already exist. What
+# justifies another job is a subject none of the others covers, which is what
+# `browser` is — an engine that lays things out (docs/codebase.md).
 #
 # Nothing is published, so an overtaken run has nothing to leave standing wrong:
 # a new push cancels the one it replaced.
@@ -170,6 +175,89 @@ jobs:
       - name: The checked-in contract is the one being served
         run: git diff --exit-code -- docs/api/openapi.json
 
+  # The seventh job, and the one subject none of the six covers: the application
+  # in a browser that lays things out. Everything under src/web/src runs in
+  # jsdom, which lays nothing out — it cannot say whether the sidebar is a
+  # drawer on a phone, whether CodeMirror works at all, or whether a screen
+  # brings a change made elsewhere onto itself while nobody touches it.
+  #
+  # It runs against a real instance serving the built application from its own
+  # wwwroot, which is what an operator starts, rather than against a dev server
+  # with a proxy in front of it.
+  browser:
+    name: Browser checks
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:18
+        env:
+          POSTGRES_DB: personalaffe
+          POSTGRES_USER: personalaffe
+          # A database that exists for two minutes on a runner nobody else can
+          # reach. It is not a secret and is not treated as one.
+          POSTGRES_PASSWORD: personalaffe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U personalaffe -d personalaffe"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: The application, built where the instance serves it from
+        working-directory: src/web
+        run: |
+          npm ci
+          npm run build
+
+      # Chromium and nothing else. A second engine would double the job for a
+      # product one person installs on their own server and opens in their own
+      # browser; what these check is layout, the keyboard and a real editor,
+      # none of which is engine trivia.
+      - name: The browser
+        working-directory: src/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Start the installation
+        run: dotnet run --project src/Personalaffe.Api -c Release --no-launch-profile &
+        env:
+          ConnectionStrings__Postgres: Host=localhost;Port=5432;Database=personalaffe;Username=personalaffe;Password=personalaffe
+          ASPNETCORE_HTTP_PORTS: "5142"
+          PERSONALAFFE_STORAGE_ROOT: ${{ runner.temp }}/personalaffe-files
+
+      - name: It answers
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 45); do
+            curl --fail --silent http://127.0.0.1:5142/api/version && break
+            sleep 2
+          done
+          curl --fail --silent http://127.0.0.1:5142/api/version > /dev/null
+
+      - name: The checks
+        working-directory: src/web
+        run: npm run browser
+
+      # The useful half of a failure in a browser: what it saw, and what it did
+      # on the way there.
+      - name: What the browser saw, if any of that went wrong
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: browser-checks
+          path: src/web/test-results/
+          retention-days: 7
+
   # One image, carrying the API and the built web application — the only place
   # the two toolchains meet. It is built from the Dockerfile an operator builds
   # from and started through the Compose file an operator starts, so what is
@@ -179,7 +267,7 @@ jobs:
   # workflow has no credential to do it with.
   image:
     name: Image and smoke test
-    needs: [unit, integration, web, cli, contract]
+    needs: [unit, integration, web, cli, contract, browser]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

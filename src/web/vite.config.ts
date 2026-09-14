@@ -41,5 +41,10 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/shared/setupTests.ts"],
+
+    // The application's own tests and no others. `browser/` is Playwright's,
+    // runs against a real instance in a real browser, and would be picked up by
+    // the default glob and fail here for reasons that say nothing about it.
+    include: ["src/**/*.test.{ts,tsx}"],
   },
 });
