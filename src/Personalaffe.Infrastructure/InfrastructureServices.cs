@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Personalaffe.Application.Ports;
+using Personalaffe.Infrastructure.Files;
 using Personalaffe.Infrastructure.Persistence;
 using Personalaffe.Infrastructure.Security;
 
@@ -47,6 +48,11 @@ public static class InfrastructureServices
         services.AddScoped<IAgentAccessStore, AgentAccessStore>();
         services.AddScoped<IApplicationSwitch, ApplicationSwitch>();
         services.AddScoped<IScratchpadEntries, ScratchpadEntries>();
+        services.AddScoped<IStoredFiles, StoredFiles>();
+
+        // The one thing in this layer that is not the database. It holds no
+        // per-request state — a path and a logger — so it is registered once.
+        services.AddSingleton<IFileBytes, LocalFileBytes>();
 
         // Argon2id, and the only place that knows it is (docs/codebase.md).
         services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();

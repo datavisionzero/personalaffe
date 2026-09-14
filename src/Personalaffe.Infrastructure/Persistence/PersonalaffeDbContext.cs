@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Personalaffe.Domain;
+using Personalaffe.Domain.Files;
 using Personalaffe.Domain.Scratchpad;
 
 namespace Personalaffe.Infrastructure.Persistence;
@@ -10,10 +11,11 @@ namespace Personalaffe.Infrastructure.Persistence;
 /// <remarks>
 /// EF Core owns every table and the migrations that apply themselves on
 /// startup. What it declares is what something already stores rows in: the
-/// owner and what gets them in, from PERSONAL-E2, and the application switch
-/// from PERSONAL-E4. The four applications bring their own tables with them — a
-/// table invented here before something stores rows in it would be a shape
-/// nobody has had to live with.
+/// owner and what gets them in, from PERSONAL-E2, the application switch from
+/// PERSONAL-E4, the Scratchpad from PERSONAL-E5 and the Files application from
+/// PERSONAL-E6. The two applications still to come bring their own tables with
+/// them — a table invented here before something stores rows in it would be a
+/// shape nobody has had to live with.
 /// </remarks>
 public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext> options) : DbContext(options)
 {
@@ -56,6 +58,18 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// <c>deleted_at</c>: what is deleted from it is destroyed.
     /// </summary>
     public DbSet<ScratchpadEntry> ScratchpadEntries => Set<ScratchpadEntry>();
+
+    /// <summary>
+    /// The owner's files — their metadata (<see cref="StoredFile"/>). The bytes
+    /// are on the storage volume and never in a column here (VISION §9).
+    /// </summary>
+    public DbSet<StoredFile> Files => Set<StoredFile>();
+
+    /// <summary>
+    /// The tree the files are in (<see cref="Folder"/>). The root is not a row:
+    /// a folder with no parent is at the top.
+    /// </summary>
+    public DbSet<Folder> Folders => Set<Folder>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

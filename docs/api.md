@@ -95,9 +95,9 @@ instead would collapse distinctions the product makes — `deleted` and
 `not-found` are both 404 once recoverable deletion lands.
 
 A document may carry more than the five members of RFC 9457. What it carries
-depends on the code: `validation` carries `errors`, a field to its messages, and
-`unknown-field` carries `field`. A client that does not know an extension member
-ignores it.
+depends on the code: `validation` carries `errors`, a field to its messages,
+`unknown-field` carries `field`, and the two storage refusals carry the limit
+they are about. A client that does not know an extension member ignores it.
 
 **A bug is not a refusal.** Anything that is not a deliberate refusal answers
 `/problems/internal` with a title, a status and nothing else — no message, no
@@ -118,6 +118,8 @@ instance's log.
 | `disabled` | 409 | The application this belongs to is switched off. Carries `application`. |
 | `stale` | 412 | The object has changed since it was read. |
 | `conflict` | 409 | Something else already occupies that name or place. |
+| `too-large` | 413 | What was sent is over a limit this instance sets on one thing. Carries `limit_bytes`. |
+| `out-of-space` | 507 | This instance has no room left. Carries `limit_bytes` and `used_bytes`. |
 | `internal` | 500 | Something went wrong on the server. |
 
 The set is [`RefusalCode`](../src/Personalaffe.Domain/RefusalCode.cs) and it
@@ -127,6 +129,10 @@ same commit.**
 **Switching on the status would collapse the distinction `deleted` exists to
 make.** Both it and `not-found` are 404; one of them means the owner can have
 the thing back.
+
+`too-large` and `out-of-space` are two codes and not one for the same reason:
+both are an upload the instance would not take, and the caller's move is to send
+something smaller in one case and to delete something in the other.
 
 ### Exit codes
 

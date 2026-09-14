@@ -88,10 +88,17 @@ try
     builder.Services.AddPersonalaffeInfrastructure(DatabaseSettings.FromConnectionString(
         builder.Configuration.GetConnectionString(DatabaseSettings.ConnectionStringName)));
 
-    // Where the owner's files will go (docs/operations.md). Nothing writes there
-    // yet; what is read here is the path, and StorageService checks the place.
-    builder.Services.AddSingleton(StorageSettings.FromVariables(
-        builder.Configuration[StorageSettings.Variable]));
+    // Where the owner's files go and how much of it they may use
+    // (docs/operations.md). The place is resolved once, here, so that the check
+    // at startup and the store that writes into it cannot be two directories.
+    var storage = StorageSettings.FromVariables(
+        builder.Configuration[StorageSettings.Variable],
+        builder.Configuration[StorageSettings.MaxFileVariable],
+        builder.Configuration[StorageSettings.MaxTotalVariable]);
+
+    builder.Services.AddSingleton(storage);
+    builder.Services.AddSingleton(new StorageRoot(
+        storage.ResolvedRoot(builder.Environment.ContentRootPath)));
 
     // The two periods this instance keeps things for (docs/operations.md): how
     // long the Trash keeps what the owner deleted, and how long an unpinned
