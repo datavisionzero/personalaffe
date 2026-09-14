@@ -55,6 +55,11 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/files/{id}/content",
                 "/api/health/live",
                 "/api/health/ready",
+                "/api/knowledge/export",
+                "/api/knowledge/pages",
+                "/api/knowledge/pages/{id}",
+                "/api/knowledge/pages/{id}/revisions",
+                "/api/knowledge/pages/{id}/revisions/{revision}",
                 "/api/me",
                 "/api/scratchpad/entries",
                 "/api/scratchpad/entries/{id}",
@@ -108,6 +113,14 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Contains("FolderResponse", schemas);
         Assert.Contains("MakeFolderRequest", schemas);
         Assert.Contains("ChangeRequest", schemas);
+        Assert.Contains("TreeResponse", schemas);
+        Assert.Contains("OutlineResponse", schemas);
+        Assert.Contains("PageResponse", schemas);
+        Assert.Contains("WritePageRequest", schemas);
+        Assert.Contains("RewritePageRequest", schemas);
+        Assert.Contains("HistoryResponse", schemas);
+        Assert.Contains("RevisionResponse", schemas);
+        Assert.Contains("OldVersionResponse", schemas);
         Assert.Contains("Permission", schemas);
     }
 

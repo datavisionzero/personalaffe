@@ -345,6 +345,72 @@ everything in it under one moment, so the whole thing comes back together; a
 child the owner deleted separately keeps its own expiry and does not
 ([Putting something back into a tree](#putting-something-back-into-a-tree)).
 
+## Knowledge
+
+The owner's lasting notes: Markdown pages in a tree, each with a history behind
+it (`CONTEXT.md`, Knowledge page). It is the third application, and the first
+one that keeps any history at all.
+
+```json
+{ "id": "0199f0c6-…",
+  "title": "Die Architektur",
+  "parent": "0199f0c5-…",
+  "markdown": "# Die Architektur\n\nDas Wichtigste zuerst.\n",
+  "created_at": "2026-09-14T08:30:00.123456Z",
+  "updated_at": "2026-09-14T09:02:11.000000Z" }
+```
+
+**A page's id is its identity, and its title is a label.** `GET
+/api/knowledge/pages/{id}` goes on answering through every rename, every move,
+every rewrite and every recovery — which is the whole of what "stable links"
+means, and the same decision Files made about a file's bytes
+([ADR 0006](adr/0006-a-file-is-its-id-and-its-bytes-go-down-before-its-row.md)).
+
+**`GET /api/knowledge/pages` is the tree and carries no bodies.** Every page's
+title and place, flat, each saying which page it is under; a client draws the
+hierarchy in one pass. A knowledge base is navigated far more often than any one
+page is read, and a listing that carried every page's Markdown would get slower
+the more the owner writes.
+
+**A title is at most 200 characters, one line, and carries no `/` or `\`.**
+Nothing server-side parses one, but two things outside do: `pea knowledge`
+addresses a page by a path of titles, and the export writes one file per page.
+**Titles among siblings are one each whatever their capitals**, and a taken one
+is `conflict` and never a silent rename.
+
+**The tree is 8 pages deep** — deliberately shallower than Files' 32. A file
+tree mirrors however somebody already filed things; a knowledge base is
+something they are building in order to find things in, and eight levels of it
+is a base where nothing is findable. Past it, and a page put under itself, are
+both `conflict`.
+
+**One `PUT` carries the title, the place and the Markdown**, because all three
+are the same row. A write that changes something keeps what it replaced; a write
+that asks for what is already stored is still guarded, still checked, and leaves
+no revision — a history of moments when nothing happened is a history nobody can
+read.
+
+**Recovering writes forward.** Putting an old version back leaves a revision of
+what was current until then, so history only grows: "undo" is the one operation
+that must never destroy work. It is a guarded write on **the page** and not on
+the revision — a revision never changes and has no version worth holding — and
+it puts back the title as well as the body, leaving the page where it is.
+
+**A page keeps 50 versions.** A count and not an age: a page edited twice a year
+deserves its history as much as one edited twice a day.
+
+**Deleting a page takes everything under it and all of its history**, under one
+moment, so the whole thing is one Trash entry and comes back together. A
+revision that outlived its page would be content the owner believes they
+deleted.
+
+**`GET /api/knowledge/export` is a zip of Markdown files.** One `.md` per page
+at the path its titles make, each opening with YAML front matter carrying the
+id, the parent's id, the real title and the timestamps, plus a `knowledge.json`
+saying the same thing in one place. The test of "an open package" is what
+somebody can do with it having never heard of this product: unzip it and read
+it.
+
 ## The applications
 
 The workspace is four applications and each can be switched off
@@ -435,12 +501,12 @@ removes one for good — thirty days after the deletion by default, and
 ([`docs/operations.md`](./operations.md)). Retention does not stop for anything:
 not for an application being switched off, and not for the instance being down.
 
-**Files is what fills it today** (PERSONAL-E6): a deleted file or folder is
-here, with its bytes, until it is restored or its retention runs out. The
-Scratchpad deliberately contributes nothing — what it deletes is destroyed — and
-Knowledge and Tasks are PERSONAL-E7 and PERSONAL-E8. A module joins the Trash by
-contributing to it and by nothing else, and the Scratchpad is the one that never
-will.
+**Files and Knowledge are what fill it today**: a deleted file, folder or page
+is here — with its bytes, or with its history — until it is restored or its
+retention runs out. The Scratchpad deliberately contributes nothing, because
+what it deletes is destroyed, and Tasks is PERSONAL-E8. A module joins the Trash
+by contributing to it and by nothing else, and the Scratchpad is the one that
+never will.
 
 ## Putting something back into a tree
 
@@ -474,9 +540,9 @@ saying it did.
 
 ## Keeping the previous version
 
-Knowledge keeps history (PERSONAL-E7); the conventions it keeps it by are
-settled here, so that an application that wants history later does not invent a
-second set.
+Knowledge keeps history, and the conventions it keeps it by were settled an
+epic before it existed, so that an application that wants history later does not
+invent a second set.
 
 **Fifty previous versions of one thing are kept** — a count and not an age. A
 page edited twice a year deserves its history as much as one edited twice a day,
@@ -926,6 +992,56 @@ address is the id, so a rename cannot break it.
 
 Into the Trash, with `If-Match`. `204`. `pea trash restore files {id}` brings it
 back, and only the owner can remove it for good.
+
+### `GET /api/knowledge/pages`
+
+The whole tree, flat: every page's title, place and version, and no bodies. **No
+limit and no cursor** — a page of a tree is a shape nobody can draw a hierarchy
+from, and what keeps it bounded is that it carries no Markdown.
+
+### `POST /api/knowledge/pages`
+
+`{ "title": "…", "parent": null, "markdown": "…" }`. `201` with `Location` and
+the `ETag` of what was written. A page with a title and nothing under it yet is
+a page.
+
+### `GET /api/knowledge/pages/{id}`
+
+One page with its Markdown, and its `ETag`. A page in the Trash is `404 deleted`
+with `deleted_at` and `expires_at`.
+
+### `PUT /api/knowledge/pages/{id}`
+
+`{ "title": "…", "parent": "…", "markdown": "…" }`, with `If-Match`. The title,
+the place and the body together. `conflict` for a title already taken among its
+siblings, for a page put under itself, and for a tree that would be too deep.
+
+### `DELETE /api/knowledge/pages/{id}`
+
+Into the Trash, with `If-Match`, and everything under it — and its history —
+under one moment. `204`.
+
+### `GET /api/knowledge/pages/{id}/revisions`
+
+What the page used to say, newest first: an id, the title it had, when it
+stopped being current and who ended it. **Without the bodies**: fifty versions
+of a mebibyte each is not a read anybody should make to see when something
+changed.
+
+### `GET /api/knowledge/pages/{id}/revisions/{revision}`
+
+One of them, with what it said.
+
+### `POST /api/knowledge/pages/{id}/revisions/{revision}`
+
+Puts it back, with `If-Match` — **the page's version, not the revision's**.
+Answers the page as it now is. What was current until now is a revision of its
+own.
+
+### `GET /api/knowledge/export`
+
+Every page, as a zip of Markdown files, as an attachment. Read access to
+Knowledge is the whole of the access rule.
 
 ### `GET /api/trash`
 

@@ -8,6 +8,7 @@ using Personalaffe.Api.Hosting;
 using Personalaffe.Api.Http;
 using Personalaffe.Application.Acts;
 using Personalaffe.Application.Acts.Files;
+using Personalaffe.Application.Acts.Knowledge;
 using Personalaffe.Application.Acts.Scratchpad;
 using Personalaffe.Application.Ports;
 using Personalaffe.Domain;
@@ -178,6 +179,15 @@ builder.Services.AddScoped<MoveOrRenameAFolder>();
 builder.Services.AddScoped<DiscardAFile>();
 builder.Services.AddScoped<DiscardAFolder>();
 builder.Services.AddScoped<TidyTheStorage>();
+builder.Services.AddScoped<ReadTheTree>();
+builder.Services.AddScoped<ReadAPage>();
+builder.Services.AddScoped<WriteANewPage>();
+builder.Services.AddScoped<RewriteAPage>();
+builder.Services.AddScoped<DiscardAPage>();
+builder.Services.AddScoped<ReadTheHistory>();
+builder.Services.AddScoped<ReadAnOldVersion>();
+builder.Services.AddScoped<RecoverARevision>();
+builder.Services.AddScoped<ExportTheKnowledge>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();
@@ -281,6 +291,7 @@ api.MapApplications();
 api.MapTrash();
 api.MapScratchpad();
 api.MapFiles();
+api.MapKnowledge();
 
 // An address under the prefix that no endpoint took is an API mistake and
 // answers as one. Without this it would fall through to the web application's

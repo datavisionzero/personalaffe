@@ -55,6 +55,39 @@ public static class FileBodies
         });
     }
 
+    /// <summary>
+    /// Says in the contract that this operation answers a zip — the Knowledge
+    /// export (PERSONAL-E7).
+    /// </summary>
+    /// <remarks>
+    /// It is here rather than in <c>KnowledgeEndpoints</c> because it is the
+    /// same problem as a download's: a handler that writes bytes rather than
+    /// returning a typed result leaves the document saying it answers nothing,
+    /// and both clients are generated from the document.
+    /// </remarks>
+    public static RouteHandlerBuilder AnswersAZip(this RouteHandlerBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.AddOpenApiOperationTransformer((operation, _, _) =>
+        {
+            operation.Responses ??= [];
+            operation.Responses["200"] = new OpenApiResponse
+            {
+                Description = "A zip of Markdown files, as an attachment.",
+                Content = new Dictionary<string, OpenApiMediaType>(StringComparer.Ordinal)
+                {
+                    ["application/zip"] = new()
+                    {
+                        Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "binary" },
+                    },
+                },
+            };
+
+            return Task.CompletedTask;
+        });
+    }
+
     /// <summary>Says in the contract that this operation answers the file itself.</summary>
     public static RouteHandlerBuilder AnswersBytes(this RouteHandlerBuilder builder)
     {
