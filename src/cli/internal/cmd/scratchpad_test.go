@@ -3,6 +3,8 @@ package cmd_test
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -60,6 +62,36 @@ func TestScratchpadAddSendsTheTextFromStdinAndPrintsTheId(t *testing.T) {
 	}
 	if !strings.Contains(got.stderr, "2026-09-21") {
 		t.Fatalf("nothing was said about when it goes: %q", got.stderr)
+	}
+}
+
+func TestScratchpadAddTakesTheSameTextFromAFile(t *testing.T) {
+	var sent map[string]any
+
+	instance := serving(t, "9.9.9", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&sent)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(theEntry))
+	})
+	env := environment(t, map[string]string{config.EnvURL: instance.URL, config.EnvToken: secret})
+
+	path := filepath.Join(t.TempDir(), "note.txt")
+	if err := os.WriteFile(path, []byte(note+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// A stdin nothing ever writes to: a verb given a file must not read one.
+	got := runWith(t, blocking{}, env, "scratchpad", "add", "--text-file", path, "--pinned")
+
+	if got.code != exit.OK {
+		t.Fatalf("want exit 0, got %d: %s", got.code, got.stderr)
+	}
+	if sent["text"] != note {
+		t.Fatalf("a file and stdin disagree: %q", sent["text"])
+	}
+	if sent["pinned"] != true {
+		t.Fatalf("--pinned did not travel: %v", sent)
 	}
 }
 

@@ -39,6 +39,12 @@ services:
       PERSONALAFFE_TRUSTED_PROXY: "${PERSONALAFFE_TRUSTED_PROXY:-}"
       PERSONALAFFE_PUBLIC_URL: "${PERSONALAFFE_PUBLIC_URL:-}"
       PERSONALAFFE_LOG_LEVEL: "${PERSONALAFFE_LOG_LEVEL:-Information}"
+      # The two periods this instance keeps things for, in whole days: how long
+      # deleted lasting content stays recoverable, and how long an unpinned
+      # Scratchpad entry lasts after it was last changed. Empty means the
+      # instance's own defaults, thirty and seven (docs/operations.md).
+      PERSONALAFFE_TRASH_RETENTION: "${PERSONALAFFE_TRASH_RETENTION:-}"
+      PERSONALAFFE_SCRATCHPAD_RETENTION: "${PERSONALAFFE_SCRATCHPAD_RETENTION:-}"
     ports:
       # Loopback by default, and that is not a formality while there is no
       # authentication: the whole value is the left half of the published port,

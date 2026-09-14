@@ -105,6 +105,54 @@ test.describe("the Scratchpad", () => {
 
     await deleted(page, text);
   });
+
+  test("is one Scratchpad in two browsers at once", async ({ browser }) => {
+    // Two contexts, not two tabs and not the same tab asserted twice: the claim
+    // this application makes is that something typed on one device is on
+    // another, and a second context with its own cookie jar and its own session
+    // is what that is from the instance's side.
+    const desk = await browser.newContext();
+    const phone = await browser.newContext();
+
+    try {
+      const atTheDesk = await desk.newPage();
+      const onThePhone = await phone.newPage();
+
+      await signedIn(atTheDesk);
+      await signedIn(onThePhone);
+
+      // The phone is looking at the Scratchpad before anything is written, and
+      // is never reloaded: what brings the entry onto it is the refresh.
+      await onThePhone.goto("/scratchpad");
+      await expect(onThePhone.getByRole("heading", { name: "Scratchpad" })).toBeVisible();
+
+      const text = `from the desk to the phone ${Date.now()}`;
+
+      await atTheDesk.goto("/scratchpad");
+      await atTheDesk.getByRole("textbox", { name: "New entry" }).fill(text);
+      await atTheDesk.getByRole("button", { name: "Put it down" }).click();
+      await expect(atTheDesk.getByText(text)).toBeVisible();
+
+      const arrived = onThePhone.getByRole("listitem").filter({ hasText: text });
+      await expect(arrived).toBeVisible();
+
+      // And it is easily copied there. Chromium over loopback is a secure
+      // context, so this is the real clipboard and not the fallback; where a
+      // harness refuses the permission the screen selects the text instead,
+      // which is what the jsdom test covers.
+      await phone.grantPermissions(["clipboard-read", "clipboard-write"], {
+        origin: new URL(onThePhone.url()).origin,
+      });
+      await arrived.getByRole("button", { name: /^Copy / }).click();
+
+      expect(await onThePhone.evaluate(() => navigator.clipboard.readText())).toBe(text);
+
+      await deleted(atTheDesk, text);
+    } finally {
+      await desk.close();
+      await phone.close();
+    }
+  });
 });
 
 /** Takes one entry away again, so that the next check starts where this did. */

@@ -27,11 +27,16 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > themselves without a reload, and without taking away what somebody is in the
 > middle of typing.
 >
-> **There is still no content of any kind** — no Scratchpad, no Knowledge, no
-> Tasks, no Files. Each of the four answers "not in this build yet" at its own
-> address, and an instance answers an empty Trash because nothing has anything
-> to put in it. Those are PERSONAL-E5 through PERSONAL-E8, so
-> **do not put anything personal in an instance of it yet.**
+> PERSONAL-E5 adds the first content: the **Scratchpad**. Plain text put down in
+> seconds on one device and read on another, pinned when it is worth keeping and
+> destroyed by the instance a week after it was last changed when it is not — in
+> the browser, over the API, and from `pea scratchpad`. Its deletion is the one
+> in this product that cannot be taken back: an entry is never in the Trash.
+>
+> **Knowledge, Tasks and Files are still empty.** Each answers "not in this
+> build yet" at its own address; those are PERSONAL-E6 through PERSONAL-E8. What
+> is stored today is what the Scratchpad stores, so **anything you would mind
+> losing still belongs somewhere else.**
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
@@ -161,6 +166,20 @@ go build -o pea ./cmd/pea
 PERSONALAFFE_URL=http://localhost:5000 ./pea version
 ```
 
+The Scratchpad is the first application it reaches. Text comes from a file or
+from stdin and never from an editor, and `show` writes the text and nothing
+else, so the two are a round trip:
+
+```sh
+export PERSONALAFFE_URL=http://localhost:5000 PERSONALAFFE_TOKEN=pea_…
+
+id=$(echo "the wifi password is hunter2" | ./pea scratchpad add --text-file -)
+./pea scratchpad list
+./pea scratchpad show "$id" > note.txt
+./pea scratchpad pin "$id"      # a pinned entry never expires
+./pea scratchpad rm "$id"       # permanent: it is never in the Trash
+```
+
 [`docs/cli.md`](docs/cli.md) has the configuration ladders, the input rules and
 the exit codes.
 
@@ -200,6 +219,8 @@ build wrote refuses to serve rather than guessing.
 | --- | --- |
 | `ConnectionStrings__Postgres` | The PostgreSQL this instance keeps its data in. Required; the instance refuses to start without it. |
 | `PERSONALAFFE_LOG_LEVEL` | `Verbose`, `Debug`, `Information` (the default), `Warning`, `Error` or `Fatal`. |
+| `PERSONALAFFE_TRASH_RETENTION` | Whole days, 1 to 3650; 30 by default. How long deleted lasting content stays recoverable. |
+| `PERSONALAFFE_SCRATCHPAD_RETENTION` | Whole days, 1 to 3650; 7 by default. How long an unpinned Scratchpad entry lasts after it was last changed. |
 
 A value the instance will not accept stops the start with one line naming the
 variable. The connection string is never written to the log: what is printed is
@@ -236,26 +257,30 @@ writes nothing into the repository and needs no credential.
 
 ## Known limits
 
-Everything here is PERSONAL-E1 to PERSONAL-E4, and nothing more.
+Everything here is PERSONAL-E1 to PERSONAL-E5, and nothing more.
 
-- **There is no content.** No scratchpad, no knowledge pages, no tasks, no
+- **Three of the four applications are empty.** No knowledge pages, no tasks, no
   files: what the database carries is an owner, their sessions, their recovery
-  codes, the agents they let in, and which of the four applications is switched
-  on. The four applications are PERSONAL-E5 through PERSONAL-E8, and each of
-  them answers "not in this build yet" at its own address.
-- **Nothing an agent is given reaches anything yet.** The permissions are real
-  and enforced, and the applications they guard do not exist.
-- **The Trash is real and empty, and it will stay empty.** The guard on a write,
-  recoverable deletion, the hourly sweep and the restore rules all work; nothing
-  has inherited them yet, because nothing stores content. A content module joins
-  by contributing to the Trash and by nothing else
+  codes, the agents they let in, which of the four applications is switched on,
+  and the Scratchpad's entries. Knowledge, Tasks and Files are PERSONAL-E6
+  through PERSONAL-E8, and each answers "not in this build yet" at its own
+  address.
+- **An agent reaches the Scratchpad and nothing else yet.** The permissions are
+  real and enforced everywhere; three of the four applications they guard do not
+  exist.
+- **The Trash is real and empty, and the Scratchpad will never fill it.** The
+  guard on a write, recoverable deletion, the hourly sweep and the restore rules
+  all work. The one application that exists deliberately does not contribute to
+  the Trash — a Scratchpad entry is destroyed when it is deleted — so the Trash
+  fills up when Knowledge, Tasks and Files arrive and not before
   ([`docs/codebase.md`](docs/codebase.md)).
 - **The file storage volume is checked but never written to.** The Files
   application is PERSONAL-E6's.
 - **The Markdown editor has one screen and it is a scaffold.** `/editor` is
   where the shared field can be tried and where the browser checks drive it,
-  because nothing stores prose yet. It writes nowhere, and it goes when
-  Knowledge arrives (PERSONAL-E7).
+  because nothing stores prose yet — the Scratchpad is plain text and its
+  capture box is a `<textarea>`. It writes nowhere, and it goes when Knowledge
+  arrives (PERSONAL-E7).
 - **The home page is not the dashboard.** It says which applications this
   workspace has; the tiles of what is pending and what was touched are
   PERSONAL-E9's, and so is searching.

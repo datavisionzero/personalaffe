@@ -1,6 +1,6 @@
 # personalaffe — MVP Implementation Plan
 
-Status: agreed product and architecture direction. **PERSONAL-E1 to PERSONAL-E4
+Status: agreed product and architecture direction. **PERSONAL-E1 to PERSONAL-E5
 are delivered** — the application, API, CLI and delivery foundation; the door in
 front of them, with one owner, an optional second factor, agent access with a
 permission per application and a recovery that needs the machine rather than a
@@ -9,17 +9,20 @@ can be taken back, one Trash over the four applications, the sweep that empties
 it, and the rules for restoring into a tree; and the workspace they are drawn
 in: the four switches, the frame with its navigation, palette and keys, the
 shared Markdown editor, and screens that keep up with the instance without a
-reload ([`docs/codebase.md`](codebase.md),
+reload; and the first application, the Scratchpad — plain text captured in
+seconds, copied on another device, pinned when it is worth keeping and destroyed
+when it is not ([`docs/codebase.md`](codebase.md),
 [ADR 0002](adr/0002-one-owner-with-a-browser-and-agents-with-tokens.md),
 [ADR 0003](adr/0003-content-is-guarded-by-what-it-was-read-at-and-deleted-by-being-set-aside.md),
-[ADR 0004](adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md)).
+[ADR 0004](adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md),
+[ADR 0005](adr/0005-the-scratchpad-keeps-nothing-and-its-clock-runs-from-the-last-change.md)).
 
-PERSONAL-E5 through PERSONAL-E10 are not started, so there is **no content of
-any kind**: no Scratchpad, no Knowledge, no Tasks, no Files. The workspace and
-its safeguards are there and nothing has inherited them yet — an instance
-answers an empty Trash, and each of the four applications answers "not in this
-build yet" at its own address. Do not store anything personal in an instance of
-it yet.
+PERSONAL-E6 through PERSONAL-E10 are not started: there is **no Knowledge, no
+Tasks and no Files**, and each of those three answers "not in this build yet" at
+its own address. The Trash is still empty, and not for want of a contributor —
+the Scratchpad deliberately never puts anything in it. What an instance stores
+today is what the Scratchpad stores, so anything you would mind losing still
+belongs somewhere else.
 
 The plan implements the four core applications in VISION.md. IDEAS.md remains non-binding and outside the MVP. CONTEXT.md defines domain vocabulary. Epic descriptions are maintained in the PERSONAL project in planaffe; this document is the repository copy of their initial plan.
 
@@ -167,7 +170,7 @@ Use the source components and library choices named in docs/adr/0001-adopt-the-e
 
 ### PERSONAL-E5: MVP: Deliver the cross-device text Scratchpad
 
-Prerequisites: PERSONAL-E2, PERSONAL-E3, PERSONAL-E4.
+Prerequisites: PERSONAL-E2, PERSONAL-E3, PERSONAL-E4. **Delivered.**
 
 #### Outcome
 
