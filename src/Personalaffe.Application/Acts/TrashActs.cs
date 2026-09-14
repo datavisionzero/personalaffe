@@ -14,7 +14,10 @@ public sealed record TheTrash(IReadOnlyList<TrashEntry> Items, bool HasMore);
 /// <para>
 /// The fan-out is over whatever contributors are registered, and the filter is
 /// the caller's own read access: an application an agent cannot read does not
-/// appear, is not counted, and does not reduce what the agent does see.
+/// appear, is not counted, and does not reduce what the agent does see. An
+/// application the owner has switched off is left out the same way — the Trash
+/// is an aggregate view, and a switched-off application is not in one
+/// (PERSONAL-E4). What it holds is kept, and the sweep goes on emptying it.
 /// </para>
 /// <para>
 /// <strong>There is no cursor.</strong> A personal Trash holds at most one
@@ -24,7 +27,8 @@ public sealed record TheTrash(IReadOnlyList<TrashEntry> Items, bool HasMore);
 /// for a list that fits on a screen.
 /// </para>
 /// </remarks>
-public sealed class ReadTheTrash(ICallerIdentity caller, IEnumerable<ITrash> contributors)
+public sealed class ReadTheTrash(
+    ICallerIdentity caller, IEnumerable<ITrash> contributors, ReachingAnApplication reaching)
 {
     public const int DefaultLimit = 200;
 
@@ -36,10 +40,20 @@ public sealed class ReadTheTrash(ICallerIdentity caller, IEnumerable<ITrash> con
         var wanted = Limit(limit);
         var who = caller.Caller;
 
-        var asked = contributors
+        var candidates = contributors
             .Where(contributor => only is null || contributor.Application == only)
             .Where(contributor => who.Permissions.MayRead(contributor.Application))
             .ToArray();
+
+        var asked = new List<ITrash>(candidates.Length);
+
+        foreach (var contributor in candidates)
+        {
+            if (await reaching.SwitchedOnAsync(contributor.Application, cancellationToken))
+            {
+                asked.Add(contributor);
+            }
+        }
 
         // One more than asked for, from each, so that "there is more" is a fact
         // rather than a guess about whether the merge cut something off.
@@ -76,7 +90,7 @@ public sealed class ReadTheTrash(ICallerIdentity caller, IEnumerable<ITrash> con
 /// version the caller read, like every other write. It is not the owner's
 /// alone: an agent that may change an application may undo a deletion in it.
 /// </remarks>
-public sealed class RestoreFromTheTrash(ICallerIdentity caller, IEnumerable<ITrash> contributors)
+public sealed class RestoreFromTheTrash(IEnumerable<ITrash> contributors, ReachingAnApplication reaching)
 {
     public async Task<RestoredTo> ExecuteAsync(
         WorkspaceApplication application,
@@ -85,7 +99,9 @@ public sealed class RestoreFromTheTrash(ICallerIdentity caller, IEnumerable<ITra
         string? restoreAs,
         CancellationToken cancellationToken)
     {
-        caller.Caller.RequireWrite(application);
+        // Putting something back into an application that is switched off would
+        // be a write nobody can see the result of.
+        await reaching.ToWriteAsync(application, cancellationToken);
 
         var contributor = Trash.Of(contributors, application);
 
@@ -106,12 +122,18 @@ public sealed class RestoreFromTheTrash(ICallerIdentity caller, IEnumerable<ITra
 /// the owner's content (PERSONAL-E2). `Caller.RequireOwner` names this act in
 /// so many words.
 /// </remarks>
-public sealed class RemoveFromTheTrash(ICallerIdentity caller, IEnumerable<ITrash> contributors)
+public sealed class RemoveFromTheTrash(
+    ICallerIdentity caller, IEnumerable<ITrash> contributors, ReachingAnApplication reaching)
 {
     public async Task ExecuteAsync(
         WorkspaceApplication application, Guid id, ContentVersion held, CancellationToken cancellationToken)
     {
         caller.Caller.RequireOwner("remove something from the Trash for good");
+
+        if (!await reaching.SwitchedOnAsync(application, cancellationToken))
+        {
+            throw ApplicationState.Off(application);
+        }
 
         var contributor = Trash.Of(contributors, application);
 
@@ -122,18 +144,35 @@ public sealed class RemoveFromTheTrash(ICallerIdentity caller, IEnumerable<ITras
     }
 }
 
-/// <summary>Empties it. The owner's alone, for the same reason.</summary>
-public sealed class EmptyTheTrash(ICallerIdentity caller, IEnumerable<ITrash> contributors)
+/// <summary>
+/// Empties it. The owner's alone, for the same reason.
+/// </summary>
+/// <remarks>
+/// A switched-off application is left out of an "empty everything" and refuses
+/// an "empty this one", like every other operation in it. Its content is kept
+/// and its deadlines go on running: switching an application off is not a way
+/// to make the owner's deletions permanent early, and not a way to delay them.
+/// </remarks>
+public sealed class EmptyTheTrash(
+    ICallerIdentity caller, IEnumerable<ITrash> contributors, ReachingAnApplication reaching)
 {
     public async Task<int> ExecuteAsync(WorkspaceApplication? only, CancellationToken cancellationToken)
     {
         caller.Caller.RequireOwner("empty the Trash");
 
+        if (only is { } one && !await reaching.SwitchedOnAsync(one, cancellationToken))
+        {
+            throw ApplicationState.Off(one);
+        }
+
         var removed = 0;
 
         foreach (var contributor in contributors.Where(c => only is null || c.Application == only))
         {
-            removed += await contributor.EmptyAsync(cancellationToken);
+            if (await reaching.SwitchedOnAsync(contributor.Application, cancellationToken))
+            {
+                removed += await contributor.EmptyAsync(cancellationToken);
+            }
         }
 
         return removed;

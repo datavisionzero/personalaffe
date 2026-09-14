@@ -12,9 +12,9 @@ namespace Personalaffe.Domain;
 /// place that knows.
 /// </para>
 /// <para>
-/// The set grows with the epics that need it — <c>disabled</c> arrives with the
-/// application switch of PERSONAL-E4 — and each addition is a line in
-/// <c>docs/api.md</c> in the same commit.
+/// The set grows with the epics that need it, and each addition is a line in
+/// <c>docs/api.md</c> in the same commit. <c>disabled</c> arrived with the
+/// application switch of PERSONAL-E4.
 /// </para>
 /// </remarks>
 public enum RefusalCode
@@ -38,6 +38,12 @@ public enum RefusalCode
 
     /// <summary>Nothing by that address.</summary>
     NotFound,
+
+    /// <summary>
+    /// The application this belongs to is switched off. What is in it is kept;
+    /// the owner switching it back on is what makes it reachable again.
+    /// </summary>
+    Disabled,
 
     /// <summary>
     /// What used to be at that address is in the Trash, and can be brought
