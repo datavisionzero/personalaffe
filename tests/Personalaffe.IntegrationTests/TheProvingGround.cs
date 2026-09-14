@@ -50,6 +50,44 @@ internal sealed class Thing : IRecoverable
     public ContentVersion Version => ContentVersion.Of(UpdatedAt);
 }
 
+/// <summary>
+/// A previous version of a thing's content — what a module that keeps history
+/// writes beside its own table (<see cref="Revisions"/>).
+/// </summary>
+internal sealed class ThingRevision : IRevision
+{
+    public Guid Id { get; set; }
+
+    public Guid ThingId { get; set; }
+
+    public string Content { get; set; } = string.Empty;
+
+    public DateTimeOffset At { get; set; }
+
+    public Actor By { get; set; } = null!;
+}
+
+internal sealed class ThingRevisionConfiguration : IEntityTypeConfiguration<ThingRevision>
+{
+    public void Configure(EntityTypeBuilder<ThingRevision> builder)
+    {
+        builder.ToTable("thing_revisions");
+        builder.HasKey(revision => revision.Id);
+        builder.Property(revision => revision.ThingId).HasColumnName("thing_id");
+        builder.Property(revision => revision.Content).HasColumnName("content");
+
+        // The line a module with history inherits.
+        builder.IsARevision();
+
+        // Revisions belong to the thing they are of: removing it for good
+        // removes them, and nothing outlives the page it is a version of.
+        builder.HasOne<Thing>()
+            .WithMany()
+            .HasForeignKey(revision => revision.ThingId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 internal sealed class ThingConfiguration : IEntityTypeConfiguration<Thing>
 {
     public void Configure(EntityTypeBuilder<Thing> builder)
@@ -74,6 +112,8 @@ internal sealed class ProvingGround(DbContextOptions<ProvingGround> options) : D
 {
     public DbSet<Thing> Things => Set<Thing>();
 
+    public DbSet<ThingRevision> ThingRevisions => Set<ThingRevision>();
+
     /// <summary>A database with the proving ground in it, and a way back to it.</summary>
     public static async Task<Func<ProvingGround>> PreparedAsync(PostgresFixture postgres)
     {
@@ -90,6 +130,9 @@ internal sealed class ProvingGround(DbContextOptions<ProvingGround> options) : D
         return Open;
     }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
         modelBuilder.ApplyConfiguration(new ThingConfiguration());
+        modelBuilder.ApplyConfiguration(new ThingRevisionConfiguration());
+    }
 }

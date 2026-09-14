@@ -114,6 +114,113 @@ internal sealed class Things(Func<ProvingGround> open)
     }
 
     /// <summary>
+    /// Changes the content, leaving behind the version it replaced — a guarded
+    /// write like any other (<see cref="Revisions"/>).
+    /// </summary>
+    public async Task EditAsync(
+        Guid id, ContentVersion held, string content, Caller by, CancellationToken cancellationToken)
+    {
+        await using var context = open();
+
+        var thing = await context.Things.SingleAsync(candidate => candidate.Id == id, cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+
+        EntityTags.RequireCurrent(thing.Version, held, "The thing");
+
+        context.ThingRevisions.Add(new ThingRevision
+        {
+            Id = Guid.CreateVersion7(now),
+            ThingId = id,
+            Content = thing.Content,
+            At = now,
+            By = Actor.Of(by),
+        });
+
+        thing.Content = content;
+        thing.UpdatedAt = now;
+
+        await GuardedSave.SaveAsync(context, "The thing", cancellationToken);
+        await DropSupersededAsync(id, cancellationToken);
+    }
+
+    /// <summary>
+    /// Puts an old version back — which writes forward, leaving a revision of
+    /// what was current until now.
+    /// </summary>
+    public async Task RecoverAsync(
+        Guid id, Guid revisionId, ContentVersion held, Caller by, CancellationToken cancellationToken)
+    {
+        await using var context = open();
+
+        var thing = await context.Things.SingleAsync(candidate => candidate.Id == id, cancellationToken);
+
+        EntityTags.RequireCurrent(thing.Version, held, "The thing");
+
+        var revision = await context.ThingRevisions.SingleOrDefaultAsync(
+                candidate => candidate.Id == revisionId && candidate.ThingId == id, cancellationToken)
+            ?? throw Refusal.NotFound("This thing has no such revision.");
+
+        var now = DateTimeOffset.UtcNow;
+
+        context.ThingRevisions.Add(new ThingRevision
+        {
+            Id = Guid.CreateVersion7(now),
+            ThingId = id,
+            Content = thing.Content,
+            At = now,
+            By = Actor.Of(by),
+        });
+
+        thing.Content = revision.Content;
+        thing.UpdatedAt = now;
+
+        await GuardedSave.SaveAsync(context, "The thing", cancellationToken);
+        await DropSupersededAsync(id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ThingRevision>> RevisionsAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await using var context = open();
+
+        return await context.ThingRevisions
+            .Where(revision => revision.ThingId == id)
+            .OrderByDescending(revision => revision.At)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<string> ContentAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await using var context = open();
+
+        return (await context.Things
+            .IgnoreQueryFilters()
+            .SingleAsync(thing => thing.Id == id, cancellationToken)).Content;
+    }
+
+    /// <summary>
+    /// What every module that keeps history does after writing one: drop
+    /// whatever now falls outside what is kept.
+    /// </summary>
+    private async Task DropSupersededAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await using var context = open();
+
+        var all = await context.ThingRevisions
+            .Where(revision => revision.ThingId == id)
+            .ToListAsync(cancellationToken);
+
+        var superseded = Revisions.Superseded(all);
+
+        if (superseded.Count == 0)
+        {
+            return;
+        }
+
+        context.ThingRevisions.RemoveRange(superseded);
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// What the owner does when they want something gone now: the row and
     /// everything under it, for good.
     /// </summary>

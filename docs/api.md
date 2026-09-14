@@ -304,6 +304,34 @@ recoverable. It is **restored to the root**, and the answer says so with
 `moved_to_the_root`. Nothing in this product moves the owner's content without
 saying it did.
 
+## Keeping the previous version
+
+Knowledge keeps history (PERSONAL-E7); the conventions it keeps it by are
+settled here, so that an application that wants history later does not invent a
+second set.
+
+**Fifty previous versions of one thing are kept** — a count and not an age. A
+page edited twice a year deserves its history as much as one edited twice a day,
+and "ninety days" would quietly throw away the whole history of everything the
+owner works on slowly, which is most of what a personal knowledge base is for.
+
+**Recovering an old version writes forward.** Putting one back is a change like
+any other: it leaves a revision of what it replaced, so what was current a
+moment ago is itself recoverable. History only grows, and the recovery is in it.
+Rewinding would make "undo" the one operation in this product that destroys
+work.
+
+**A recovery carries `If-Match` for the object, not the revision.** A revision
+never changes and has no version worth holding; what the caller has to be
+holding is the page's. Otherwise recovering something read ten minutes ago would
+discard an edit made five minutes ago — which is the case the guard exists for,
+arriving through the one door that looks like it should be exempt.
+
+**Revisions belong to the thing they are of.** Deleting it takes them into the
+Trash with it, restoring brings them back, and removing it for good removes
+them. A revision that outlived its page would be content the owner believes they
+deleted.
+
 ## The door
 
 **Everything but the five operations under *Operations* needs a credential**,
