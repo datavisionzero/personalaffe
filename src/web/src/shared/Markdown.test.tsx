@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { renderAt } from "@/shared/anInstance";
 import { admitUrl, insidePath } from "./links";
 import { Markdown } from "./Markdown";
 
@@ -53,10 +54,8 @@ describe("the Markdown pipeline", () => {
     expect(admitUrl("http://example.org", "href", { type: "element", tagName: "a", properties: {}, children: [] })).toBe("http://example.org");
   });
 
-  // A file has an address since PERSONAL-E6 and a page gets one in PERSONAL-E7,
-  // which is what `insidePath` is the seam for. A scheme with nothing behind it
-  // yet, and a `file:` that is not an id, are both somebody else's address and
-  // stay text.
+  // Both schemes name an id, and an id is what neither of these is. A `page:`
+  // or a `file:` that is not one is somebody else's address and stays text.
   it("treats a scheme it does not know as text", () => {
     render(<Markdown>{"[a](page:architecture) [b](file:invoice.pdf)"}</Markdown>);
 
@@ -66,6 +65,20 @@ describe("the Markdown pipeline", () => {
     }
 
     expect(insidePath("page:architecture")).toBeUndefined();
+  });
+
+  it("follows a page: link inside the application rather than opening it", () => {
+    const id = "0199f0c6-1234-7abc-8def-0123456789ab";
+
+    // Inside a router, because a link inside the workspace is a `<Link>` and a
+    // `<Link>` outside one is a crash rather than an anchor.
+    renderAt("/knowledge", <Markdown>{`[die Architektur](page:${id})`}</Markdown>);
+
+    const link = screen.getByRole("link", { name: "die Architektur" });
+
+    // Followed and not opened: no new tab, and the frame is never remounted.
+    expect(link).toHaveAttribute("href", `/knowledge/${id}`);
+    expect(link).not.toHaveAttribute("target");
   });
 
   it("marks fenced code apart from inline code", () => {

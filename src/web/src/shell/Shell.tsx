@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Home } from "@/home/Home";
 import { Files } from "@/files/Files";
+import { Knowledge } from "@/knowledge/Knowledge";
 import { Scratchpad } from "@/scratchpad/Scratchpad";
 import type { Me } from "@/session/useSession";
 import { Settings } from "@/settings/Settings";
@@ -22,13 +23,6 @@ import { useApplications, type TheApplications } from "./useApplications";
 // The palette is the one thing in the frame that nobody has asked for yet when
 // the frame is drawn. It arrives when it is first opened.
 const Palette = lazy(() => import("./Palette").then((module) => ({ default: module.Palette })));
-
-// The Markdown pipeline weighs more than the frame does, and CodeMirror behind
-// it weighs more again. Both arrive with the first screen that writes, never
-// with the frame (ADR 0001).
-const Editing = lazy(() =>
-  import("@/editor/Editing").then((module) => ({ default: module.Editing })),
-);
 
 /**
  * The frame every screen sits in: drawn before any content arrives, and never
@@ -136,16 +130,6 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
         <Routes>
           <Route path="/" element={<Home me={me} applications={applicationsAsked} />} />
           <Route path="/trash" element={<Trash />} />
-          {/* The shared Markdown field, with nothing behind it yet
-              (`editor/Editing.tsx`). It goes when Knowledge arrives. */}
-          <Route
-            path="/editor"
-            element={
-              <Suspense fallback={<Busy title="Loading the editor…" />}>
-                <Editing />
-              </Suspense>
-            }
-          />
           <Route
             path="/settings/*"
             element={<Settings me={me} applications={applicationsAsked} />}
@@ -196,12 +180,13 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
 }
 
 /**
- * The screen an application has, for the ones that have one. The two still to
- * come are drawn by `Awaited` until their epic lands.
+ * The screen an application has, for the ones that have one. The one still to
+ * come is drawn by `Awaited` until its epic lands.
  */
 const screens: Partial<Record<Application["name"], () => ReactElement>> = {
   scratchpad: () => <Scratchpad />,
   files: () => <Files />,
+  knowledge: () => <Knowledge />,
 };
 
 /**

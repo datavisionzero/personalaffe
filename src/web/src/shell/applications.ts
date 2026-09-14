@@ -48,7 +48,6 @@ export const applications: Application[] = [
     path: "/knowledge",
     icon: NotebookTextIcon,
     hint: "What is worth keeping, as Markdown pages in a hierarchy.",
-    arrives: "PERSONAL-E7",
   },
   {
     name: "tasks",
