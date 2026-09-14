@@ -46,7 +46,7 @@ test.describe("the workspace in a browser", () => {
     await page.keyboard.press("Enter");
 
     await expect(page).toHaveURL(/\/scratchpad$/);
-    await expect(page.getByText("Scratchpad is not in this build yet.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Scratchpad" })).toBeVisible();
   });
 
   test("shows every key it binds, and leaves bare keys to whatever is being typed into", async ({
