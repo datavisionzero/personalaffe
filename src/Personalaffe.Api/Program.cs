@@ -158,6 +158,7 @@ builder.Services.AddScoped<ReadAnEntry>();
 builder.Services.AddScoped<CaptureAnEntry>();
 builder.Services.AddScoped<RewriteAnEntry>();
 builder.Services.AddScoped<DiscardAnEntry>();
+builder.Services.AddScoped<ExpireTheEntries>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();

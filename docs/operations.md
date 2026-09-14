@@ -117,6 +117,7 @@ failed is in the instance's log at warning, where the operator is.
 | `ConnectionStrings__Postgres` | — | Required. The database. The instance refuses to start without it, and never writes it to the log: what is printed is the same string with every credential replaced by `***`. |
 | `PERSONALAFFE_STORAGE_ROOT` | `/var/lib/personalaffe/files` in the image | Where the owner's files go. Must be writable by the user the container runs as, and must not be under the static web root. |
 | `PERSONALAFFE_TRASH_RETENTION` | `30` | Whole days, 1 to 3650. How long deleted knowledge pages, tasks, lists, files and folders stay recoverable. See below. |
+| `PERSONALAFFE_SCRATCHPAD_RETENTION` | `7` | Whole days, 1 to 3650. How long an unpinned Scratchpad entry lasts after it was last changed. See below. |
 | `PERSONALAFFE_TRUSTED_PROXY` | unset | Which peers may speak for the caller. See below. |
 | `PERSONALAFFE_PUBLIC_URL` | unset | Where this instance is reached, like `https://workspace.example.com`. Optional: what it buys is a stricter check on writes made from a browser, which without it are checked against the host alone. It is never used to build a link. |
 | `PERSONALAFFE_LOG_LEVEL` | `Information` | `Verbose`, `Debug`, `Information`, `Warning`, `Error` or `Fatal`. |
@@ -158,8 +159,46 @@ per application, and never a name or a word of what the owner wrote.
 Swept the Trash: removed 4 expired item(s), Knowledge: 3, Files: 1.
 ```
 
-**An instance today sweeps nothing**, because none of the four applications
-exists yet (`docs/mvp-plan.md`). The line above is what it will look like.
+**An instance today has three of the four applications still to come**
+(`docs/mvp-plan.md`), so what the Trash sweep removes is whatever the Scratchpad
+put there — which is nothing, deliberately, because a Scratchpad entry is never
+in the Trash.
+
+## The Scratchpad empties itself too
+
+`PERSONALAFFE_SCRATCHPAD_RETENTION` is how long an unpinned Scratchpad entry
+lasts. Seven days by default.
+
+**These are two periods and not one.** Thirty days for what was deleted and can
+be had back, seven for what was never meant to last. They answer different
+questions — how long a mistake can be undone, and how long a note pasted between
+two devices is worth keeping — and one number would have to be wrong for one of
+them.
+
+**The period counts from when an entry was last changed**, not from when it was
+captured. An entry edited this morning does not disappear tonight because it was
+pasted a week ago, and an entry unpinned after a year gets a full period from the
+moment it was unpinned rather than going on the next sweep.
+
+**A pinned entry never expires.** Pinning is the owner's answer to "keep this",
+and it is the only one: there is no per-entry expiry and no notice before
+something goes. The list shows `expires_at` for every entry that has one.
+
+**Deletion here is immediate and final.** A Scratchpad entry is not set aside,
+does not appear in the Trash, and cannot be restored — by the owner, by an
+agent, or by an operator with a shell. The backup is the only way back, which is
+the same thing as saying there is none.
+
+It runs in the same loop as the Trash's sweep, on the same clock, at start and
+once an hour. The two are independent: one that fails is logged and the other
+still runs. A week of downtime costs nothing here either — the sweep works from
+the deadline — and switching the Scratchpad off changes nothing about it, which
+is the same promise the Trash makes.
+
+```
+The Scratchpad keeps an unpinned entry for 7 days after it was last changed.
+Swept the Scratchpad: removed 3 expired entry/entries.
+```
 
 ## Behind a reverse proxy
 
