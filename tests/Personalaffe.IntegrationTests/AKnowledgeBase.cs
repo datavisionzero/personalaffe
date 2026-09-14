@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using Personalaffe.Api.Http;
 using Personalaffe.Application.Acts;
+using Personalaffe.Application.Ports;
 using Personalaffe.Domain;
 
 namespace Personalaffe.IntegrationTests;
@@ -21,10 +22,11 @@ internal sealed class AKnowledgeBase : IAsyncDisposable
 {
     private const string Pages = "/api/knowledge/pages";
 
-    private AKnowledgeBase(AnInstance instance, HttpClient owner)
+    private AKnowledgeBase(AnInstance instance, HttpClient owner, string root)
     {
         Instance = instance;
         Owner = owner;
+        Root = root;
     }
 
     public AnInstance Instance { get; }
@@ -32,13 +34,65 @@ internal sealed class AKnowledgeBase : IAsyncDisposable
     /// <summary>The owner, signed in through a browser.</summary>
     public HttpClient Owner { get; }
 
+    /// <summary>
+    /// The storage root, so that a test which links a page to a file has one
+    /// and no test writes into the checkout.
+    /// </summary>
+    public string Root { get; }
+
     public static async Task<AKnowledgeBase> StartedAsync(
         PostgresFixture postgres, CancellationToken cancellationToken)
     {
-        var instance = AnInstance.Against(await postgres.CreateDatabaseAsync());
+        var root = Path.Combine(Path.GetTempPath(), $"personalaffe-knowledge-{Guid.NewGuid():n}");
+
+        var instance = AnInstance.Configured(
+            await postgres.CreateDatabaseAsync(),
+            new Dictionary<string, string?> { [StorageSettings.Variable] = root });
+
         var owner = await AnOwner.SignedInAsync(instance, cancellationToken);
 
-        return new AKnowledgeBase(instance, owner);
+        return new AKnowledgeBase(instance, owner, root);
+    }
+
+    /// <summary>
+    /// A stored file, so that a page can link to one. Knowledge links to Files
+    /// and there is no second attachment store (PERSONAL-E6), so the two are
+    /// tested together or not at all.
+    /// </summary>
+    public async Task<Guid> UploadAsync(
+        string name, byte[] content, CancellationToken cancellationToken)
+    {
+        using var body = new ByteArrayContent(content);
+        body.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain");
+
+        using var response = await Owner.PostAsync(
+            $"/api/files/content?name={Uri.EscapeDataString(name)}", body, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        return JsonNode.Parse(
+            await response.Content.ReadAsStringAsync(cancellationToken))!["id"]!.GetValue<Guid>();
+    }
+
+    /// <summary>Switches an application on or off, as the owner.</summary>
+    public async Task SwitchAsync(string application, bool enabled, CancellationToken cancellationToken)
+    {
+        var applications = await Owner.GetFromJsonAsync<JsonNode>("/api/applications", cancellationToken);
+        var state = applications!["items"]!.AsArray().First(
+            item => item!["application"]!.GetValue<string>() == application)!;
+
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/applications/{application}")
+        {
+            Content = JsonContent.Create(new { enabled }),
+        };
+
+        request.Headers.TryAddWithoutValidation(
+            EntityTags.IfMatch,
+            EntityTags.For(ContentVersion.Of(state["updated_at"]!.GetValue<DateTimeOffset>())));
+
+        using var response = await Owner.SendAsync(request, cancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     /// <summary>A second credential, with exactly this much access to Knowledge.</summary>
@@ -195,29 +249,25 @@ internal sealed class AKnowledgeBase : IAsyncDisposable
     }
 
     /// <summary>Switches Knowledge on or off, as the owner.</summary>
-    public async Task SwitchAsync(bool enabled, CancellationToken cancellationToken)
-    {
-        var applications = await Owner.GetFromJsonAsync<JsonNode>("/api/applications", cancellationToken);
-        var state = applications!["items"]!.AsArray().First(
-            item => item!["application"]!.GetValue<string>() == "knowledge")!;
-
-        using var request = new HttpRequestMessage(HttpMethod.Put, "/api/applications/knowledge")
-        {
-            Content = JsonContent.Create(new { enabled }),
-        };
-
-        request.Headers.TryAddWithoutValidation(
-            EntityTags.IfMatch,
-            EntityTags.For(ContentVersion.Of(state["updated_at"]!.GetValue<DateTimeOffset>())));
-
-        using var response = await Owner.SendAsync(request, cancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
+    public Task SwitchAsync(bool enabled, CancellationToken cancellationToken) =>
+        SwitchAsync("knowledge", enabled, cancellationToken);
 
     public ValueTask DisposeAsync()
     {
         Owner.Dispose();
+
+        try
+        {
+            if (Directory.Exists(Root))
+            {
+                Directory.Delete(Root, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+            // A temporary directory that will not go is the operating system's
+            // to clean up, not a reason to fail a test that has passed.
+        }
 
         return Instance.DisposeAsync();
     }

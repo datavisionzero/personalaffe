@@ -324,13 +324,7 @@ public sealed class TrashTests(PostgresFixture postgres)
     }
 
     private Task<AnInstance> Holding(params AFakeTrash[] contributors) =>
-        AnInstance.StartedWithAsync(postgres, services =>
-        {
-            foreach (var contributor in contributors)
-            {
-                services.AddSingleton<ITrash>(contributor);
-            }
-        });
+        AnInstance.StartedWithTrashAsync(postgres, [.. contributors]);
 
     private static async Task<HttpClient> AnAgent(
         AnInstance instance, HttpClient owner, string knowledge, string files)

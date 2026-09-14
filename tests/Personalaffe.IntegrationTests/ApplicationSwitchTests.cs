@@ -154,11 +154,7 @@ public sealed class ApplicationSwitchTests(PostgresFixture postgres)
         var knowledge = new AFakeTrash(WorkspaceApplication.Knowledge);
         var files = new AFakeTrash(WorkspaceApplication.Files);
 
-        await using var instance = await AnInstance.StartedWithAsync(postgres, services =>
-        {
-            services.AddSingleton<ITrash>(knowledge);
-            services.AddSingleton<ITrash>(files);
-        });
+        await using var instance = await AnInstance.StartedWithTrashAsync(postgres, knowledge, files);
 
         using var owner = await AnOwner.SignedInAsync(instance, Token);
 
@@ -200,11 +196,7 @@ public sealed class ApplicationSwitchTests(PostgresFixture postgres)
         var knowledge = new AFakeTrash(WorkspaceApplication.Knowledge);
         var files = new AFakeTrash(WorkspaceApplication.Files);
 
-        await using var instance = await AnInstance.StartedWithAsync(postgres, services =>
-        {
-            services.AddSingleton<ITrash>(knowledge);
-            services.AddSingleton<ITrash>(files);
-        });
+        await using var instance = await AnInstance.StartedWithTrashAsync(postgres, knowledge, files);
 
         using var owner = await AnOwner.SignedInAsync(instance, Token);
 

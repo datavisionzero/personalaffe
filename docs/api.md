@@ -302,8 +302,8 @@ first one that puts anything in the Trash.
 **A file's id is its address, and its name is a label.** `GET
 /api/files/{id}/content` answers the bytes and goes on answering them after the
 file has been renamed and moved into another folder — which is what makes it
-the reference Knowledge links to in PERSONAL-E7, with no second attachment
-store. The bytes live at a path derived from that id and never from the name,
+the reference Knowledge links to with `file:<id>`, and why there is no second
+attachment store. The bytes live at a path derived from that id and never from the name,
 so escaping the storage area is not something a request can ask for.
 
 **The body of an upload is the file.** `POST /api/files/content?name=…&folder=…`

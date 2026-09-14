@@ -6,7 +6,7 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 [`CONTEXT.md`](CONTEXT.md) is the language it uses;
 [`docs/mvp-plan.md`](docs/mvp-plan.md) says in what order it is built.
 
-> **Two of the four applications work; two are still empty.** What exists is
+> **Three of the four applications work; one is still empty.** What exists is
 > the foundation of PERSONAL-E1 — a .NET host, a PostgreSQL schema that migrates
 > itself, a checked-in HTTP contract, and a web application and a CLI that read
 > it — and the door of PERSONAL-E2: an instance is claimed once by its one
@@ -42,10 +42,17 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > the bytes are written before the row, so an instance killed mid-upload leaves
 > disk to tidy up rather than a file that is gone.
 >
-> **Knowledge and Tasks are still empty.** Each answers "not in this build yet"
-> at its own address; those are PERSONAL-E7 and PERSONAL-E8. And no backup of
-> this has been through a restore anybody has proved — that is PERSONAL-E10 —
-> so **anything you would mind losing still belongs somewhere else as well.**
+> PERSONAL-E7 adds the third: **Knowledge**. Lasting notes as Markdown in a
+> tree, written in the editor the frame has had since PERSONAL-E4, with a
+> history behind every page that only ever grows — putting an old version back
+> keeps the one it replaced — and an export that is a zip of Markdown files
+> anybody can read. A page's address is its id, so a link to it survives every
+> rename and every move.
+>
+> **Tasks is still empty.** It answers "not in this build yet" at its own
+> address; that is PERSONAL-E8. And no backup of this has been through a restore
+> anybody has proved — that is PERSONAL-E10, and the Knowledge export is not one
+> — so **anything you would mind losing still belongs somewhere else as well.**
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
@@ -203,6 +210,18 @@ file=$(./pea files put --file "Reisekosten 2026.pdf" --to /Reisen/2026)
 ./pea trash restore files "$file"
 ```
 
+Knowledge is the third, and the one that writes prose. A path is titles, and
+`show` writes the Markdown and nothing else, so the two are a round trip:
+
+```sh
+./pea knowledge new /Architektur --text-file notes.md
+./pea knowledge tree
+./pea knowledge show /Architektur > page.md
+./pea knowledge edit /Architektur --title "Die Architektur"
+./pea knowledge history /Architektur        # what it used to say
+./pea knowledge export --out knowledge.zip  # Markdown anybody can read
+```
+
 [`docs/cli.md`](docs/cli.md) has the configuration ladders, the input rules and
 the exit codes.
 
@@ -280,31 +299,29 @@ writes nothing into the repository and needs no credential.
 
 ## Known limits
 
-Everything here is PERSONAL-E1 to PERSONAL-E6, and nothing more.
+Everything here is PERSONAL-E1 to PERSONAL-E7, and nothing more.
 
-- **Two of the four applications are empty.** No knowledge pages and no tasks:
-  what the database carries is an owner, their sessions, their recovery codes,
-  the agents they let in, which of the four applications is switched on, the
-  Scratchpad's entries, and the metadata of the owner's files. Knowledge and
-  Tasks are PERSONAL-E7 and PERSONAL-E8, and each answers "not in this build
-  yet" at its own address.
-- **An agent reaches the Scratchpad and Files and nothing else yet.** The
-  permissions are real and enforced everywhere; two of the four applications
-  they guard do not exist.
-- **The Trash has one contributor.** The guard on a write, recoverable deletion,
-  the hourly sweep and the restore rules all work, and Files is what fills them.
-  The Scratchpad deliberately does not — an entry is destroyed when it is
-  deleted — and Knowledge and Tasks will when they arrive
+- **One of the four applications is empty.** No tasks: what the database carries
+  is an owner, their sessions, their recovery codes, the agents they let in,
+  which of the four applications is switched on, the Scratchpad's entries, the
+  metadata of the owner's files, and their knowledge pages with the history
+  behind them. Tasks is PERSONAL-E8 and answers "not in this build yet" at its
+  own address.
+- **An agent reaches three of the four applications.** The permissions are real
+  and enforced everywhere; the fourth does not exist yet.
+- **The Trash has two contributors.** The guard on a write, recoverable
+  deletion, the hourly sweep and the restore rules all work, and Files and
+  Knowledge are what fill them. The Scratchpad deliberately does not — an entry
+  is destroyed when it is deleted — and Tasks will when it arrives
   ([`docs/codebase.md`](docs/codebase.md)).
+- **Knowledge is Markdown and a tree, and nothing more.** No tags, no automatic
+  backlinks, no full-text search yet (that is PERSONAL-E9), and no turning a
+  Scratchpad entry into a page. A page keeps fifty previous versions and the
+  tree is eight deep.
 - **Files stores small files and nothing looks inside them.** No previews, no
   sharing links, no versioning of the bytes, and no search of their contents. A
   file is at most 64 MiB and the application at most 5 GiB by default, and both
   are an operator's variable ([`docs/operations.md`](docs/operations.md)).
-- **The Markdown editor has one screen and it is a scaffold.** `/editor` is
-  where the shared field can be tried and where the browser checks drive it,
-  because nothing stores prose yet — the Scratchpad is plain text and its
-  capture box is a `<textarea>`. It writes nowhere, and it goes when Knowledge
-  arrives (PERSONAL-E7).
 - **The home page is not the dashboard.** It says which applications this
   workspace has; the tiles of what is pending and what was touched are
   PERSONAL-E9's, and so is searching.

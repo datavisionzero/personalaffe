@@ -58,12 +58,20 @@ tidy-up behind it (PERSONAL-41), `pea files` and the paths it reaches them by
 the epic decided is
 [ADR 0006](./adr/0006-a-file-is-its-id-and-its-bytes-go-down-before-its-row.md).
 
-**Two of the four applications are here.** An instance captures plain text,
-lists it, pins it, expires it and destroys it; and it stores files in folders,
-hands them back byte for byte, and sets them aside in a Trash that finally has
-something in it. Both are reached in a browser and from `pea`. What the rest of
-`docs/mvp-plan.md` describes is not started: Knowledge and Tasks each answer
-"not in this build yet" at their own address.
+**PERSONAL-E7 is complete**: the page, its title, its tree and the history
+behind it (PERSONAL-45), the nine endpoints over them and the export
+(PERSONAL-46), `pea knowledge` (PERSONAL-47), the screen with its tree and the
+editor that finally has work (PERSONAL-48), and the suite and the record that
+close it (PERSONAL-49). What the epic decided is
+[ADR 0007](./adr/0007-a-page-is-its-id-and-its-history-only-grows.md).
+
+**Three of the four applications are here.** An instance captures plain text,
+lists it, pins it, expires it and destroys it; it stores files in folders and
+hands them back byte for byte; and it keeps lasting notes as Markdown in a tree,
+with a history behind every page and an export anybody can read. All three are
+reached in a browser and from `pea`. What the rest of `docs/mvp-plan.md`
+describes is not started: Tasks answers "not in this build yet" at its own
+address.
 
 ## Where this comes from
 
@@ -258,6 +266,12 @@ Implemented for the Scratchpad (PERSONAL-E5): `Domain/Scratchpad/` with
 `Persistence/ScratchpadEntries` with its configuration and migration, and
 `Http/ScratchpadEndpoints`.
 
+Implemented for Knowledge (PERSONAL-E7): `Domain/Knowledge/` with `Page`,
+`PageTitle` and `PageRevision`; `Application/Ports/IPages` with
+`PageInTheTree`; `Application/Acts/Knowledge/` with the eight acts and
+`ExportTheKnowledge`; `Persistence/Pages` and `KnowledgeTrash` with their two
+configurations and their migration; and `Http/KnowledgeEndpoints`.
+
 Implemented for Files (PERSONAL-E6): `Domain/Files/` with `StoredFile`,
 `Folder`, `FileName` and `StorageAddress`;
 `Application/Ports/IStoredFiles`, `IFileBytes` and `StorageRoot`;
@@ -266,10 +280,10 @@ Implemented for Files (PERSONAL-E6): `Domain/Files/` with `StoredFile`,
 their migration; `Files/LocalFileBytes`; and `Http/FileEndpoints` with
 `FileBodies` beside it.
 
-Planned, not implemented: every endpoint of Knowledge and Tasks. An instance
-answers the five outside the door, the owner's own, which applications it has,
-its Scratchpad, its Files, and a Trash that Files fills and the Scratchpad
-deliberately never puts anything in.
+Planned, not implemented: every endpoint of Tasks. An instance answers the five
+outside the door, the owner's own, which applications it has, its Scratchpad,
+its Files, its Knowledge, and a Trash that Files and Knowledge fill and the
+Scratchpad deliberately never puts anything in.
 
 ## Where an application lives
 
@@ -281,8 +295,9 @@ and one in `src/web/src/`:
 **The Scratchpad is the worked example** rather than the illustration it used
 to be: PERSONAL-E5 built exactly this shape, and PERSONAL-E6 was written by
 reading it. Files is the worked example of the other half — a module with a
-tree, a Trash and bytes beside its rows — and Knowledge is written by reading
-that one.
+tree, a Trash and bytes beside its rows — and Knowledge was written by reading
+that one, which is the third module and the first with a history. Tasks is
+written by reading whichever of the three it resembles most.
 
 ```
 src/Personalaffe.Domain/Scratchpad/ScratchpadEntry.cs        the rules
@@ -320,12 +335,12 @@ application. It lives at the root of each layer, because every application asks
 it the same question: `Owner`, `AgentAccess`, `Permissions` and `Caller` in
 Domain, the acts beside the others, and one store each.
 
-*The Scratchpad's folders and Files' exist; Knowledge's and Tasks' do not.
+*The Scratchpad's folders, Files' and Knowledge's exist; Tasks' do not.
 PERSONAL-2 created the folders that had something to put in them and no others,
 which is still the rule: an empty folder claiming a future module is a lie the
 tree tells. PERSONAL-26 gave each of the four a route, and PERSONAL-27's
-`shell/States.tsx` the screen that says which epic fills the two still to come —
-one component rather than two folders holding a placeholder each.*
+`shell/States.tsx` the screen that says which epic fills the one still to come —
+one component rather than a folder holding a placeholder.*
 
 **What the four applications inherit from PERSONAL-E4**, beside PERSONAL-E3's
 safeguards:
@@ -428,8 +443,10 @@ PERSONAL-27, PERSONAL-29 and PERSONAL-30 added `components/ui/`, `lib/`,
 `hooks/` and the editing components under `shared/`; PERSONAL-26 added the
 frame: `shell/` grew the sidebar, the palette, the keys and the routes, and
 `home/`, `settings/`, `trash/` and `editor/` are the screens behind them.
-PERSONAL-37 added the first application folder, `scratchpad/`, and PERSONAL-43
-the second, `files/`. The two still to come arrive with their epics.*
+PERSONAL-37 added the first application folder, `scratchpad/`, PERSONAL-43 the
+second, `files/`, and PERSONAL-48 the third, `knowledge/` — which is also where
+`editor/` went, because the field it stood in for now has a screen that writes.
+The one still to come arrives with its epic.*
 
 **Nothing is drawn until the instance has said whether it has an owner and
 whether this browser is signed in.** `session/useSession.ts` asks the two
@@ -681,13 +698,13 @@ parameter is a red build rather than a decision nobody notices. What the epic
 decided is
 [ADR 0004](./adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md).
 
-Two things in it are scaffolding and go when an application arrives. `/editor`
-is the one screen the Markdown field has — **until Knowledge in PERSONAL-E7, not
-until PERSONAL-E5**: the Scratchpad is plain text (VISION §6.2) and its capture
-box is a `<textarea>`, so nothing on that screen edits Markdown and no browser
-opening it downloads an editor. `shared/links.ts` has `file:` since
-PERSONAL-E6, and gains `page:` when PERSONAL-E7 gives a page an address a body
-can name.
+Two things in it were scaffolding and are gone. `/editor` was the one screen the
+Markdown field had while nothing wrote through it; Knowledge is what it was
+waiting for, and the browser checks that drove it now drive the real editor
+([ADR 0007](./adr/0007-a-page-is-its-id-and-its-history-only-grows.md)).
+`shared/links.ts` has both of its schemes: `file:` since PERSONAL-E6 and `page:`
+since PERSONAL-E7 — a file link downloads and a page link is followed inside the
+frame.
 
 **PERSONAL-E6, files — landed.** What a module with bytes beside its rows
 inherits, and what it owes back: the two stores are two ports (`IStoredFiles`
@@ -698,10 +715,21 @@ What Knowledge plugs into is `shared/links.ts`: `file:<id>` already resolves to
 a download, so a page that names a file needs no attachment store
 ([ADR 0006](./adr/0006-a-file-is-its-id-and-its-bytes-go-down-before-its-row.md)).
 
+**PERSONAL-E7, knowledge — landed.** What a module that keeps history
+inherits, and the whole of it: `IRevision`, `builder.IsARevision()`, and a write
+that takes a revision of what it replaced before it changes anything.
+`Revisions.Superseded` is what drops the fifty-first, and `IPages.KeepAsync`
+does both in one call because the second is not optional. Recovering is a
+guarded write on the object and never on the revision. What Tasks plugs into, if
+it wants any, is exactly this
+([ADR 0007](./adr/0007-a-page-is-its-id-and-its-history-only-grows.md)).
+
 **PERSONAL-E9, search and the dashboard, and PERSONAL-E10, operations.** Nothing
 in the foundation stands in their way and nothing anticipates them. The two
 volumes a consistent backup has to cover are named in
-[`docs/operations.md`](./operations.md).
+[`docs/operations.md`](./operations.md). The Knowledge export is **not** a
+backup and must not be described as one: it carries no Trash, no revisions and
+no agent access.
 
 **Every epic.** A new endpoint is a change to `docs/api/openapi.json` in the
 same commit, because `ContractTests` compares the two. A new refusal code is a
