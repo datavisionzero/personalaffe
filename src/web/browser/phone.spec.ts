@@ -56,7 +56,7 @@ test.describe("on a phone", () => {
   });
 
   test("never scrolls sideways", async ({ page }) => {
-    for (const address of ["/", "/scratchpad", "/files", "/knowledge", "/settings/applications", "/trash"]) {
+    for (const address of ["/", "/scratchpad", "/files", "/knowledge", "/tasks", "/settings/applications", "/trash"]) {
       await page.goto(address);
       await page.waitForLoadState("networkidle");
 

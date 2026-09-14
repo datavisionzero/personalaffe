@@ -1,4 +1,4 @@
-import { CircleSlashIcon, LockIcon, PowerOffIcon, TriangleAlertIcon } from "lucide-react";
+import { LockIcon, PowerOffIcon, TriangleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/button";
  * The five screens a content screen has to be able to draw before it can draw
  * anything, written once here so that the four applications do not each invent
  * them (`docs/mvp-plan.md`, PERSONAL-E4).
+ *
+ * <b>There were six.</b> `Awaited` said which epic filled an application that
+ * had no screen yet, and PERSONAL-E8 gave the last of them one — so it is gone
+ * rather than kept for a case that can no longer happen. What replaced it is
+ * the type of `screens` in `shell/Shell.tsx`: every application has a screen,
+ * and the compiler is what says so now.
  *
  * None of them is a blank page and none of them is silent to a screen reader.
  * "Nothing here yet", "still loading", "not yours to see", "switched off" and
@@ -85,28 +91,6 @@ export function Failed({ why, again }: { why: string; again?: () => void }) {
           Try again
         </Button>
       )}
-    </Frame>
-  );
-}
-
-/**
- * An application that has no screens yet: the epic that fills it has not
- * landed. It is a state of its own rather than an empty list, because "there is
- * nothing in your Scratchpad" and "this build has no Scratchpad" are different
- * facts and only one of them is the owner's to do something about.
- */
-export function Awaited({ what, epic }: { what: string; epic: string }) {
-  return (
-    <Frame>
-      <CircleSlashIcon aria-hidden className="text-muted-foreground size-5" />
-      <p className="font-medium">{what} is not in this build yet.</p>
-      <p className="text-muted-foreground max-w-prose text-sm text-balance">
-        It arrives with {epic}. The navigation, the switch, the editor and the refresh around it are
-        here; what goes inside is not. Nothing is stored in it, so nothing can be lost from it.
-      </p>
-      <Button render={<Link to="/knowledge" />} variant="outline">
-        See the editor it will use
-      </Button>
     </Frame>
   );
 }

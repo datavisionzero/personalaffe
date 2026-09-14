@@ -76,11 +76,9 @@ describe("the frame", () => {
 
     const navigation = await screen.findByRole("navigation", { name: "The workspace" });
 
-    // Tasks is the one application left with no screen, so it is the one that
-    // proves the frame draws something for an application that has none.
     await userEvent.click(within(navigation).getByRole("link", { name: "Tasks" }));
 
-    expect(await screen.findByText(/Tasks is not in this build yet/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Tasks" })).toBeInTheDocument();
 
     await userEvent.click(within(navigation).getByRole("link", { name: "Home" }));
     expect(await screen.findByRole("heading", { name: "Your workspace" })).toBeInTheDocument();
@@ -99,12 +97,40 @@ describe("the frame", () => {
       expect(await screen.findByRole("heading", { name: "Scratchpad" })).toBeInTheDocument();
     });
 
-    it("says an application still to come is still to come", async () => {
-      anInstance({ "GET /api/applications": theApplications(), ...emptyTrash });
+    // There is no longer an application without a screen, so this is what used
+    // to be "says an application still to come is still to come": every one of
+    // the four opens at its own address.
+    it("opens every one of the four at its own address", async () => {
+      for (const [address, heading] of [
+        ["/scratchpad", "Scratchpad"],
+        ["/files", "Files"],
+        ["/knowledge", "Knowledge"],
+        ["/tasks", "Tasks"],
+      ] as const) {
+        anInstance({
+          "GET /api/applications": theApplications(),
+          "GET /api/scratchpad/entries": { body: { items: [], has_more: false } },
+          "GET /api/files": {
+            body: {
+              chain: [],
+              folders: [],
+              files: [],
+              used_bytes: 0,
+              max_file_bytes: 1,
+              max_total_bytes: 1,
+            },
+          },
+          "GET /api/knowledge/pages": { body: { pages: [] } },
+          "GET /api/tasks/lists": { body: { items: [] } },
+          ...emptyTrash,
+        });
 
-      renderAt("/tasks", <Shell me={theOwner} onSignedOut={() => undefined} />);
+        const { unmount } = renderAt(address, <Shell me={theOwner} onSignedOut={() => undefined} />);
 
-      expect(await screen.findByText(/Tasks is not in this build yet/)).toBeInTheDocument();
+        expect(await screen.findByRole("heading", { name: heading })).toBeInTheDocument();
+
+        unmount();
+      }
     });
 
     // Three different facts, and only one of them is the owner's to act on.
@@ -160,7 +186,7 @@ describe("the frame", () => {
 
       await userEvent.keyboard("{Enter}");
 
-      expect(await screen.findByText(/Tasks is not in this build yet/)).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Tasks" })).toBeInTheDocument();
     });
 
     it("shows every key it binds, and does not answer a bare key while typing", async () => {
