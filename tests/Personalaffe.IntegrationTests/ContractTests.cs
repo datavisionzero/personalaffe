@@ -47,6 +47,12 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/agents/{id}/token",
                 "/api/applications",
                 "/api/applications/{application}",
+                "/api/files",
+                "/api/files/content",
+                "/api/files/folders",
+                "/api/files/folders/{id}",
+                "/api/files/{id}",
+                "/api/files/{id}/content",
                 "/api/health/live",
                 "/api/health/ready",
                 "/api/me",
@@ -97,6 +103,11 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Contains("ScratchpadEntryResponse", schemas);
         Assert.Contains("CaptureEntryRequest", schemas);
         Assert.Contains("RewriteEntryRequest", schemas);
+        Assert.Contains("FilesResponse", schemas);
+        Assert.Contains("FileResponse", schemas);
+        Assert.Contains("FolderResponse", schemas);
+        Assert.Contains("MakeFolderRequest", schemas);
+        Assert.Contains("ChangeRequest", schemas);
         Assert.Contains("Permission", schemas);
     }
 

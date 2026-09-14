@@ -27,7 +27,7 @@ test.describe("the workspace in a browser", () => {
     page,
   }) => {
     await page.goto("/files");
-    await expect(page.getByText("Files is not in this build yet.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Files" })).toBeVisible();
 
     // Answered inside the frame rather than redirected away: landing somewhere
     // else silently hides the typo.

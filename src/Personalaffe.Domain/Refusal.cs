@@ -57,6 +57,32 @@ public sealed class Refusal(
     /// <summary>Something else already occupies that name or place.</summary>
     public static Refusal Conflict(string detail) => new(RefusalCode.Conflict, detail);
 
+    /// <summary>
+    /// What was sent is over a limit this instance sets on one thing. The limit
+    /// travels with the refusal as <c>limit_bytes</c>, so that a client can say
+    /// how much smaller without being told in a sentence it has to parse.
+    /// </summary>
+    public static Refusal TooLarge(string detail, long limitBytes) =>
+        new(
+            RefusalCode.TooLarge,
+            detail,
+            new Dictionary<string, object?> { ["limit_bytes"] = limitBytes });
+
+    /// <summary>
+    /// This instance has no room left. It carries what the whole of it may hold
+    /// and what is already in it, because the owner's next move is to work out
+    /// what to delete.
+    /// </summary>
+    public static Refusal OutOfSpace(string detail, long limitBytes, long usedBytes) =>
+        new(
+            RefusalCode.OutOfSpace,
+            detail,
+            new Dictionary<string, object?>
+            {
+                ["limit_bytes"] = limitBytes,
+                ["used_bytes"] = usedBytes,
+            });
+
     /// <summary>The caller may not do this.</summary>
     public static Refusal Forbidden(string detail) => new(RefusalCode.Forbidden, detail);
 

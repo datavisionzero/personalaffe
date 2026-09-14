@@ -53,10 +53,11 @@ describe("the Markdown pipeline", () => {
     expect(admitUrl("http://example.org", "href", { type: "element", tagName: "a", properties: {}, children: [] })).toBe("http://example.org");
   });
 
-  // Nothing leads inside this workspace yet: a page gets an address in
-  // PERSONAL-E7 and a file in PERSONAL-E6, and `insidePath` is the seam they
-  // plug into. Until then every link in a body is somebody else's.
-  it("treats a scheme of its own as text, because there is none yet", () => {
+  // A file has an address since PERSONAL-E6 and a page gets one in PERSONAL-E7,
+  // which is what `insidePath` is the seam for. A scheme with nothing behind it
+  // yet, and a `file:` that is not an id, are both somebody else's address and
+  // stay text.
+  it("treats a scheme it does not know as text", () => {
     render(<Markdown>{"[a](page:architecture) [b](file:invoice.pdf)"}</Markdown>);
 
     for (const name of ["a", "b"]) {
@@ -88,5 +89,26 @@ describe("the Markdown pipeline", () => {
 
     expect(container.querySelector("pre")).toHaveTextContent("plain");
     expect(container.querySelector("pre")?.previousElementSibling).toBeNull();
+  });
+
+  it("turns a file: link into the download address the id will always have", () => {
+    const id = "0199f0c4-1234-7abc-8def-0123456789ab";
+
+    render(<Markdown>{`[the report](file:${id})`}</Markdown>);
+
+    // The reference is the id and not the name, so renaming the file or moving
+    // it into another folder leaves this link working (`docs/mvp-plan.md`,
+    // PERSONAL-E6).
+    expect(screen.getByRole("link", { name: "the report" })).toHaveAttribute(
+      "href",
+      `/api/files/${id}/content`,
+    );
+  });
+
+  it("leaves a file: link that is not an id as text", () => {
+    render(<Markdown>{"[not one](file:../../etc/passwd)"}</Markdown>);
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText("not one")).toBeInTheDocument();
   });
 });

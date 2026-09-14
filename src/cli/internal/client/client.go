@@ -99,6 +99,36 @@ func Check(resp *http.Response, body []byte) error {
 	return &Failure{Code: exit.FromResponse(resp.StatusCode, p), Message: message, Problem: p}
 }
 
+// CheckBytes is Check for the one operation whose success is not JSON: a
+// download, whose body is the owner's file.
+//
+// The version skew and the problem document are checked exactly as everywhere
+// else; what is skipped is the shape test, because for this endpoint the
+// contract promises bytes. A download is the only place in pea where that is
+// true, and saying so here is cheaper than teaching `notJSON` a list of
+// exceptions.
+func CheckBytes(resp *http.Response, body []byte) error {
+	if resp == nil {
+		return &Failure{Code: exit.Unexpected, Message: "no response"}
+	}
+
+	if ok, reason := version.Compatible(version.Version, resp.Header.Get(VersionHeader)); !ok {
+		return &Failure{Code: exit.Skew, Message: reason}
+	}
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+
+	p := problem.Parse(body)
+	message := p.Message()
+	if message == "" {
+		message = fmt.Sprintf("the instance answered %s", resp.Status)
+	}
+
+	return &Failure{Code: exit.FromResponse(resp.StatusCode, p), Message: message, Problem: p}
+}
+
 // notJSON catches a success that is not the shape the contract promises, and it
 // is the one answer pea cannot tell from a good one by its status alone.
 //

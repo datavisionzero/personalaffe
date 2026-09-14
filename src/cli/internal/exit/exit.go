@@ -15,7 +15,10 @@ const (
 	Usage = 2
 	// NotFound is 404.
 	NotFound = 3
-	// Refused is 400 validation and every 422.
+	// Refused is 400 validation, every 422, and the two the instance answers
+	// about storage: 413 too-large and 507 out-of-space. All four are a write
+	// the instance would not take, and a script's move is the same — look at
+	// what it said and send something else.
 	Refused = 4
 	// Conflict is 409.
 	Conflict = 5
@@ -44,7 +47,7 @@ func FromResponse(status int, p *problem.Problem) int {
 		return Denied
 	case status == 404:
 		return NotFound
-	case status == 400 || status == 422:
+	case status == 400 || status == 422 || status == 413 || status == 507:
 		return Refused
 	case status == 409:
 		return Conflict

@@ -33,6 +33,8 @@ public static class Problems
         RefusalCode.NotFound or RefusalCode.Deleted => StatusCodes.Status404NotFound,
         RefusalCode.Disabled or RefusalCode.Conflict => StatusCodes.Status409Conflict,
         RefusalCode.Stale => StatusCodes.Status412PreconditionFailed,
+        RefusalCode.TooLarge => StatusCodes.Status413PayloadTooLarge,
+        RefusalCode.OutOfSpace => StatusCodes.Status507InsufficientStorage,
         RefusalCode.Internal => StatusCodes.Status500InternalServerError,
         _ => throw new ArgumentOutOfRangeException(nameof(code), code, "A refusal code without a status."),
     };
@@ -49,6 +51,8 @@ public static class Problems
         RefusalCode.Disabled => "That application is switched off in this workspace",
         RefusalCode.Stale => "The object has changed since it was read",
         RefusalCode.Conflict => "Something else already occupies that name or place",
+        RefusalCode.TooLarge => "That is larger than this instance will store",
+        RefusalCode.OutOfSpace => "This instance has no room left",
         RefusalCode.Internal => "Something went wrong on the server",
         _ => throw new ArgumentOutOfRangeException(nameof(code), code, "A refusal code without a title."),
     };

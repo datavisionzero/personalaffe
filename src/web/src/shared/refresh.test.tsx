@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -42,6 +42,29 @@ function AWritingScreen() {
   );
 }
 
+/**
+ * The screen, drawn, with the instance's first answer on it.
+ *
+ * Two things have to have happened before a test can touch anything.
+ * `MarkdownField` loads its editor as a chunk of its own — that is what keeps
+ * the Scratchpad from downloading CodeMirror — and a lazy component resolves
+ * over however many microtasks its import takes, which under fake timers is not
+ * reliably one. And the first answer has to have arrived, or typing into the
+ * field races the version landing in it.
+ *
+ * Waiting for both is the difference between a suite that passes and one that
+ * passes most of the time.
+ */
+async function aScreenShowing(version: string) {
+  render(<AWritingScreen />);
+
+  const field = await screen.findByRole("textbox", { name: "The text" });
+
+  await waitFor(() => expect(screen.getByTestId("stored")).toHaveTextContent(version));
+
+  return field;
+}
+
 describe("a refresh under somebody's hands", () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -56,10 +79,7 @@ describe("a refresh under somebody's hands", () => {
   it("brings what changed elsewhere onto a screen nobody is writing on", async () => {
     anInstance({ "GET /api/version": [{ body: { version: "one" } }, { body: { version: "two" } }] });
 
-    render(<AWritingScreen />);
-    await act(async () => undefined);
-
-    expect(screen.getByTestId("stored")).toHaveTextContent("one");
+    await aScreenShowing("one");
 
     await act(async () => {
       vi.advanceTimersByTime(refreshEvery);
@@ -75,10 +95,8 @@ describe("a refresh under somebody's hands", () => {
       "GET /api/version": [{ body: { version: "one" } }, { body: { version: "two" } }],
     });
 
-    render(<AWritingScreen />);
-    await act(async () => undefined);
+    const field = await aScreenShowing("one");
 
-    const field = screen.getByRole("textbox", { name: "The text" });
     await userEvent.clear(field);
     await userEvent.type(field, "what I was in the middle of");
 
@@ -97,10 +115,7 @@ describe("a refresh under somebody's hands", () => {
       "GET /api/version": [{ body: { version: "one" } }, { body: { version: "two" } }],
     });
 
-    render(<AWritingScreen />);
-    await act(async () => undefined);
-
-    await userEvent.type(screen.getByRole("textbox", { name: "The text" }), "!");
+    await userEvent.type(await aScreenShowing("one"), "!");
     await act(async () => {
       vi.advanceTimersByTime(refreshEvery);
       await Promise.resolve();

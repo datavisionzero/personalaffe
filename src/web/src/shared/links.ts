@@ -14,18 +14,38 @@ import type { UrlTransform } from "react-markdown";
 const admitted = new Set(["http:", "https:", "mailto:"]);
 
 /**
+ * The scheme a Markdown body names a stored file with: `file:` and the file's
+ * id, which is made at its first upload and never changes.
+ *
+ * `[the report](file:0199f0c4-1234-7abc-8def-0123456789ab)` is a link to
+ * `/api/files/0199…/content`, which the browser fetches with the session it
+ * already has. Renaming the file or moving it into another folder does not
+ * break it — that is what the reference being the id is for
+ * (`docs/mvp-plan.md`, PERSONAL-E6) — and there is no second attachment store
+ * for Knowledge to write into when it arrives in PERSONAL-E7.
+ */
+const filed = /^file:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+/** Where a `file:` link points, or nothing where it is not one. */
+export function fileHref(href: string | undefined): string | undefined {
+  const named = filed.exec(href ?? "");
+
+  return named === null ? undefined : `/api/files/${named[1]}/content`;
+}
+
+/**
  * Where a link leads inside this workspace, or nothing where it leads outside
  * it.
  *
- * <b>Nothing leads inside yet, and that is where Knowledge plugs in.</b>
- * PERSONAL-E7 gives a page an address that survives renaming and moving
- * (`docs/mvp-plan.md`), and a body naming another page is a scheme handled
- * here — `[the architecture](page:0199f0c4-…)` — so that it is followed rather
- * than opened: no new tab, no `noopener`, and the frame never remounted. Files
- * link the same way when PERSONAL-E6 gives them stable references.
+ * <b>Knowledge is where the rest of this plugs in.</b> PERSONAL-E7 gives a page
+ * an address that survives renaming and moving (`docs/mvp-plan.md`), and a body
+ * naming another page is a scheme handled here — `[the architecture](page:0199…)`
+ * — so that it is followed rather than opened: no new tab, no `noopener`, and
+ * the frame never remounted.
  *
- * Until then every link in a body is somebody else's address, and is treated
- * as one.
+ * A `file:` link is deliberately not one of these. It is a download and not a
+ * route: following it inside the application would mean the router being asked
+ * for an address only the instance can answer.
  */
 export function insidePath(href: string | undefined): string | undefined {
   void href;
@@ -36,6 +56,16 @@ export function insidePath(href: string | undefined): string | undefined {
 export const admitUrl: UrlTransform = (url) => {
   if (insidePath(url) !== undefined) {
     return url;
+  }
+
+  // A stored file, named by the id that does not change. It becomes the
+  // instance's own download address, which is behind the same door as
+  // everything else — a body that names a file cannot reach one the reader
+  // could not have reached anyway.
+  const file = fileHref(url);
+
+  if (file !== undefined) {
+    return file;
   }
 
   try {

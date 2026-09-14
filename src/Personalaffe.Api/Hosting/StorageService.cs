@@ -9,8 +9,7 @@ namespace Personalaffe.Api.Hosting;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Nothing writes files there yet — the Files application is PERSONAL-E6's. The
-/// check is here because the failure it catches is an operator's, made once, at
+/// The check is here because the failure it catches is an operator's, made once, at
 /// `docker compose up`: a volume mounted read-only, a directory owned by root
 /// with a container running as somebody else, a path inside the image that a
 /// recreation throws away. Every one of those is invisible until the day
@@ -24,6 +23,7 @@ namespace Personalaffe.Api.Hosting;
 /// </remarks>
 public sealed class StorageService(
     StorageSettings settings,
+    StorageRoot where,
     IWebHostEnvironment environment,
     ILogger<StorageService> logger) : IHostedService
 {
@@ -38,7 +38,7 @@ public sealed class StorageService(
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var root = settings.ResolvedRoot(environment.ContentRootPath);
+        var root = where.Path;
 
         RefuseIfServedAsWebAssets(root);
 
@@ -62,7 +62,14 @@ public sealed class StorageService(
             throw;
         }
 
-        logger.LogInformation("File storage is {Root}.", root);
+        // The two limits beside the place, because an operator reading a
+        // startup log is deciding whether this instance is configured the way
+        // they meant it to be, and "where" without "how much" is half of that.
+        logger.LogInformation(
+            "File storage is {Root}; at most {MaxFile} per file and {MaxTotal} in all.",
+            root,
+            settings.DescribedMaxFile(),
+            settings.DescribedMaxTotal());
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

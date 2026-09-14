@@ -116,6 +116,8 @@ failed is in the instance's log at warning, where the operator is.
 | --- | --- | --- |
 | `ConnectionStrings__Postgres` | — | Required. The database. The instance refuses to start without it, and never writes it to the log: what is printed is the same string with every credential replaced by `***`. |
 | `PERSONALAFFE_STORAGE_ROOT` | `/var/lib/personalaffe/files` in the image | Where the owner's files go. Must be writable by the user the container runs as, and must not be under the static web root. |
+| `PERSONALAFFE_MAX_FILE_MIB` | `64` | Whole mebibytes, 1 to 1048576. How large one stored file may be. |
+| `PERSONALAFFE_MAX_STORAGE_MIB` | `5120` | Whole mebibytes, 1 to 1048576. How much the Files application may store in all, what is in the Trash included. Must not be smaller than the per-file limit. |
 | `PERSONALAFFE_TRASH_RETENTION` | `30` | Whole days, 1 to 3650. How long deleted knowledge pages, tasks, lists, files and folders stay recoverable. See below. |
 | `PERSONALAFFE_SCRATCHPAD_RETENTION` | `7` | Whole days, 1 to 3650. How long an unpinned Scratchpad entry lasts after it was last changed. See below. |
 | `PERSONALAFFE_TRUSTED_PROXY` | unset | Which peers may speak for the caller. See below. |
@@ -159,10 +161,41 @@ per application, and never a name or a word of what the owner wrote.
 Swept the Trash: removed 4 expired item(s), Knowledge: 3, Files: 1.
 ```
 
-**An instance today has three of the four applications still to come**
-(`docs/mvp-plan.md`), so what the Trash sweep removes is whatever the Scratchpad
-put there — which is nothing, deliberately, because a Scratchpad entry is never
-in the Trash.
+**What the Trash holds today is Files'** (`docs/mvp-plan.md`): deleted files and
+folders, with their bytes. Knowledge and Tasks are still to come, and the
+Scratchpad deliberately never puts anything there. When the sweep removes a
+file, it removes the row and then the bytes — in that order, so that an instance
+killed between the two leaves bytes nobody points at rather than a row whose
+file is missing. The tidy-up below is what takes those away.
+
+## The storage volume tidies itself up
+
+Storing a file writes the bytes first and the row second, which is what keeps an
+instance killed mid-upload from leaving a row whose file is gone. What it can
+leave instead is bytes nothing points at: an upload whose connection went away,
+or one that landed a moment before the process died. **A third sweep, in the
+same hourly loop, removes them.**
+
+```
+Tidied the storage volume: removed 2 file(s) nothing pointed at.
+```
+
+It removes two things and nothing else: an unfinished upload under `incoming/`,
+and a file under `files/` whose row is gone. **Both only when they have not been
+written to for an hour**, which is what keeps an upload still arriving safe —
+far longer than any upload this instance accepts.
+
+**What it does not recognise, it leaves alone.** A file under the storage root
+whose name is not one this product writes — a restore somebody unpacked by hand,
+a note beside the volume — is an operator's own and is never removed. A sweep
+that deleted what it did not recognise would eventually delete something that
+mattered.
+
+**A file in the Trash keeps its bytes**, and they count towards
+`PERSONALAFFE_MAX_STORAGE_MIB`. They are still the owner's to restore; a quota
+that ignored them would be one an owner could walk past by deleting and
+uploading in turn, and then find they could not restore what they had deleted.
+Emptying the Trash is what gives that room back straight away.
 
 ## The Scratchpad empties itself too
 
@@ -227,11 +260,17 @@ this product's to reason about.
 
 | Volume | What is in it |
 | --- | --- |
-| `personalaffe-db` | Everything in the database. |
-| `personalaffe-files` | The owner's files, as files. |
+| `personalaffe-db` | Everything in the database, the file metadata included. |
+| `personalaffe-files` | The owner's files, as files, under `files/` — plus `incoming/`, which holds only uploads still arriving. |
 
-They are not the same thing, and a backup that takes one without the other is
-half a backup. Taking them consistently together is PERSONAL-E10's.
+They are not the same thing, and **a backup that takes one without the other is
+half a backup**: a file is a row in one and bytes in the other, and neither on
+its own is the file. A database restored without its volume is a listing of
+files that cannot be downloaded; a volume restored without its database is bytes
+under names nobody can read, since a file's address is its id and the name the
+owner gave it is in the database. Taking them consistently together is
+PERSONAL-E10's. `incoming/` need not be backed up; nothing points at what is in
+it and the tidy-up empties it within the hour.
 
 ```sh
 docker compose -f deploy/docker-compose.yml restart      # harmless

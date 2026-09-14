@@ -1,6 +1,6 @@
 # personalaffe — MVP Implementation Plan
 
-Status: agreed product and architecture direction. **PERSONAL-E1 to PERSONAL-E5
+Status: agreed product and architecture direction. **PERSONAL-E1 to PERSONAL-E6
 are delivered** — the application, API, CLI and delivery foundation; the door in
 front of them, with one owner, an optional second factor, agent access with a
 permission per application and a recovery that needs the machine rather than a
@@ -11,18 +11,24 @@ in: the four switches, the frame with its navigation, palette and keys, the
 shared Markdown editor, and screens that keep up with the instance without a
 reload; and the first application, the Scratchpad — plain text captured in
 seconds, copied on another device, pinned when it is worth keeping and destroyed
-when it is not ([`docs/codebase.md`](codebase.md),
+when it is not; and the second application, Files — bytes on a volume at an
+address made from an id, folders to put them in, a Trash that finally has a
+contributor, and a tidy-up for what an interrupted upload leaves behind
+([`docs/codebase.md`](codebase.md),
 [ADR 0002](adr/0002-one-owner-with-a-browser-and-agents-with-tokens.md),
 [ADR 0003](adr/0003-content-is-guarded-by-what-it-was-read-at-and-deleted-by-being-set-aside.md),
 [ADR 0004](adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md),
-[ADR 0005](adr/0005-the-scratchpad-keeps-nothing-and-its-clock-runs-from-the-last-change.md)).
+[ADR 0005](adr/0005-the-scratchpad-keeps-nothing-and-its-clock-runs-from-the-last-change.md),
+[ADR 0006](adr/0006-a-file-is-its-id-and-its-bytes-go-down-before-its-row.md)).
 
-PERSONAL-E6 through PERSONAL-E10 are not started: there is **no Knowledge, no
-Tasks and no Files**, and each of those three answers "not in this build yet" at
-its own address. The Trash is still empty, and not for want of a contributor —
-the Scratchpad deliberately never puts anything in it. What an instance stores
-today is what the Scratchpad stores, so anything you would mind losing still
-belongs somewhere else.
+PERSONAL-E7 through PERSONAL-E10 are not started: there is **no Knowledge and no
+Tasks**, and each answers "not in this build yet" at its own address. The Trash
+is no longer empty — a deleted file or folder goes into it and comes back out of
+it — but the home page is still not a dashboard, nothing is searchable, and no
+release has been published. What an instance stores today is what the Scratchpad
+and Files store, and no backup of either has been through a restore anybody has
+proved (PERSONAL-E10), so anything you would mind losing still belongs somewhere
+else as well.
 
 The plan implements the four core applications in VISION.md. IDEAS.md remains non-binding and outside the MVP. CONTEXT.md defines domain vocabulary. Epic descriptions are maintained in the PERSONAL project in planaffe; this document is the repository copy of their initial plan.
 
@@ -199,7 +205,7 @@ Plain text only. No operating-system clipboard synchronization, permanent archiv
 
 ### PERSONAL-E6: MVP: Deliver private file storage with folders and recovery
 
-Prerequisites: PERSONAL-E2, PERSONAL-E3, PERSONAL-E4.
+Prerequisites: PERSONAL-E2, PERSONAL-E3, PERSONAL-E4. **Delivered.**
 
 #### Outcome
 

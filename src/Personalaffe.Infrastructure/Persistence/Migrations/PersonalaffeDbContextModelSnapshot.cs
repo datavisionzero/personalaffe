@@ -208,6 +208,100 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                     b.ToTable("browser_session", (string)null);
                 });
 
+            modelBuilder.Entity("Personalaffe.Domain.Files.Folder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_folders");
+
+                    b.HasIndex("DeletedAt")
+                        .HasFilter("deleted_at is not null");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_folders_parent_id");
+
+                    b.ToTable("folders", (string)null);
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Files.StoredFile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("FolderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("folder_id");
+
+                    b.Property<string>("MediaType")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("media_type");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("name");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_files");
+
+                    b.HasIndex("DeletedAt")
+                        .HasFilter("deleted_at is not null");
+
+                    b.HasIndex("FolderId")
+                        .HasDatabaseName("ix_files_folder_id");
+
+                    b.ToTable("files", (string)null);
+                });
+
             modelBuilder.Entity("Personalaffe.Domain.Owner", b =>
                 {
                     b.Property<Guid>("Id")
@@ -360,6 +454,70 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_browser_session_owner");
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Files.Folder", b =>
+                {
+                    b.OwnsOne("Personalaffe.Domain.Actor", "DeletedBy", b1 =>
+                        {
+                            b1.Property<Guid>("FolderId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("deleted_by_id");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("deleted_by_kind");
+
+                            b1.Property<string>("Name")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("deleted_by_name");
+
+                            b1.HasKey("FolderId");
+
+                            b1.ToTable("folders");
+
+                            b1.WithOwner()
+                                .HasForeignKey("FolderId");
+                        });
+
+                    b.Navigation("DeletedBy");
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Files.StoredFile", b =>
+                {
+                    b.OwnsOne("Personalaffe.Domain.Actor", "DeletedBy", b1 =>
+                        {
+                            b1.Property<Guid>("StoredFileId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("deleted_by_id");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("deleted_by_kind");
+
+                            b1.Property<string>("Name")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("deleted_by_name");
+
+                            b1.HasKey("StoredFileId");
+
+                            b1.ToTable("files");
+
+                            b1.WithOwner()
+                                .HasForeignKey("StoredFileId");
+                        });
+
+                    b.Navigation("DeletedBy");
                 });
 
             modelBuilder.Entity("Personalaffe.Domain.RecoveryCode", b =>

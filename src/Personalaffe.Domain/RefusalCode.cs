@@ -14,7 +14,8 @@ namespace Personalaffe.Domain;
 /// <para>
 /// The set grows with the epics that need it, and each addition is a line in
 /// <c>docs/api.md</c> in the same commit. <c>disabled</c> arrived with the
-/// application switch of PERSONAL-E4.
+/// application switch of PERSONAL-E4; <c>too-large</c> and <c>out-of-space</c>
+/// with the two limits of PERSONAL-E6.
 /// </para>
 /// </remarks>
 public enum RefusalCode
@@ -56,6 +57,19 @@ public enum RefusalCode
 
     /// <summary>Something else already occupies the name or the place.</summary>
     Conflict,
+
+    /// <summary>
+    /// What was sent is larger than this instance will store. The caller's move
+    /// is to send something smaller.
+    /// </summary>
+    TooLarge,
+
+    /// <summary>
+    /// This instance has no room left. The caller's move is to delete
+    /// something, which is why it is not the same code as
+    /// <see cref="TooLarge"/>.
+    /// </summary>
+    OutOfSpace,
 
     /// <summary>Something went wrong on the server, and the caller is told no more than that.</summary>
     Internal,

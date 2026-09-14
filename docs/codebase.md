@@ -49,13 +49,21 @@ that empties it whether the application is switched on or off (PERSONAL-35),
 the epic decided is
 [ADR 0005](./adr/0005-the-scratchpad-keeps-nothing-and-its-clock-runs-from-the-last-change.md).
 
-**There is content now, and it is the Scratchpad's.** An instance captures
-plain text, lists it, pins it, expires it and destroys it, in a browser and from
-`pea`. What the rest of `docs/mvp-plan.md` describes is not started: Knowledge,
-Tasks and Files each answer "not in this build yet" at their own address, and
-the Trash is still empty — not because nothing has inherited it, but because the
-one application that exists deliberately does not contribute to it
-([ADR 0005](./adr/0005-the-scratchpad-keeps-nothing-and-its-clock-runs-from-the-last-change.md)).
+**PERSONAL-E6 is complete**: the file, the folder and the address their bytes
+live at (PERSONAL-39), the ten endpoints over them and the reference a rename
+cannot break (PERSONAL-40), the first real contributor to the Trash and the
+tidy-up behind it (PERSONAL-41), `pea files` and the paths it reaches them by
+(PERSONAL-42), the screen with its breadcrumb and its drop target
+(PERSONAL-43), and the suite and the record that close it (PERSONAL-44). What
+the epic decided is
+[ADR 0006](./adr/0006-a-file-is-its-id-and-its-bytes-go-down-before-its-row.md).
+
+**Two of the four applications are here.** An instance captures plain text,
+lists it, pins it, expires it and destroys it; and it stores files in folders,
+hands them back byte for byte, and sets them aside in a Trash that finally has
+something in it. Both are reached in a browser and from `pea`. What the rest of
+`docs/mvp-plan.md` describes is not started: Knowledge and Tasks each answer
+"not in this build yet" at their own address.
 
 ## Where this comes from
 
@@ -121,10 +129,9 @@ under personalaffe's:
   token layer, owned by the repository that carries them.
 
 The package versions came with them from both sources' `src/web/package.json`.
-Adapted: `links.ts` admits `http`, `https` and `mailto` and has no scheme of its
-own yet — nothing in this workspace has an address a body can name until
-PERSONAL-E6 and PERSONAL-E7 — and the token layer is hostingaffe's structure
-with personalaffe's colours. `components/ui/` came over whole, with
+Adapted: `links.ts` admits `http`, `https` and `mailto`, plus this product's
+own `file:` since PERSONAL-E6 gave a file an address a body can name, and the
+token layer is hostingaffe's structure with personalaffe's colours. `components/ui/` came over whole, with
 `lib/utils.ts`, `hooks/use-mobile.ts`, the theme provider and `components.json`,
 so that the next primitive is generated the same way these were.
 
@@ -204,8 +211,9 @@ Core: the context, one `IEntityTypeConfiguration` per table under
 `Configurations/`, one store per port beside it, and `Migrations/` — every schema
 change arrives as another one on top, only ever forward. `Security/` is the
 password hasher: Argon2id in a value that carries the parameters it was made
-with, so that raising the cost later does not lock out the owner who exists. A
-later epic adds `Files/`, the local file store.
+with, so that raising the cost later does not lock out the owner who exists.
+`Files/` is the one thing in this layer that is not the database: the local file
+store, and the only class in the product that opens a file the owner stored.
 
 **The one thing that is not HTTP** is `Hosting/OwnerRecovery.cs`: the verb an
 operator runs on the machine when the password, the authenticator and the
@@ -250,9 +258,17 @@ Implemented for the Scratchpad (PERSONAL-E5): `Domain/Scratchpad/` with
 `Persistence/ScratchpadEntries` with its configuration and migration, and
 `Http/ScratchpadEndpoints`.
 
-Planned, not implemented: `Files/`, and every endpoint of Knowledge, Tasks and
-Files. An instance answers the five outside the door, the owner's own, which
-applications it has, its Scratchpad, and a Trash that the Scratchpad
+Implemented for Files (PERSONAL-E6): `Domain/Files/` with `StoredFile`,
+`Folder`, `FileName` and `StorageAddress`;
+`Application/Ports/IStoredFiles`, `IFileBytes` and `StorageRoot`;
+`Application/Acts/Files/` with the ten acts and `TidyTheStorage`;
+`Persistence/StoredFiles` and `FilesTrash` with their two configurations and
+their migration; `Files/LocalFileBytes`; and `Http/FileEndpoints` with
+`FileBodies` beside it.
+
+Planned, not implemented: every endpoint of Knowledge and Tasks. An instance
+answers the five outside the door, the owner's own, which applications it has,
+its Scratchpad, its Files, and a Trash that Files fills and the Scratchpad
 deliberately never puts anything in.
 
 ## Where an application lives
@@ -263,8 +279,10 @@ registry and not plugins. An application is a folder in each of the four layers
 and one in `src/web/src/`:
 
 **The Scratchpad is the worked example** rather than the illustration it used
-to be: PERSONAL-E5 built exactly this shape, and the next three are written by
-reading it.
+to be: PERSONAL-E5 built exactly this shape, and PERSONAL-E6 was written by
+reading it. Files is the worked example of the other half — a module with a
+tree, a Trash and bytes beside its rows — and Knowledge is written by reading
+that one.
 
 ```
 src/Personalaffe.Domain/Scratchpad/ScratchpadEntry.cs        the rules
@@ -275,6 +293,14 @@ src/Personalaffe.Infrastructure/Persistence/Configurations/ScratchpadEntryConfig
 src/Personalaffe.Api/Http/ScratchpadEndpoints.cs             one file per object
 src/web/src/scratchpad/Scratchpad.tsx                        its screen
 ```
+
+Files is the same shape with three more pieces, and each is the module's own
+rather than a new convention: `Infrastructure/Files/LocalFileBytes.cs` answers a
+second port because the bytes are not in the database,
+`Persistence/FilesTrash.cs` is the `ITrash` PERSONAL-E3 asked every lasting
+module for, and `Application/Acts/Files/TidyTheStorage.cs` is what the order of
+its two writes owes the volume
+([ADR 0006](./adr/0006-a-file-is-its-id-and-its-bytes-go-down-before-its-row.md)).
 
 The port and the store are the one thing the shape above did not say out loud:
 an application's acts reach persistence through an interface in
@@ -294,12 +320,12 @@ application. It lives at the root of each layer, because every application asks
 it the same question: `Owner`, `AgentAccess`, `Permissions` and `Caller` in
 Domain, the acts beside the others, and one store each.
 
-*The Scratchpad's folders exist; the other three do not. PERSONAL-2 created the
-folders that had something to put in them and no others, which is still the
-rule: an empty folder claiming a future module is a lie the tree tells.
-PERSONAL-26 gave each of the four a route, and PERSONAL-27's `shell/States.tsx`
-the screen that says which epic fills the three still to come — one component
-rather than three folders holding a placeholder each.*
+*The Scratchpad's folders and Files' exist; Knowledge's and Tasks' do not.
+PERSONAL-2 created the folders that had something to put in them and no others,
+which is still the rule: an empty folder claiming a future module is a lie the
+tree tells. PERSONAL-26 gave each of the four a route, and PERSONAL-27's
+`shell/States.tsx` the screen that says which epic fills the two still to come —
+one component rather than two folders holding a placeholder each.*
 
 **What the four applications inherit from PERSONAL-E4**, beside PERSONAL-E3's
 safeguards:
@@ -402,8 +428,8 @@ PERSONAL-27, PERSONAL-29 and PERSONAL-30 added `components/ui/`, `lib/`,
 `hooks/` and the editing components under `shared/`; PERSONAL-26 added the
 frame: `shell/` grew the sidebar, the palette, the keys and the routes, and
 `home/`, `settings/`, `trash/` and `editor/` are the screens behind them.
-PERSONAL-37 added the first application folder, `scratchpad/`. The three still
-to come arrive with their epics.*
+PERSONAL-37 added the first application folder, `scratchpad/`, and PERSONAL-43
+the second, `files/`. The two still to come arrive with their epics.*
 
 **Nothing is drawn until the instance has said whether it has an owner and
 whether this browser is signed in.** `session/useSession.ts` asks the two
@@ -545,10 +571,13 @@ and trusts forwarded headers only from a proxy the operator named
 (`PERSONALAFFE_TRUSTED_PROXY`). Unset, every request looks as if it came from
 whatever spoke to the socket, which is the safe default.
 
-*PERSONAL-6 implemented this. Nothing writes to the storage volume yet — the
-Files API that fills it is PERSONAL-E6's — but `StorageService` checks the place
-before the instance serves, because the failure it catches is an operator's,
-made once, and otherwise invisible until the day the owner's file goes missing.
+*PERSONAL-6 implemented this and PERSONAL-E6 filled it. `StorageService` checks
+the place before the instance serves, because the failure it catches is an
+operator's, made once, and otherwise invisible until the day the owner's file
+goes missing; `StorageRoot` resolves that place once, in the composition root,
+so the directory the check proves writable is the directory the store writes
+into. Under it are `files/`, where a stored file lives at an address made from
+its id, and `incoming/`, which holds only uploads still arriving.
 [`docs/operations.md`](./operations.md) is what an operator reads.*
 
 ## The gate
@@ -656,13 +685,18 @@ Two things in it are scaffolding and go when an application arrives. `/editor`
 is the one screen the Markdown field has — **until Knowledge in PERSONAL-E7, not
 until PERSONAL-E5**: the Scratchpad is plain text (VISION §6.2) and its capture
 box is a `<textarea>`, so nothing on that screen edits Markdown and no browser
-opening it downloads an editor. `shared/links.ts` has no scheme of its own until
-PERSONAL-E6 and PERSONAL-E7 give a file and a page an address a body can name.
+opening it downloads an editor. `shared/links.ts` has `file:` since
+PERSONAL-E6, and gains `page:` when PERSONAL-E7 gives a page an address a body
+can name.
 
-**PERSONAL-E6, files.** `StorageSettings` and `StorageService` already settle
-where the bytes go and prove the place works at start; what is missing is the
-store that writes in it, which belongs in `Infrastructure/`. The volume, its
-ownership and the guard against serving it as a web asset are done.
+**PERSONAL-E6, files — landed.** What a module with bytes beside its rows
+inherits, and what it owes back: the two stores are two ports (`IStoredFiles`
+and `IFileBytes`), the order of their writes is bytes first and then the row,
+and the tidy-up that order owes the volume is a third sweep in the same hourly
+loop. `Domain/Files/StorageAddress` is why no name ever reaches the filesystem.
+What Knowledge plugs into is `shared/links.ts`: `file:<id>` already resolves to
+a download, so a page that names a file needs no attachment store
+([ADR 0006](./adr/0006-a-file-is-its-id-and-its-bytes-go-down-before-its-row.md)).
 
 **PERSONAL-E9, search and the dashboard, and PERSONAL-E10, operations.** Nothing
 in the foundation stands in their way and nothing anticipates them. The two
