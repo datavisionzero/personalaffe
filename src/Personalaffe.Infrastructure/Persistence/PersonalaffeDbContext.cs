@@ -3,6 +3,7 @@ using Personalaffe.Domain;
 using Personalaffe.Domain.Files;
 using Personalaffe.Domain.Knowledge;
 using Personalaffe.Domain.Scratchpad;
+using Personalaffe.Domain.Tasks;
 
 namespace Personalaffe.Infrastructure.Persistence;
 
@@ -14,9 +15,9 @@ namespace Personalaffe.Infrastructure.Persistence;
 /// startup. What it declares is what something already stores rows in: the
 /// owner and what gets them in, from PERSONAL-E2, the application switch from
 /// PERSONAL-E4, the Scratchpad from PERSONAL-E5, the Files application from
-/// PERSONAL-E6 and Knowledge from PERSONAL-E7. Tasks still to come brings its
-/// own tables with it — a table invented here before something stores rows in
-/// it would be a shape nobody has had to live with.
+/// PERSONAL-E6, Knowledge from PERSONAL-E7 and Tasks from PERSONAL-E8 — which
+/// is all four of them. Every table here is one something stores rows in; a
+/// table invented before that would be a shape nobody has had to live with.
 /// </remarks>
 public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext> options) : DbContext(options)
 {
@@ -82,6 +83,19 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// no state of its own: it goes wherever its page goes.
     /// </summary>
     public DbSet<PageRevision> PageRevisions => Set<PageRevision>();
+
+    /// <summary>
+    /// The owner's named task lists (<see cref="TaskList"/>). Flat: a list is
+    /// not in another list.
+    /// </summary>
+    public DbSet<TaskList> TaskLists => Set<TaskList>();
+
+    /// <summary>
+    /// What is in them (<see cref="PersonalTask"/>). <c>due_on</c> is a date and
+    /// never a moment, which is the whole of how this application has no
+    /// timezone bug.
+    /// </summary>
+    public DbSet<PersonalTask> Tasks => Set<PersonalTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

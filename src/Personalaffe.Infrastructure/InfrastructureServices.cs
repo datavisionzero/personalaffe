@@ -51,12 +51,14 @@ public static class InfrastructureServices
         services.AddScoped<IStoredFiles, StoredFiles>();
 
         services.AddScoped<IPages, Pages>();
+        services.AddScoped<ITasks, Persistence.Tasks>();
 
         // The Trash's contributors. Registering one is the whole of appearing in
         // GET /api/trash, in restore, in permanent removal and in the hourly
         // purge (docs/codebase.md).
         services.AddScoped<ITrash, FilesTrash>();
         services.AddScoped<ITrash, KnowledgeTrash>();
+        services.AddScoped<ITrash, TasksTrash>();
 
         // The one thing in this layer that is not the database. It holds no
         // per-request state — a path and a logger — so it is registered once.

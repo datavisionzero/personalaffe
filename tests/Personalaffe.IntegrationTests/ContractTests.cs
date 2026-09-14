@@ -73,6 +73,10 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/sessions",
                 "/api/sessions/{id}",
                 "/api/setup",
+                "/api/tasks/lists",
+                "/api/tasks/lists/{id}",
+                "/api/tasks/lists/{id}/tasks",
+                "/api/tasks/{id}",
                 "/api/trash",
                 "/api/trash/{application}/{id}",
                 "/api/trash/{application}/{id}/restore",
@@ -121,6 +125,13 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Contains("HistoryResponse", schemas);
         Assert.Contains("RevisionResponse", schemas);
         Assert.Contains("OldVersionResponse", schemas);
+        Assert.Contains("TaskListsResponse", schemas);
+        Assert.Contains("TaskListResponse", schemas);
+        Assert.Contains("TaskListRequest", schemas);
+        Assert.Contains("TasksResponse", schemas);
+        Assert.Contains("TaskResponse", schemas);
+        Assert.Contains("CaptureTaskRequest", schemas);
+        Assert.Contains("ChangeTaskRequest", schemas);
         Assert.Contains("Permission", schemas);
     }
 

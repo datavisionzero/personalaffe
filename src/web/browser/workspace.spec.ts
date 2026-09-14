@@ -14,12 +14,10 @@ test.describe("the workspace in a browser", () => {
       await expect(navigation.getByRole("link", { name: label })).toBeVisible();
     }
 
-    // Tasks is the one application left with no screen, so it is the one that
-    // proves the frame draws something for an application that has none.
     await navigation.getByRole("link", { name: "Tasks" }).click();
 
     await expect(page).toHaveURL(/\/tasks$/);
-    await expect(page.getByText("Tasks is not in this build yet.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
 
     await navigation.getByRole("link", { name: "Home" }).click();
     await expect(page.getByRole("heading", { name: "Your workspace" })).toBeVisible();

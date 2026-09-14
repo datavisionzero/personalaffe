@@ -11,11 +11,12 @@ import { Knowledge } from "@/knowledge/Knowledge";
 import { Scratchpad } from "@/scratchpad/Scratchpad";
 import type { Me } from "@/session/useSession";
 import { Settings } from "@/settings/Settings";
+import { Tasks } from "@/tasks/Tasks";
 import { Trash } from "@/trash/Trash";
 import { AccountMenu } from "./AccountMenu";
 import { applications, type Application } from "./applications";
 import { AppSidebar } from "./AppSidebar";
-import { Awaited, Busy, Denied, Disabled, Empty } from "./States";
+import { Busy, Denied, Disabled, Empty } from "./States";
 import { Keys, ShortcutsDialog } from "./ShortcutsDialog";
 import { is, overlaid, typing } from "./shortcuts";
 import { useApplications, type TheApplications } from "./useApplications";
@@ -180,23 +181,27 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
 }
 
 /**
- * The screen an application has, for the ones that have one. The one still to
- * come is drawn by `Awaited` until its epic lands.
+ * The screen each application has.
+ *
+ * <b>A full `Record` and not a `Partial` one</b>: every application in
+ * `applications.ts` has a screen since PERSONAL-E8, and the type is what keeps
+ * that true. A fifth application added without one stops compiling here, which
+ * is a better answer than the empty state this used to fall back to.
  */
-const screens: Partial<Record<Application["name"], () => ReactElement>> = {
+const screens: Record<Application["name"], () => ReactElement> = {
   scratchpad: () => <Scratchpad />,
   files: () => <Files />,
   knowledge: () => <Knowledge />,
+  tasks: () => <Tasks />,
 };
 
 /**
  * What is at an application's address.
  *
- * <b>The three answers a direct link has to be able to give</b>, and they are
- * different answers: this credential may not reach it, the owner has switched
- * it off, or it is switched on and this build has nothing in it yet. Sending
- * all three home would be the same screen for a permission problem, a setting
- * and an unfinished epic.
+ * <b>The two answers a direct link has to be able to give before the screen
+ * itself</b>, and they are different answers: this credential may not reach it,
+ * or the owner has switched it off. Sending either home would be the same
+ * screen for a permission problem and a setting.
  *
  * The first two are settled here, from the answer the frame already has, so
  * that a screen an agent cannot read is never asked for. A screen still answers
@@ -223,13 +228,5 @@ function TheApplication({
     return <Disabled what={application.label} />;
   }
 
-  const screen = screens[application.name];
-
-  if (screen !== undefined) {
-    return screen();
-  }
-
-  // No screen means the epic that fills it has not landed, and the entry in
-  // `applications.ts` is what says which one that is.
-  return <Awaited what={application.label} epic={application.arrives ?? "a later epic"} />;
+  return screens[application.name]();
 }

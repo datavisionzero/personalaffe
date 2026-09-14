@@ -6,10 +6,10 @@ reaches no database, no file volume and no other affe product, and it knows an
 instance only through the client generated from
 [`docs/api/openapi.json`](./api/openapi.json).
 
-**Three applications are here.** Two verbs are the foundation's, three are the
-credential's, two are the workspace's, seven are the Scratchpad's (PERSONAL-E5),
-six are Files' (PERSONAL-E6) and nine are Knowledge's (PERSONAL-E7). Tasks
-brings its own with it.
+**All four applications are here.** Two verbs are the foundation's, three are
+the credential's, two are the workspace's, seven are the Scratchpad's
+(PERSONAL-E5), six are Files' (PERSONAL-E6), nine are Knowledge's
+(PERSONAL-E7) and ten are Tasks' (PERSONAL-E8).
 Everything else on this page — the ladders, the input rules, the exit codes — is
 the shape every later verb is written to, and it is here because it was settled
 in PERSONAL-5, before there was a second verb to settle it differently.
@@ -43,6 +43,16 @@ pea knowledge rm      # into the Trash, with everything under it
 pea knowledge history # what it used to say, newest first
 pea knowledge recover # put a previous version back; history only grows
 pea knowledge export  # the whole base, as a zip of Markdown files
+pea tasks lists       # every list, with how much is open in each
+pea tasks new-list    # make one
+pea tasks ls          # what is in a list, in your order
+pea tasks add         # capture one at the end of a list
+pea tasks show        # one task; its description to stdout
+pea tasks edit        # its title, its date, its description, its list
+pea tasks done        # complete it
+pea tasks undone      # reopen it
+pea tasks mv          # where it sits: --after ID or --top
+pea tasks rm          # into the Trash
 pea trash list        # what was deleted and is still recoverable
 pea trash restore     # put one thing back
 ```
@@ -613,6 +623,100 @@ opening with YAML front matter carrying the id, the parent, the real title and
 the timestamps, plus a `knowledge.json` saying the same in one place. Without
 `--out` it goes to the name the instance gave it, and `pea` refuses rather than
 overwrite something already there.
+
+### `pea tasks lists`
+
+```
+0199f0c7-…	1	2	Einkauf
+```
+
+One line per list, tab separated: the id, how many are open, how many there are,
+and the name. An instance with no lists writes nothing to stdout and says so on
+stderr.
+
+### `pea tasks new-list NAME`
+
+```sh
+pea tasks new-list Einkauf
+```
+
+Names are one each whatever their capitals; one already taken is exit 5. The id
+goes to stdout.
+
+### `pea tasks ls LIST`
+
+```
+0199f0c7-…	open	2026-09-14!	Milch holen
+0199f0c7-…	done	-	Brot holen
+```
+
+**Open first and completed after**, because those are two different things to be
+looking at (VISION §6.4). A due date that has passed carries a `!`; a task with
+no date shows `-`.
+
+`LIST` is a name or an id. **A name is `pea`'s convenience**, resolved against
+one read of the lists the way `pea files` resolves a path — the wire carries
+ids, and capitals do not matter because the instance's own rule is that they do
+not.
+
+### `pea tasks add LIST TITLE [--due 2026-09-14]`
+
+```sh
+pea tasks add Einkauf "Milch holen"
+pea tasks add Einkauf "Brot holen" --due 2026-09-14
+```
+
+The title is an argument because this is the one capture that has to be quick;
+a description is `edit --description-file`, like every other body in `pea`. It
+goes at the end of the list: capture is what happens when something occurs to
+you, and the order is what you decide afterwards. The id goes to stdout.
+
+`--due` takes a day and nothing else. Anything that is not one is exit 2 with
+the shape spelled out — a date is never guessed at from a word.
+
+### `pea tasks show ID`
+
+The description to stdout byte for byte, so `show > note.md` is the round trip
+of `edit --description-file`. The title, the state and the date go to stderr.
+
+### `pea tasks edit ID`
+
+```sh
+pea tasks edit ID --title "Milch und Brot"
+pea tasks edit ID --due 2026-09-20
+pea tasks edit ID --due none
+cat note.md | pea tasks edit ID --description-file -
+pea tasks edit ID --list Arbeit
+```
+
+One write carries the title, the description, the date, the list, the state and
+the place, because all of it is one row. **What is not given is carried
+forward**, so nothing changes by accident. `--due none` is how a date is taken
+away: an empty string cannot say it, because not giving the flag already means
+"leave it alone".
+
+`--list` moves it, and it lands at the end of the list it goes to.
+
+### `pea tasks done ID`, `pea tasks undone ID`
+
+Completing records when; reopening forgets it. Ticking something already ticked
+changes nothing and does not move the moment it happened. Both are the same one
+write over the whole task.
+
+### `pea tasks mv ID --after ID|--top`
+
+**A place is a neighbour and not a number**: the task it goes behind, or the top
+of the list. The other task has to be in the same list. Moving one task changes
+one row, so nobody else's version goes stale.
+
+### `pea tasks rm ID`
+
+Into the Trash. `pea trash restore tasks ID` brings it back, **at the end of its
+list** — where it used to sit is a number the list may have reused, and the end
+is the one place that is always free.
+
+There is no verb here that deletes a whole list: deleting one is not something
+to do by accident from a console, and the browser is where the owner does it.
 
 ### `pea trash list`
 
