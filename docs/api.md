@@ -411,6 +411,74 @@ saying the same thing in one place. The test of "an open package" is what
 somebody can do with it having never heard of this product: unzip it and read
 it.
 
+## Tasks
+
+Personal commitments in named lists, in an order the owner sets
+(`CONTEXT.md`, Task list and Task). It is the fourth application, and the last
+one VISION.md names.
+
+```json
+{ "id": "0199f0c7-…",
+  "list": "0199f0c6-…",
+  "title": "Milch holen",
+  "description": "am Markt, nicht im Supermarkt",
+  "due_on": "2026-09-14",
+  "completed": false,
+  "completed_at": null,
+  "after": "0199f0c7-…",
+  "created_at": "2026-09-14T08:30:00.123456Z",
+  "updated_at": "2026-09-14T08:30:00.123456Z" }
+```
+
+**`due_on` is a date and never a moment.** `2026-09-14`, and no hour for a
+timezone to move: a task due on the fourteenth is due on the fourteenth wherever
+the owner is standing. It is the one value in this product that is deliberately
+not an instant, and it is why "due dates appear consistently … without
+unintended timezone shifts" is a sentence this application can keep.
+
+**`completed_at` is when, and `completed` is whether.** Ticking a box that is
+already ticked does not move the moment — otherwise "what did I finish this
+week" would answer with whatever somebody last touched.
+
+**One `PUT` carries everything a task is**: the title, the description, the due
+date, the list, whether it is done, and where it sits. A task has more fields
+than anything else in this workspace and is exactly where a second address per
+field would start to look reasonable — `POST …/complete`, `PUT …/due`,
+`POST …/move` — and each would be another place the guard has to be got right,
+for a change the owner made once.
+
+**Where it sits is `after`: the task it goes behind, or `null` for the top of
+its list.** A neighbour and not a number, because a number is the module's
+arithmetic and a neighbour is what a caller can act on. A caller that is not
+moving anything sends the neighbour it already has, which both clients do
+because they read first. `after` naming a task in another list is `validation`.
+
+**Moving one task changes one row.** A position is a number with room on either
+side of it and a move is the midpoint of the two it lands between, so nobody
+else's version goes stale — which an order of 1 to n, renumbered on every move,
+could not say. About fifty moves into the same gap exhaust the midpoints, and
+the list is renumbered then: the one case where a move is a change to more than
+one row.
+
+**A new task goes at the end**, because capture is what happens when something
+occurs to somebody and the order is what they decide afterwards.
+
+**Open and completed come back in one order.** Separating them is what a client
+draws (VISION §6.4); doing it here would mean a caller could not put a task back
+where it was after reopening it.
+
+**A list is not in another list.** VISION §6.4 asks for named lists and rules
+out project planning; a hierarchy would be the first step towards what it rules
+out. So Tasks is the one application with no tree, and the only one whose
+restore has no ancestors to think about. **List names are one each whatever
+their capitals.** A title is at most 200 characters and one line; a description
+is Markdown, optional, at most 64 KiB of UTF-8.
+
+**Deleting a list takes every task in it**, under one moment, so the whole thing
+is one Trash entry and comes back together. A task restored on its own comes
+back **at the end of its list** — where it used to sit is a number the list may
+have reused, and the end is the one place that is always free.
+
 ## The applications
 
 The workspace is four applications and each can be switched off
@@ -501,17 +569,20 @@ removes one for good — thirty days after the deletion by default, and
 ([`docs/operations.md`](./operations.md)). Retention does not stop for anything:
 not for an application being switched off, and not for the instance being down.
 
-**Files and Knowledge are what fill it today**: a deleted file, folder or page
-is here — with its bytes, or with its history — until it is restored or its
-retention runs out. The Scratchpad deliberately contributes nothing, because
-what it deletes is destroyed, and Tasks is PERSONAL-E8. A module joins the Trash
-by contributing to it and by nothing else, and the Scratchpad is the one that
-never will.
+**Three of the four applications fill it**: a deleted file, folder, page, list
+or task is here — with its bytes, or with its history — until it is restored or
+its retention runs out. The Scratchpad deliberately contributes nothing, because
+what it deletes is destroyed. A module joins the Trash by contributing to it and
+by nothing else, and the Scratchpad is the one that never will.
 
 ## Putting something back into a tree
 
 Files and Knowledge have hierarchies, and restoring into one has two rules,
 decided once for both.
+
+Tasks is the exception, and it is one because it has no tree: a list is not in
+another list, so there is no ancestor for anything to come back with. What is
+below applies to Files and Knowledge.
 
 **A folder or a page that is in the Trash comes back with what needs it.**
 Restoring a page whose folder is also deleted restores the folder too —
@@ -1042,6 +1113,49 @@ own.
 
 Every page, as a zip of Markdown files, as an attachment. Read access to
 Knowledge is the whole of the access rule.
+
+### `GET /api/tasks/lists`
+
+Every list, by name, with `open` and `all` beside it. The first thing a client
+draws is which list has anything in it, and a count is cheaper than every task.
+
+### `POST /api/tasks/lists`
+
+`{ "name": "Einkauf" }`. `201` with the `ETag` of what was made. A name another
+list already has is `conflict`.
+
+### `PUT /api/tasks/lists/{id}`
+
+`{ "name": "Einkäufe" }`, with `If-Match`.
+
+### `DELETE /api/tasks/lists/{id}`
+
+Into the Trash, with every task in it, under one moment. `204`.
+
+### `GET /api/tasks/lists/{id}/tasks`
+
+What is in it, **open and completed together**, in the owner's order. No limit
+and no cursor: a personal list is one person's, and a page of a manually ordered
+list is a page nobody can reorder from.
+
+### `POST /api/tasks/lists/{id}/tasks`
+
+`{ "title": "…", "description": "…", "due_on": "2026-09-14" }`. It goes at the
+end. `201` with `Location` and the `ETag`.
+
+### `GET /api/tasks/{id}`
+
+One task, with its `ETag` and the neighbour it sits behind.
+
+### `PUT /api/tasks/{id}`
+
+`{ "list": "…", "title": "…", "description": "…", "due_on": "2026-09-14",
+"completed": false, "after": "…" }`, with `If-Match`. All of it, because all of
+it is one row.
+
+### `DELETE /api/tasks/{id}`
+
+Into the Trash, with `If-Match`. `204`. It comes back at the end of its list.
 
 ### `GET /api/trash`
 
