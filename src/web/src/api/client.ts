@@ -36,6 +36,58 @@ export type Schemas = components["schemas"];
 export type Problem = Schemas["ProblemDetails"];
 
 /**
+ * The version a write says it is replacing: the object's `updated_at`, as the
+ * instance spells it in `ETag` (`docs/api.md`, The guarded write).
+ *
+ * A read of one object answers the header and a list carries `updated_at` on
+ * each item; either way, what a write sends back is the same value. This is the
+ * one place in the application that knows the spelling, so that a screen never
+ * assembles one out of a `Date`.
+ */
+export type Version = string & { readonly version: unique symbol };
+
+/** The version an object at this `updated_at` is at, ready to be sent back. */
+export function versionOf(updatedAt: string): Version {
+  return `"${updatedAt}"` as Version;
+}
+
+/** The version a single-object read answered, where it answered one. */
+export function versionFrom(response: Response): Version | undefined {
+  const tag = response.headers.get("ETag");
+
+  return tag === null ? undefined : (tag as Version);
+}
+
+/**
+ * What a guarded write carries. Every write that replaces something takes one:
+ * the type is what makes forgetting it a compile error on the screen rather
+ * than a `412` in front of the owner.
+ */
+export function guardedBy(version: Version): { headers: { "If-Match": string } } {
+  return { headers: { "If-Match": version } };
+}
+
+/**
+ * The two outcomes every screen in the workspace has to be able to draw, told
+ * apart by the code rather than by the status: `deleted` and `not-found` are
+ * both 404, and one of them means the owner can have the thing back.
+ */
+export type Outcome = "stale" | "deleted" | "other";
+
+export function outcomeOf(problem: Problem | undefined): Outcome {
+  const code = codeOf(problem);
+
+  return code === "stale" || code === "deleted" ? code : "other";
+}
+
+/** When the thing at that address stops being recoverable, where it says so. */
+export function expiresAt(problem: Problem | undefined): string | undefined {
+  const said = (problem as { expires_at?: unknown } | undefined)?.expires_at;
+
+  return typeof said === "string" ? said : undefined;
+}
+
+/**
  * The code a client switches on: the last segment of a refusal's relative
  * `type` (`docs/api.md`, Errors). `/problems/not-found` is `not-found`.
  */

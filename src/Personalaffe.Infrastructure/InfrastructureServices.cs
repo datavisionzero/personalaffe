@@ -36,6 +36,10 @@ public static class InfrastructureServices
             .ConfigureWarnings(warnings => warnings.Log((RelationalEventId.CommandError, LogLevel.Debug))));
         services.AddScoped<SchemaMigrator>();
 
+        // One instance at a time, for the work that must only happen once
+        // however many containers are running.
+        services.AddScoped<IExclusiveWork, ExclusiveWork>();
+
         // One store per port, beside the context that answers it.
         services.AddScoped<IOwners, Owners>();
         services.AddScoped<IBrowserSessions, BrowserSessions>();

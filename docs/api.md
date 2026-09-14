@@ -66,6 +66,9 @@ generators by hand, and both were run against it when it was first captured.*
 - **Timestamps are RFC 3339 in UTC with microseconds** —
   `2026-09-13T14:03:07.123456Z` — one spelling everywhere, so that the value a
   client reads is the value it can send back.
+- **A write says which version it replaces.** It sends back the `ETag` the read
+  it is based on answered, in `If-Match`, and a write holding an older one is
+  refused as `stale`. See [The guarded write](#the-guarded-write).
 - **Every response carries `Personalaffe-Version`**, the refused and the failed
   ones included: a 401 is an answer, and a client reporting version skew has to
   be able to read it off whatever it got. The API itself carries no version in
@@ -111,23 +114,223 @@ instance's log.
 | `second-factor` | 401 | The password was right and the authenticator's code is wanted as well. |
 | `forbidden` | 403 | The caller may not do this. |
 | `not-found` | 404 | Nothing at that address. |
+| `deleted` | 404 | What was at that address is in the Trash. Carries `deleted_at` and `expires_at`. |
 | `stale` | 412 | The object has changed since it was read. |
 | `conflict` | 409 | Something else already occupies that name or place. |
 | `internal` | 500 | Something went wrong on the server. |
 
 The set is [`RefusalCode`](../src/Personalaffe.Domain/RefusalCode.cs) and it
-grows with the epics that need it — `deleted` with recoverable deletion
-(PERSONAL-E3), `disabled` with the application switch (PERSONAL-E4). **Each
-addition is a row in this table in the same commit.**
+grows with the epics that need it — `disabled` arrives with the application
+switch (PERSONAL-E4). **Each addition is a row in this table in the same
+commit.**
 
-Of the nine, eight can be raised today. Only `stale` cannot: it is the shape
-PERSONAL-E3's writes are written to.
+**Switching on the status would collapse the distinction `deleted` exists to
+make.** Both it and `not-found` are 404; one of them means the owner can have
+the thing back.
 
 ### Exit codes
 
 `pea` derives its exit code from the status and the code, so that a script
 branches without parsing anything. The table lives in
 [`docs/cli.md`](./cli.md) with the CLI that implements it (PERSONAL-5).
+
+## The guarded write
+
+Two people change one thing. The owner has a page open in a browser; an agent
+edits the same page over the API. One of those writes was made without knowing
+about the other, and the product's answer is that it is **refused**, not that it
+silently wins.
+
+**A read of one object answers `ETag`.** The value is that object's `updated_at`
+in the one timestamp spelling above, as a strong entity tag:
+
+```http
+GET /api/trash
+...
+ETag: "2026-09-14T08:30:00.123456Z"
+```
+
+**A write sends it back in `If-Match`**, exactly as it was answered, quotation
+marks included:
+
+```http
+POST /api/trash/knowledge/0199.../restore
+If-Match: "2026-09-14T08:30:00.123456Z"
+```
+
+If the object has changed since, the write is refused `412 stale` and changes
+nothing. The document carries the object's current `updated_at`, so a client can
+tell "somebody got there first" from "I sent something malformed" without asking
+again:
+
+```json
+{ "type": "/problems/stale",
+  "title": "The object has changed since it was read",
+  "status": 412,
+  "detail": "The page has changed since it was read. Read it again: …",
+  "updated_at": "2026-09-14T08:31:12.004000Z" }
+```
+
+**A guarded write with no `If-Match` is refused the same way**, and so is `*`, a
+weak tag, more than one tag, and anything that is not a timestamp this instance
+wrote. One code for all of them, because the caller's move is the same in every
+case: read the object again and decide. An endpoint where forgetting the guard
+were cheaper than using it is an endpoint where it will be forgotten.
+
+The value is `updated_at` and not a version counter because every object carries
+it already and every client already reads it; a counter beside it would be a
+second thing that has to agree with the first. The transport is a header and not
+a field in the body because an upload's body is the file
+([`Files`](#extension-points-not-yet-implemented) is PERSONAL-E6's), and a guard
+that only half the writes in the product can use is not a guard.
+
+Both clients do this for the caller. `pea` keeps the tag from the read it made
+and sends it on the write that follows ([`docs/cli.md`](./cli.md)); the web
+application's client does the same.
+
+## Deleting sets content aside
+
+Deleting a knowledge page, a task, a task list, a file or a folder does not
+destroy it. The row stays, leaves every ordinary read, and can be restored until
+its retention runs out — [the Trash](#the-trash) of `CONTEXT.md`. Its address
+answers `404 deleted` rather than `404 not-found` while it is there:
+
+```json
+{ "type": "/problems/deleted",
+  "title": "What was at that address is in the Trash",
+  "status": 404,
+  "detail": "The page was deleted by the agent access `the laptop agent` and is in the Trash. …",
+  "deleted_at": "2026-09-12T19:02:11.881000Z",
+  "expires_at": "2026-10-12T19:02:11.881000Z" }
+```
+
+**A Scratchpad entry is the exception and is destroyed immediately.** It is
+temporary by definition (`CONTEXT.md`), an owner who deletes one means it, and a
+Trash full of the text somebody pasted between two devices is not a service to
+anybody.
+
+Deletion is a write in both senses the product has: it needs read/write access
+to the application, and it carries `If-Match` like any other write, so nothing
+can delete a version it never read.
+
+**Who deleted something travels with it as a copy** — the kind, the id, and the
+name the access had at the time — and nothing links back to the agent access
+row. The question the owner is asking of that list is which of their agents did
+this, and a name that disappears when the access is revoked is no answer.
+
+## The Trash
+
+One list over the four applications, at `GET /api/trash`. There is no table
+under it: `deleted_at` stays in each module's own table and the Trash asks each
+of them, because a central index would be a second place that has to agree with
+the first, and the generic content entity personalaffe deliberately does not
+have ([`docs/codebase.md`](./codebase.md)).
+
+```json
+{ "items": [
+    { "application": "knowledge",
+      "id": "0199f0c4-…",
+      "name": "architecture",
+      "where": "/notes",
+      "deleted_at": "2026-09-12T19:02:11.881000Z",
+      "deleted_by": { "kind": "agent", "name": "the laptop agent" },
+      "expires_at": "2026-10-12T19:02:11.881000Z",
+      "updated_at": "2026-09-12T19:02:11.881000Z" } ],
+  "has_more": false }
+```
+
+`updated_at` on an entry is what a restore or a permanent removal sends back in
+`If-Match`: a list cannot answer an `ETag` per item, so the version travels in
+the item.
+
+**There is no cursor.** A limit and `has_more` are what keep a runaway from
+becoming an unbounded response; a personal Trash holds one person's deletions
+over one retention period, and four cursors and a tie-break rule would be a lot
+of machinery for a list that fits on a screen.
+
+**Who may do what, and why:**
+
+| Act | Who |
+| --- | --- |
+| Read the list | Anyone, filtered to the applications they may read |
+| Restore an entry | Read/write access to the application it is in |
+| Remove one entry for good | **The owner alone** |
+| Empty the Trash | **The owner alone** |
+
+An agent that could permanently remove one entry could bypass the Trash in two
+steps instead of one, and what the Trash is for is that an agent acting on the
+owner's behalf cannot destroy the owner's content. `pea` therefore has no verb
+that destroys anything, the same way it has none that issues a credential
+([`docs/cli.md`](./cli.md)).
+
+**Entries leave by themselves.** `expires_at` is when the instance's own sweep
+removes one for good — thirty days after the deletion by default, and
+`PERSONALAFFE_TRASH_RETENTION` for an operator who wants another number
+([`docs/operations.md`](./operations.md)). Retention does not stop for anything:
+not for an application being switched off, and not for the instance being down.
+
+**An instance today answers an empty Trash**, because Scratchpad, Knowledge,
+Tasks and Files are PERSONAL-E5 to PERSONAL-E8 and none of them exists yet.
+That is the shape working rather than missing: a module joins the Trash by
+contributing to it and by nothing else.
+
+## Putting something back into a tree
+
+Files and Knowledge have hierarchies, and restoring into one has two rules,
+decided once for both.
+
+**A folder or a page that is in the Trash comes back with what needs it.**
+Restoring a page whose folder is also deleted restores the folder too —
+refusing until the folder has been restored first would make the owner walk the
+tree by hand, and doing neither would leave the page somewhere they cannot
+reach. The folder comes back as itself and not with everything it used to
+contain: restoring one page is restoring one page.
+
+**A name already taken is `conflict`, not a silent rename.** Two things with one
+name in one place is a tree nobody can navigate, and a product that quietly
+appends "(2)" has made a decision the owner would have made differently. The
+refusal names what is in the way, and `name` on the same call puts it back under
+another one, so nobody is ever stuck with something they cannot get out of the
+Trash.
+
+**One deletion is one Trash entry.** Deleting a folder takes everything in it
+under one moment, and the whole thing comes back together. Something further
+down that the owner deleted separately is an entry of its own with an expiry of
+its own: it does not come back when its folder does, and removing the folder for
+good does not destroy it.
+
+Which leaves one case: a thing whose folder is gone for good while it is still
+recoverable. It is **restored to the root**, and the answer says so with
+`moved_to_the_root`. Nothing in this product moves the owner's content without
+saying it did.
+
+## Keeping the previous version
+
+Knowledge keeps history (PERSONAL-E7); the conventions it keeps it by are
+settled here, so that an application that wants history later does not invent a
+second set.
+
+**Fifty previous versions of one thing are kept** — a count and not an age. A
+page edited twice a year deserves its history as much as one edited twice a day,
+and "ninety days" would quietly throw away the whole history of everything the
+owner works on slowly, which is most of what a personal knowledge base is for.
+
+**Recovering an old version writes forward.** Putting one back is a change like
+any other: it leaves a revision of what it replaced, so what was current a
+moment ago is itself recoverable. History only grows, and the recovery is in it.
+Rewinding would make "undo" the one operation in this product that destroys
+work.
+
+**A recovery carries `If-Match` for the object, not the revision.** A revision
+never changes and has no version worth holding; what the caller has to be
+holding is the page's. Otherwise recovering something read ten minutes ago would
+discard an edit made five minutes ago — which is the case the guard exists for,
+arriving through the one door that looks like it should be exempt.
+
+**Revisions belong to the thing they are of.** Deleting it takes them into the
+Trash with it, restoring brings them back, and removing it for good removes
+them. A revision that outlived its page would be content the owner believes they
+deleted.
 
 ## The door
 
@@ -242,14 +445,8 @@ now out.
 ## Extension points, not yet implemented
 
 These are named so that the operations of later epics do not each invent their
-own spelling. **None of them is implemented.**
+own spelling.
 
-- **Stale-update handling** (PERSONAL-E3): a write that replaces something says
-  which version it read, and a write based on an older one is refused as
-  `stale` rather than silently winning. The value is the object's `updated_at`
-  in the spelling above.
-- **Recoverable deletion** (PERSONAL-E3) adds `deleted`, which is a 404 that
-  says the object can still be restored.
 - **Application enablement** (PERSONAL-E4) adds `disabled`: an application the
   owner has switched off rejects content operations rather than answering them.
 
@@ -473,6 +670,33 @@ per access that works, and this is it.
 Shuts the agent out at once, and answers the access as it now stands. **A
 timestamp, not a deletion**: the row stays and the list keeps it. Revoking a
 revoked access changes nothing and is not an error.
+
+### `GET /api/trash`
+
+`application` narrows it to one; `limit` bounds it, 1 to 1000, 200 by default.
+Newest deletion first. Only the applications the caller may read are asked.
+
+### `POST /api/trash/{application}/{id}/restore`
+
+Puts one thing back. Needs read/write access to that application and the
+entry's `updated_at` in `If-Match`. `name` restores it under another name, for
+the case where the place it came from is occupied — without it, an occupied
+name is `conflict`. Answers where it landed:
+
+```json
+{ "application": "knowledge", "id": "0199f0c4-…", "name": "architecture",
+  "where": "/notes", "moved_to_the_root": false }
+```
+
+### `DELETE /api/trash/{application}/{id}`
+
+Removes one thing for good, bytes included. **The owner alone.** Takes
+`If-Match` like the restore. 204, and there is no way back.
+
+### `DELETE /api/trash`
+
+Empties it, or one application's part of it with `application`. **The owner
+alone.** Answers `{ "removed": 7 }`.
 
 ### Anything else under `/api`
 

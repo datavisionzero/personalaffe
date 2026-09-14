@@ -116,6 +116,7 @@ failed is in the instance's log at warning, where the operator is.
 | --- | --- | --- |
 | `ConnectionStrings__Postgres` | — | Required. The database. The instance refuses to start without it, and never writes it to the log: what is printed is the same string with every credential replaced by `***`. |
 | `PERSONALAFFE_STORAGE_ROOT` | `/var/lib/personalaffe/files` in the image | Where the owner's files go. Must be writable by the user the container runs as, and must not be under the static web root. |
+| `PERSONALAFFE_TRASH_RETENTION` | `30` | Whole days, 1 to 3650. How long deleted knowledge pages, tasks, lists, files and folders stay recoverable. See below. |
 | `PERSONALAFFE_TRUSTED_PROXY` | unset | Which peers may speak for the caller. See below. |
 | `PERSONALAFFE_PUBLIC_URL` | unset | Where this instance is reached, like `https://workspace.example.com`. Optional: what it buys is a stricter check on writes made from a browser, which without it are checked against the host alone. It is never used to build a link. |
 | `PERSONALAFFE_LOG_LEVEL` | `Information` | `Verbose`, `Debug`, `Information`, `Warning`, `Error` or `Fatal`. |
@@ -124,6 +125,41 @@ failed is in the instance's log at warning, where the operator is.
 A value the instance will not accept stops the start with one line naming the
 variable. Overriding any of them is a line in `deploy/.env` followed by
 `docker compose up -d`.
+
+## The Trash empties itself
+
+Deleting a knowledge page, a task, a list, a file or a folder puts it in the
+Trash rather than destroying it, and `PERSONALAFFE_TRASH_RETENTION` is how long
+it stays there. Thirty days by default. A Scratchpad entry is not covered: it is
+temporary by definition and its deletion is immediate.
+
+**The sweep runs inside the instance** — no cron, no second container, nothing
+for an operator to install. It happens once at start and once an hour after
+that, and the interval is not a variable: what an operator might want to change
+is how long things are kept, not how often something looks.
+
+**A week of downtime costs nothing.** The sweep works from the deadline and not
+from what it last did, so the first one after an outage removes everything that
+expired while nothing was running. It is safe to run twice and safe to interrupt.
+
+**Two containers over one database do the work once.** The sweep takes a
+Postgres advisory lock, the same way the migrator does; an instance that finds
+somebody else sweeping skips that round rather than queueing to redo it.
+
+Changing the variable moves the deadline and nothing else. Shortening it expires
+more on the next sweep; lengthening it never brings back what is already gone.
+A value the instance will not accept — not a whole number, or outside the two
+bounds — stops the start with one line naming the variable.
+
+What a sweep removed is one line in the log per sweep, at `Information`: counts
+per application, and never a name or a word of what the owner wrote.
+
+```
+Swept the Trash: removed 4 expired item(s), Knowledge: 3, Files: 1.
+```
+
+**An instance today sweeps nothing**, because none of the four applications
+exists yet (`docs/mvp-plan.md`). The line above is what it will look like.
 
 ## Behind a reverse proxy
 

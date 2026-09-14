@@ -12,9 +12,9 @@ namespace Personalaffe.Domain;
 /// place that knows.
 /// </para>
 /// <para>
-/// The set grows with the epics that need it — <c>deleted</c> with recoverable
-/// deletion, <c>disabled</c> with the application switch — and each addition is
-/// a line in <c>docs/api.md</c> in the same commit.
+/// The set grows with the epics that need it — <c>disabled</c> arrives with the
+/// application switch of PERSONAL-E4 — and each addition is a line in
+/// <c>docs/api.md</c> in the same commit.
 /// </para>
 /// </remarks>
 public enum RefusalCode
@@ -38,6 +38,12 @@ public enum RefusalCode
 
     /// <summary>Nothing by that address.</summary>
     NotFound,
+
+    /// <summary>
+    /// What used to be at that address is in the Trash, and can be brought
+    /// back. A 404 like <see cref="NotFound"/>, told apart by its type.
+    /// </summary>
+    Deleted,
 
     /// <summary>The object has changed since it was read.</summary>
     Stale,

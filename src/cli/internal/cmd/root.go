@@ -117,7 +117,7 @@ func newRoot(env Env) *cobra.Command {
 		return &config.UsageError{Message: err.Error()}
 	})
 
-	root.AddCommand(newVersion(g), newStatus(g), newLogin(g), newLogout(g), newWhoami(g))
+	root.AddCommand(newVersion(g), newStatus(g), newLogin(g), newLogout(g), newWhoami(g), newTrash(g))
 
 	usageMistakes(root)
 	return root

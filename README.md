@@ -14,9 +14,15 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > authenticator; agents are let in with named tokens and a permission per
 > application; and everything but five operations is behind that door.
 >
-> **There is still no content of any kind**, and none of the safeguards over it:
-> no Scratchpad, no Knowledge, no Tasks, no Files, no Trash and no guard against
-> a stale write. Those are PERSONAL-E3 and the epics after it, so
+> PERSONAL-E3 adds the safeguards over content: a write says which version it
+> replaces and a stale one is refused; deleting lasting content sets it aside in
+> a Trash that empties itself after thirty days; restoring brings back the
+> folders it needs; and removing anything for good is the owner's alone.
+>
+> **There is still no content of any kind** — no Scratchpad, no Knowledge, no
+> Tasks, no Files, and no shell to reach them through. An instance answers an
+> empty Trash because nothing has anything to put in it. Those are PERSONAL-E4
+> and the epics after it, so
 > **do not put anything personal in an instance of it yet.**
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
@@ -198,7 +204,7 @@ writes nothing into the repository and needs no credential.
 
 ## Known limits
 
-Everything here is PERSONAL-E1 and PERSONAL-E2, and nothing more.
+Everything here is PERSONAL-E1, PERSONAL-E2 and PERSONAL-E3, and nothing more.
 
 - **There is no content.** No scratchpad, no knowledge pages, no tasks, no
   files: what the database carries is an owner, their sessions, their recovery
@@ -206,9 +212,11 @@ Everything here is PERSONAL-E1 and PERSONAL-E2, and nothing more.
   through PERSONAL-E8.
 - **Nothing an agent is given reaches anything yet.** The permissions are real
   and enforced, and the applications they guard do not exist.
-- **Nothing is recoverable, because nothing is stored.** Trash, revision
-  history and the guard against stale writes are PERSONAL-E3's; the codes they
-  will use are already in the contract.
+- **The Trash is real and empty, and it will stay empty.** The guard on a write,
+  recoverable deletion, the hourly sweep and the restore rules all work; nothing
+  has inherited them yet, because nothing stores content. A content module joins
+  by contributing to the Trash and by nothing else
+  ([`docs/codebase.md`](docs/codebase.md)).
 - **The file storage volume is checked but never written to.** The Files
   application is PERSONAL-E6's.
 - **There is no release.** No image is published anywhere, and CI deliberately

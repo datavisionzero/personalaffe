@@ -13,11 +13,13 @@ later verb is written to, and it is here because it was settled in PERSONAL-5,
 before there was a second verb to settle it differently.
 
 ```sh
-pea version    # what pea is, what the instance is
-pea status     # which instance, and where the credential is coming from
-pea login      # check a token and keep it in this machine's keychain
-pea whoami     # who the credential admits, and what it reaches
-pea logout     # take it out again
+pea version         # what pea is, what the instance is
+pea status          # which instance, and where the credential is coming from
+pea login           # check a token and keep it in this machine's keychain
+pea whoami          # who the credential admits, and what it reaches
+pea logout          # take it out again
+pea trash list      # what was deleted and is still recoverable
+pea trash restore   # put one thing back
 ```
 
 ## What it promises
@@ -153,6 +155,11 @@ A script branches on the code; nothing has to be parsed.
 | 9 | Version skew: this `pea` does not talk to that instance. |
 | 10 | The instance could not be reached at all: DNS, connection refused, timeout, TLS. |
 
+`deleted` is a 404 and therefore exit 3, like every other 404. The distinction a
+script needs — that the thing can still be brought back — is in the problem
+document's `type`, and `--json` hands it over. A code of its own would mean
+every script that handles "not there" would have to learn two numbers for it.
+
 **8 is deliberately free.** It is what "there is nothing" would be — a verb that
 looked for work and found none — and no such verb exists yet. Leaving it unused
 means no script has to relearn a number when one does.
@@ -245,6 +252,56 @@ Takes this machine's token out of the keychain, and does nothing else.
 in the browser, and an agent that could revoke its own credential would be
 deciding something about the instance. A machine with nothing stored is left as
 it is, because that is the state that was asked for.
+
+### `pea trash list`
+
+```sh
+pea trash list
+pea trash list --application knowledge --limit 20
+```
+
+```
+knowledge	0199f0c4-…	architecture	/notes	by agent "the laptop agent"	expires 2026-10-12
+```
+
+One line per entry, tab separated, newest deletion first. Only the applications
+this credential may read are asked, so an agent sees its own half of the
+workspace and nothing beyond it. `--json` is the object the API answered.
+
+An empty Trash says so on stderr and writes nothing to stdout, so a pipeline
+reading it gets nothing rather than a sentence.
+
+### `pea trash restore APPLICATION ID`
+
+```sh
+pea trash restore knowledge 0199f0c4-0000-7000-8000-000000000001
+pea trash restore knowledge 0199f0c4-… --name "architecture (2026)"
+```
+
+Puts one thing back. Needs read/write access to the application it is in.
+
+**A write says which version it replaces** ([`docs/api.md`](./api.md), The
+guarded write), and `pea` does that part itself: it reads the entry out of the
+Trash and sends the version it found. Nothing has to hold a timestamp by hand,
+which is the whole reason the guard is bearable for an agent. `--if-match` skips
+the read for a caller that already has one. A version that is no longer the
+object's is exit 6.
+
+If the place it came from now holds something of that name, the restore is
+refused as a conflict (exit 5) and `--name` puts it back under another one. If
+the folder it came from is gone for good, it goes to the root and `pea` says so
+on stderr — nothing here moves the owner's content quietly.
+
+### There is no verb that destroys anything
+
+`pea trash purge` does not exist, and neither does emptying the Trash or
+removing one entry for good. Those are the owner's, and `pea` holds agent
+access: the same reason it cannot issue a credential or change a security
+setting. An agent that could permanently remove one entry could bypass the Trash
+in two steps instead of one, and the Trash exists precisely so that an agent
+acting on the owner's behalf cannot destroy the owner's content.
+
+The browser is where the owner does it.
 
 ## Building it
 
