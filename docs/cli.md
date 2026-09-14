@@ -6,9 +6,10 @@ reaches no database, no file volume and no other affe product, and it knows an
 instance only through the client generated from
 [`docs/api/openapi.json`](./api/openapi.json).
 
-**Two applications are here.** Two verbs are the foundation's, three are the
-credential's, two are the workspace's, seven are the Scratchpad's (PERSONAL-E5)
-and six are Files' (PERSONAL-E6). Knowledge and Tasks bring theirs with them.
+**Three applications are here.** Two verbs are the foundation's, three are the
+credential's, two are the workspace's, seven are the Scratchpad's (PERSONAL-E5),
+six are Files' (PERSONAL-E6) and nine are Knowledge's (PERSONAL-E7). Tasks
+brings its own with it.
 Everything else on this page — the ladders, the input rules, the exit codes — is
 the shape every later verb is written to, and it is here because it was settled
 in PERSONAL-5, before there was a second verb to settle it differently.
@@ -33,6 +34,15 @@ pea files get         # its bytes back, byte for byte
 pea files mkdir       # make a folder
 pea files mv          # rename something, move it, or both
 pea files rm          # into the Trash. `pea trash restore files ID` brings it back
+pea knowledge tree    # every page's title and place
+pea knowledge show    # the Markdown of one page, and nothing else
+pea knowledge new     # write a page
+pea knowledge edit    # rewrite it, rename it, or both
+pea knowledge mv      # move it, rename it, or both
+pea knowledge rm      # into the Trash, with everything under it
+pea knowledge history # what it used to say, newest first
+pea knowledge recover # put a previous version back; history only grows
+pea knowledge export  # the whole base, as a zip of Markdown files
 pea trash list        # what was deleted and is still recoverable
 pea trash restore     # put one thing back
 ```
@@ -490,6 +500,119 @@ says, with the id in it. A folder takes everything in it, under one moment, so
 the whole thing comes back together.
 
 Guarded like any other write; `--if-match` skips the read.
+
+### `pea knowledge tree [PATH|ID]`
+
+```sh
+pea knowledge tree
+pea knowledge tree /Reisen
+```
+
+```
+0199f0c6-…	2026-09-14T08:00:00Z	Reisen
+0199f0c6-…	2026-09-14T08:10:00Z	  Bahn
+```
+
+One line per page, tab separated: the id, when it last changed, and the title
+indented by how deep it sits. **No body is read** — the tree is titles and
+places, which is what makes it one request however much the owner has written.
+A page named as an argument is the top of what is printed, and is printed
+itself.
+
+**A path is titles and is `pea`'s convenience**, resolved against that one read;
+the wire carries ids. Capitals do not matter, because titles under one page are
+one each whatever their capitals. An id is accepted wherever a path is.
+
+### `pea knowledge show PATH|ID`
+
+```sh
+pea knowledge show /Reisen/Bahn > page.md
+```
+
+The Markdown to stdout, byte for byte, and nothing else — which is what makes it
+the other half of `edit --text-file`. `--json` is the page as the instance
+answered it.
+
+### `pea knowledge new PATH [--text-file FILE|-]`
+
+```sh
+pea knowledge new /Reisen
+cat notes.md | pea knowledge new /Reisen/2026 --text-file -
+```
+
+The last segment of `PATH` is the title; every page above it has to be there
+already, and a missing one is exit 3 naming the segment. `--text-file` is
+optional: a page with a title and nothing under it yet is a page. The id goes to
+stdout.
+
+### `pea knowledge edit PATH|ID [--text-file FILE|-] [--title TITLE]`
+
+One write carries the title, the place and the body together, because all three
+are the same row. **What is not given is carried forward**, so `--title` alone
+renames and `--text-file` alone rewrites. `pea` reads the page first and sends
+the version it found; `--if-match` skips that read.
+
+What it replaced is kept — `pea knowledge history` lists it.
+
+### `pea knowledge mv PATH|ID DEST`
+
+```sh
+pea knowledge mv /Architektur /Notizen             # under it, keeping its title
+pea knowledge mv /Architektur /Notizen/Aufbau      # and renamed
+pea knowledge mv /Architektur /Aufbau              # renamed where it is
+```
+
+A `DEST` that names an existing page means "under it"; anything else is the
+place and the title together, and the place has to exist. A title already taken
+there is exit 5, and so is a page put under itself or a tree that would be too
+deep.
+
+### `pea knowledge rm PATH|ID`
+
+**Nothing is destroyed here.** The page goes to the Trash with everything under
+it and all of its history, and `pea trash restore knowledge ID` brings it back —
+which the sentence on stderr says, with the id in it.
+
+### `pea knowledge history PATH|ID [--revision ID]`
+
+```
+0199f0c6-…	2026-09-14T09:00:00Z	agent the writing agent	Bahn
+0199f0c6-…	2026-09-14T08:30:00Z	the owner	Die Bahn
+```
+
+One line per version, newest first: the id, when it stopped being current, who
+ended it, and the title it had. **Bodies are not read** — fifty versions of a
+page is not something to print by accident.
+
+`--revision ID` writes that one version's Markdown to stdout instead, so a diff
+is one line:
+
+```sh
+diff <(pea knowledge history ID --revision R) <(pea knowledge show ID)
+```
+
+### `pea knowledge recover PATH|ID REVISION`
+
+Puts a previous version back. **It writes forward**: what the page said until now
+becomes a version of its own, so nothing is lost by undoing something. It puts
+back the title as well as the body and leaves the page where it is.
+
+The version it is guarded by is **the page's** and not the revision's: a revision
+never changes, and recovering something read ten minutes ago must not discard an
+edit made five minutes ago.
+
+### `pea knowledge export [--out FILE|-]`
+
+```sh
+pea knowledge export --out knowledge.zip
+pea knowledge export --out - | unzip -l -
+```
+
+The whole base as a zip: one `.md` per page at the path its titles make, each
+opening with YAML front matter carrying the id, the parent, the real title and
+the timestamps, plus a `knowledge.json` saying the same in one place. Without
+`--out` it goes to the name the instance gave it, and `pea` refuses rather than
+overwrite something already there.
 
 ### `pea trash list`
 
