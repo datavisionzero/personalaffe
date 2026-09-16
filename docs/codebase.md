@@ -71,14 +71,25 @@ close it (PERSONAL-49). What the epic decided is
 and the record that close it (PERSONAL-54). What the epic decided is
 [ADR 0008](./adr/0008-a-due-date-is-a-day-and-an-order-is-a-number-between-two-others.md).
 
-**All four applications are here.** An instance captures plain text, lists it,
-pins it, expires it and destroys it; it stores files in folders and hands them
-back byte for byte; it keeps lasting notes as Markdown in a tree, with a history
-behind every page and an export anybody can read; and it keeps personal
-commitments in named lists, in an order the owner sets. All four are reached in
-a browser and from `pea`. What is left of `docs/mvp-plan.md` is not content: the
-dashboard and search of PERSONAL-E9, and the operational acceptance of
-PERSONAL-E10.
+**PERSONAL-E9 is complete**: the words and the columns Postgres keeps up to
+date from every row (PERSONAL-55), the home page's tiles and the rows behind
+them (PERSONAL-56), the weather and the one outbound request in this product
+(PERSONAL-57), the six endpoints over the three (PERSONAL-58), `pea search`,
+`pea dashboard` and `pea weather` (PERSONAL-59), the home page that is finally a
+dashboard and the field that reaches everything (PERSONAL-60), and the suite and
+the record that close it (PERSONAL-61). What the epic decided is
+[ADR 0009](./adr/0009-the-index-is-a-column-and-the-weather-waits-on-nobody.md).
+
+**All four applications are here, and one question reaches all of them.** An
+instance captures plain text, lists it, pins it, expires it and destroys it; it
+stores files in folders and hands them back byte for byte; it keeps lasting
+notes as Markdown in a tree, with a history behind every page and an export
+anybody can read; and it keeps personal commitments in named lists, in an order
+the owner sets. One search finds across the four, one home page says what is
+pending, and a tile says what it is doing outside. All of it is reached in a
+browser and from `pea`. What is left of `docs/mvp-plan.md` is not a feature at
+all: the operational acceptance and the first release of PERSONAL-E10 — and no
+backup has yet been through a restore anybody has proved.
 
 ## Where this comes from
 
@@ -293,12 +304,22 @@ Implemented for Files (PERSONAL-E6): `Domain/Files/` with `StoredFile`,
 their migration; `Files/LocalFileBytes`; and `Http/FileEndpoints` with
 `FileBodies` beside it.
 
-**Nothing of the four applications is planned but unimplemented any more.** An
+**Nothing of the MVP's features is planned but unimplemented any more.** An
 instance answers the five outside the door, the owner's own, which applications
-it has, its Scratchpad, its Files, its Knowledge, its Tasks, and a Trash that
-three of the four fill and the Scratchpad deliberately never puts anything in.
-What is still to come is the dashboard, the search and the release
-(PERSONAL-E9, PERSONAL-E10), and neither is a content module.
+it has, its Scratchpad, its Files, its Knowledge, its Tasks, a Trash that three
+of the four fill and the Scratchpad deliberately never puts anything in, one
+search over all four, a home page of tiles, and the weather. What is still to
+come is the release (PERSONAL-E10), which is not a module at all.
+
+PERSONAL-E9 added `Domain/Search/` and `Domain/Dashboard/` and `Domain/Weather/`;
+`Application/Ports/ISearch`, `IDashboard`, `IDashboardTiles`, `IWeatherPlace`,
+`IWeather` and `WeatherSettings`; `Application/Acts/Search/`, `Acts/Dashboard/`
+and `Acts/Weather/`; `Persistence/Search` — the only hand-written SQL in the
+product — beside `Persistence/Dashboard`, `DashboardTiles` and `WeatherPlaces`,
+the `search_vector` column that `Configurations/SearchIndex.cs` puts on four
+existing tables, and `Weather/OpenMeteo`, the one thing here that opens a socket
+to somewhere else; and `Http/SearchEndpoints`, `DashboardEndpoints` and
+`WeatherEndpoints`.
 
 ## Where an application lives
 
@@ -342,8 +363,9 @@ an application's acts reach persistence through an interface in
 What more than one of them shares sits at the root of the layer it belongs to,
 and only once two of them actually need it: the concurrency guard, recoverable
 deletion and actor attribution of PERSONAL-E3; the enablement switch of
-PERSONAL-E4; the search contribution of PERSONAL-E9. **No generic content
-entity.** Four applications that share conventions are not four rows in one
+PERSONAL-E4; the `search_vector` column of PERSONAL-E9, which a module gets by
+calling `builder.IsSearchable(…)` in its own configuration and nowhere else.
+**No generic content entity.** Four applications that share conventions are not four rows in one
 table, and PERSONAL-E3 is explicit that a universal workflow framework is not
 what is wanted.
 
@@ -380,6 +402,36 @@ safeguards:
 - **The editor.** `shared/MarkdownField.tsx`, with its toolbar, its preview and
   its full-screen dialog. Everything written in this workspace goes through it,
   so what is decided there is decided in all of them at once.
+
+## What is not an application
+
+Three things in this product read the four applications without being one of
+them, and they live at the root of each layer for the reason identity does:
+every application answers them the same question.
+
+**The search** is a column and not a service. `Configurations/SearchIndex.cs`
+puts a stored generated `search_vector` on a module's table — one line in that
+module's own configuration — and Postgres keeps it up to date from the row.
+`Persistence/Search.cs` is four statements over those four columns, and is the
+only hand-written SQL in the product; what that costs is spelled out where
+somebody changing it will read it, because hand-written SQL does not get the
+query filter that hides the Trash.
+
+**The dashboard** owns no content. `IDashboard` is a reading of the tables the
+modules already write, in the one shape a tile wants — five rows, ordered by
+what makes them useful now — and `IDashboardTiles` is five seeded rows of the
+owner's own preferences, keyed the way the application switch is.
+
+**The weather** is the only thing here that asks something outside this
+instance. It is behind a port that answers with nothing rather than throwing, it
+has an address of its own so that the home page can never wait on it, and an
+operator can switch it off entirely
+([ADR 0009](./adr/0009-the-index-is-a-column-and-the-weather-waits-on-nobody.md)).
+
+*A fifth application would join the first two by doing two things: calling
+`builder.IsSearchable(…)` in its configuration, and answering a case in
+`DashboardTile`. Neither is a registry and neither is a plugin — both are a line
+somebody writes.*
 
 ## The CLI is a client, not a layer
 
@@ -747,11 +799,17 @@ things a later module can read is `Positions`: an order that survives a
 concurrent workspace, because a move changes one row
 ([ADR 0008](./adr/0008-a-due-date-is-a-day-and-an-order-is-a-number-between-two-others.md)).
 
-**PERSONAL-E9, search and the dashboard, and PERSONAL-E10, operations.** Nothing
-in the foundation stands in their way and nothing anticipates them. The two
-volumes a consistent backup has to cover are named in
-[`docs/operations.md`](./operations.md). The Knowledge export is **not** a
-backup and must not be described as one: it carries no Trash, no revisions and
+**PERSONAL-E9, search and the dashboard — landed.** It added nothing to the four
+applications and took nothing from them: the index is a column Postgres keeps up
+to date, so a module is searchable by calling one line in its own configuration,
+and the dashboard reads the tables the modules already write. What a fifth
+application would have to do to join both is exactly those two things
+([ADR 0009](./adr/0009-the-index-is-a-column-and-the-weather-waits-on-nobody.md)).
+
+**PERSONAL-E10, operations.** Nothing in the foundation stands in its way and
+nothing anticipates it. The two volumes a consistent backup has to cover are
+named in [`docs/operations.md`](./operations.md). The Knowledge export is **not**
+a backup and must not be described as one: it carries no Trash, no revisions and
 no agent access.
 
 **Every epic.** A new endpoint is a change to `docs/api/openapi.json` in the

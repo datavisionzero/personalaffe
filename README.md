@@ -55,11 +55,19 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > standing — and an order you set, in which moving one task leaves every other
 > device's version alone.
 >
-> **What is left is not content.** The home page is not a dashboard yet, nothing
-> is searchable, and there is no release: those are PERSONAL-E9 and
-> PERSONAL-E10. And no backup of this has been through a restore anybody has
-> proved — also PERSONAL-E10, and the Knowledge export is not one — so
-> **anything you would mind losing still belongs somewhere else as well.**
+> PERSONAL-E9 is what the four of them add up to. **One search** over knowledge
+> pages, tasks, Scratchpad text and file names — every word matched as a
+> beginning, so `arch dec` finds "Architecture decisions" while you are still
+> typing it — from a field in the palette or from `/search`, and from
+> `pea search`. **A home page that is a dashboard**: five tiles you can hide one
+> at a time, five rows each, every row a link to the thing itself. And **a
+> weather tile** for a place you set once, at an address of its own so that a
+> server on the other side of the internet can never hold your home page up.
+>
+> **What is left is not a feature.** There is no release, and no backup of this
+> has been through a restore anybody has proved — both PERSONAL-E10, and the
+> Knowledge export is not one — so **anything you would mind losing still
+> belongs somewhere else as well.**
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
@@ -238,6 +246,15 @@ Tasks is the fourth, and the one that has to be quick:
 ./pea tasks done ID
 ```
 
+And one question over all four of them, with the home page beside it:
+
+```sh
+./pea search arch dec            # every word a beginning, all of them required
+./pea search budget --application files
+./pea dashboard                  # what is open, what was written, what arrived
+./pea weather                    # its own request, on purpose
+```
+
 [`docs/cli.md`](docs/cli.md) has the configuration ladders, the input rules and
 the exit codes.
 
@@ -331,16 +348,23 @@ Everything here is PERSONAL-E1 to PERSONAL-E8, and nothing more.
   sprints, no dependencies and no time tracking (VISION §6.4). A due date is a
   day rather than a moment, which is why it is the same day in every timezone.
 - **Knowledge is Markdown and a tree, and nothing more.** No tags, no automatic
-  backlinks, no full-text search yet (that is PERSONAL-E9), and no turning a
-  Scratchpad entry into a page. A page keeps fifty previous versions and the
-  tree is eight deep.
+  backlinks, and no turning a Scratchpad entry into a page. A page keeps fifty
+  previous versions and the tree is eight deep.
 - **Files stores small files and nothing looks inside them.** No previews, no
-  sharing links, no versioning of the bytes, and no search of their contents. A
-  file is at most 64 MiB and the application at most 5 GiB by default, and both
+  sharing links, no versioning of the bytes, and no search of their contents —
+  one search finds a file by its *name* and never by what is in it (VISION §6.1).
+  A file is at most 64 MiB and the application at most 5 GiB by default, and both
   are an operator's variable ([`docs/operations.md`](docs/operations.md)).
-- **The home page is not the dashboard.** It says which applications this
-  workspace has; the tiles of what is pending and what was touched are
-  PERSONAL-E9's, and so is searching.
+- **The search has no query language.** No `AND`, no quoted phrase, no `-word`:
+  every word is a beginning and all of them have to be found. A limit with
+  "there is more" rather than a cursor, and nothing from the Trash — a search is
+  an ordinary read.
+- **The dashboard is five tiles in a fixed order.** Hide them one at a time;
+  there is no free arrangement, no widget store and no custom data (VISION §6.1).
+- **The weather is one request and can be switched off.** Open-Meteo, which
+  needs no account and no key; what is sent is two coordinates and nothing about
+  who is asking. `PERSONALAFFE_WEATHER=off` and nothing in this product opens a
+  socket to anywhere.
 - **There is no release.** No image is published anywhere, and CI deliberately
   has no credential to publish one with. Release artifacts are PERSONAL-E10's.
 - **Backups are two volumes and no procedure.** A file is a row in one and bytes

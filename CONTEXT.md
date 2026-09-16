@@ -58,5 +58,15 @@ ends or the owner permanently removes it.
 _Avoid_: Archive, backup
 
 **Dashboard tile**:
-A compact view of useful or pending information on the home page.
-_Avoid_: Report, application
+A compact view of useful or pending information on the home page. A tile can be
+hidden without changing anything but the home page.
+_Avoid_: Report, application, widget
+
+**Finding**:
+One thing a search matched, in whichever application holds it.
+_Avoid_: Hit, document, result set
+
+**Weather place**:
+The point and the label the owner chose for the weather tile. It is not an
+address and it is never resolved by a tile.
+_Avoid_: Location service, city

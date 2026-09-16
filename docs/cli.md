@@ -6,10 +6,12 @@ reaches no database, no file volume and no other affe product, and it knows an
 instance only through the client generated from
 [`docs/api/openapi.json`](./api/openapi.json).
 
-**All four applications are here.** Two verbs are the foundation's, three are
-the credential's, two are the workspace's, seven are the Scratchpad's
-(PERSONAL-E5), six are Files' (PERSONAL-E6), nine are Knowledge's
-(PERSONAL-E7) and ten are Tasks' (PERSONAL-E8).
+**All four applications are here, and so is the question that reaches all of
+them.** Two verbs are the foundation's, three are the credential's, two are the
+workspace's, seven are the Scratchpad's (PERSONAL-E5), six are Files'
+(PERSONAL-E6), nine are Knowledge's (PERSONAL-E7), ten are Tasks' (PERSONAL-E8)
+and three are the workspace's own — one search, the home page, and the weather
+(PERSONAL-E9).
 Everything else on this page — the ladders, the input rules, the exit codes — is
 the shape every later verb is written to, and it is here because it was settled
 in PERSONAL-5, before there was a second verb to settle it differently.
@@ -55,6 +57,9 @@ pea tasks mv          # where it sits: --after ID or --top
 pea tasks rm          # into the Trash
 pea trash list        # what was deleted and is still recoverable
 pea trash restore     # put one thing back
+pea search            # find something in all four at once
+pea dashboard         # what is useful or pending, as the home page has it
+pea weather           # what it is doing where the owner said
 ```
 
 ## What it promises
