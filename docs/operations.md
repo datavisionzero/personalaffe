@@ -4,24 +4,56 @@ One application container and one PostgreSQL, beside two volumes that are the
 whole of what has to be backed up. Nothing else: no other affe product has to be
 running, no message broker, no object store, no mail server.
 
-> **There is a door, and there is nothing behind it yet.** An instance is
-> claimed once by its owner and everything but five operations then needs a
-> credential — but the second factor, agent access and the four applications are
-> still being built. Run it on a machine you own, published on loopback, and put
-> nothing personal in it. Public production use waits for the rest of the
-> security epic and the release epic ([`docs/mvp-plan.md`](./mvp-plan.md)).
+What it wants from the machine it runs on is Docker, somewhere to keep two
+files, and a name in DNS pointing at it. **It terminates no TLS and asks for
+none** — the proxy you already run does that, and
+[Behind a reverse proxy](#behind-a-reverse-proxy) is a worked configuration for
+one, end to end.
 
-## Starting it
+## From nothing to a working instance
+
+Seven steps, in order. None of them is guessed and none of them needs anything
+this repository has and you do not; the whole of what you provide is a password,
+a certificate and a name.
+
+### 1. The password, and the file it goes in
+
+Everything an operator sets is `deploy/.env`, beside the Compose file. Copy the
+example — it lists every variable with its default and what it is for — and set
+the one value that has none.
 
 ```sh
-cp deploy/.env.example deploy/.env      # and set POSTGRES_PASSWORD
+cp deploy/.env.example deploy/.env
+openssl rand -base64 33          # put it after POSTGRES_PASSWORD= in that file
+```
+
+**No secret in this product has a default.** An instance whose database password
+is missing does not start with a weak one; it stops, before it opens a socket,
+with a line saying which variable and why. That is the same answer for every
+variable below.
+
+### 2. The image
+
+```sh
 docker build -f deploy/Dockerfile -t personalaffe:local .
-docker compose -f deploy/docker-compose.yml up -d
 ```
 
 There is no published image yet, which is why the build is a step of its own;
 `PERSONALAFFE_IMAGE` in `deploy/.env` is what names a published one when there
 is.
+
+### 3. Up, and waited for
+
+```sh
+docker compose -f deploy/docker-compose.yml up -d --wait
+```
+
+`--wait` and not `-d` alone. Without it the command returns when the containers
+have been *started*, which is before PostgreSQL has accepted a connection and
+before the migrations have run — and an operator reading "done" then curls a
+port that answers nothing. With it, the command waits for the health check that
+is already in the Compose file and comes back non-zero if the instance never
+becomes ready, which is what makes this line safe to put in a script.
 
 The application waits for PostgreSQL to be healthy, then checks the file storage
 root, then applies any pending migrations, and only then serves. An instance
@@ -30,26 +62,97 @@ that could not do one of those does not start and says which in its log.
 ```sh
 curl http://127.0.0.1:8080/api/health/ready     # {"status":"ready"}
 curl http://127.0.0.1:8080/api/version
-curl http://127.0.0.1:8080/api/setup           # {"required":true} until somebody claims it
-open  http://127.0.0.1:8080/
 ```
 
-### Claiming it
+**The port is on loopback and that is deliberate.** `PERSONALAFFE_PORT` is the
+whole left half of the published port, so the default `127.0.0.1:8080` binds
+there and nowhere else: a reverse proxy on the same machine reaches the
+instance, and the internet does not reach it except through that proxy. There is
+no step below that changes this.
+
+### 4. The proxy in front of it
+
+The proxy is yours, the certificate is yours, and
+[Behind a reverse proxy](#behind-a-reverse-proxy) is a configuration that works
+for one of them and says what the other would differ in. Put it in place and
+confirm that the name resolves and the certificate is valid before going on:
+
+```sh
+curl -sS https://workspace.example.com/api/health/ready
+```
+
+### 5. Tell the instance about the proxy
+
+`X-Forwarded-For` is a header any client can write, so nothing is believed until
+you name the proxy. Two lines in `deploy/.env`, and then the containers are
+recreated with them:
+
+```sh
+PERSONALAFFE_TRUSTED_PROXY=all                            # see below
+PERSONALAFFE_PUBLIC_URL=https://workspace.example.com
+```
+
+```sh
+docker compose -f deploy/docker-compose.yml up -d --wait
+```
+
+**Before claiming it, not after.** The throttle on failed sign-ins is built on
+the caller's address, and an instance that believes nothing counts every attempt
+against the proxy — which is one address for everybody. `all` is what belongs
+here when the port is on loopback: the proxy is then the only thing that can
+reach the instance, so whoever connects *is* the proxy.
+
+### 6. Claim it
 
 A fresh instance belongs to nobody, and the first thing done with it is the
 one-time setup: an email address, which is the login identifier and nothing to
-do with sending mail, and a password of at least twelve characters.
+do with sending mail, and a password of at least twelve characters. Open
+`https://workspace.example.com/` and it asks; from a terminal it is one request:
 
 ```sh
-curl -X POST http://127.0.0.1:8080/api/setup \
+curl -X POST https://workspace.example.com/api/setup \
   -H 'content-type: application/json' \
   -d '{"email": "owner@example.com", "password": "correct horse battery staple"}'
 ```
 
 **It works exactly once.** There is one owner, there is no second account, and a
 second attempt is refused. An owner who has lost their password gets back in
-through the machine this runs on ([`docs/api.md`](./api.md)); there is no
-password-reset mail, because there is no mail.
+through the machine this runs on, below; there is no password-reset mail,
+because there is no mail.
+
+Sign in, and — if you want one — enrol a second factor on the security screen.
+It is optional, the recovery codes it gives you are shown once, and
+[When the owner is locked out](#when-the-owner-is-locked-out) is what stands
+behind both.
+
+### 7. Switch the applications on, and let an agent in
+
+Four switches in Settings — Scratchpad, Files, Knowledge, Tasks — each of which
+takes its application out of the web application, the API, the CLI, the search
+and the home page while it is off. Retention keeps running regardless; switching
+something off never quietly erases what has not expired.
+
+Agent access is on the same screen: a named, revocable authorization with no
+access, read access or read/write access **per application**. It is issued once
+and shown once, it is not a second human account, and it cannot issue
+credentials, change security settings, empty the Trash or reset the instance.
+[`docs/cli.md`](./cli.md) is what to do with one.
+
+### Proving it, from outside
+
+```sh
+scripts/smoke.sh https://workspace.example.com
+```
+
+Eight checks against the address an owner actually uses, and every one of them
+is an operation that answers before anything has authenticated: that the API
+answers and says what it is, that liveness and readiness both answer, that the
+door in front of everything else is shut, that the web application is served
+from the same origin, that an unknown address under `/api` is still an API error
+and not the page, that the contract the instance serves is the one that is
+checked in, and that `pea` — built there and then from that document — reports
+the same version the browser reads. It writes nothing into the repository and
+needs no credential.
 
 ## When the owner is locked out
 
@@ -112,24 +215,43 @@ failed is in the instance's log at warning, where the operator is.
 
 ## What it reads
 
+Eleven variables, and the instance reads them in one block before it opens a
+socket — so a value it will not accept stops the start with the one line that
+names the variable, rather than with a stack trace out of the first request. The
+fourth column is that line, minus the ` The instance will not start.` every one
+of them ends with.
+
+| Variable | Default | What it is | When it is wrong |
+| --- | --- | --- | --- |
+| `ConnectionStrings__Postgres` | — | **Required.** The database. Never written to a log: what is printed is the same string with every credential replaced by `***`. | `… is not set. It is the PostgreSQL this instance keeps its data in, for example Host=db;Port=5432;Database=personalaffe;Username=personalaffe;Password=…`, or `… names no host.` — and never the value. |
+| `PERSONALAFFE_STORAGE_ROOT` | `/var/lib/personalaffe/files` in the image | Where the owner's files go. Must be writable by the user the container runs as, and must not be under the static web root. | `… is not a usable path.` A path that is fine but unwritable is caught a moment later, by the check at startup, which names the path and the variable. |
+| `PERSONALAFFE_MAX_FILE_MIB` | `64` | Whole mebibytes, 1 to 1048576. How large one stored file may be. | `… is a whole number of mebibytes.`, `… is between 1 and 1048576 MiB.`, or `… is larger than PERSONALAFFE_MAX_STORAGE_MIB, so no file could ever be stored.` |
+| `PERSONALAFFE_MAX_STORAGE_MIB` | `5120` | Whole mebibytes, 1 to 1048576. How much the Files application may store in all, what is in the Trash included. Must not be smaller than the per-file limit. | The same two lines, about this variable. |
+| `PERSONALAFFE_TRASH_RETENTION` | `30` | Whole days, 1 to 3650. How long deleted knowledge pages, tasks, lists, files and folders stay recoverable. See below. | `… is a whole number of days.` or `… is between 1 and 3650 days.` |
+| `PERSONALAFFE_SCRATCHPAD_RETENTION` | `7` | Whole days, 1 to 3650. How long an unpinned Scratchpad entry lasts after it was last changed. See below. | The same two lines, about this variable. |
+| `PERSONALAFFE_WEATHER` | `on` | `on` or `off`. Whether this instance asks anybody outside it about the weather. Off, and nothing in this product opens a socket to anywhere. See below. | `… is on or off.` |
+| `PERSONALAFFE_WEATHER_FRESHNESS` | `15` | Whole minutes, 1 to 1440. How long a reading is held before the provider is asked again. | `… is a whole number of minutes.` or `… is between 1 and 1440 minutes.` |
+| `PERSONALAFFE_TRUSTED_PROXY` | unset | Which peers may speak for the caller: an address, a CIDR network, a comma-separated list of either, or `all`. Unset, nobody may. See below. | `…: 10.0.0.999 is neither an IP address nor ``all``.`, or `… neither a CIDR network nor ``all``.` for an entry with a `/` in it. |
+| `PERSONALAFFE_PUBLIC_URL` | unset | Where this instance is reached, like `https://workspace.example.com`. Optional: what it buys is a stricter check on writes made from a browser, which without it are checked against the host alone. It is never used to build a link. | `… is workspace.example.com, which is not an address this instance can be reached at: scheme and host, like https://workspace.example.com.` |
+| `PERSONALAFFE_LOG_LEVEL` | `Information` | `Verbose`, `Debug`, `Information`, `Warning`, `Error` or `Fatal`. | `… is "chatty", which is not a level. It is one of: …` |
+
+Two more are read by the Compose file rather than by the instance, and mean
+nothing to a `docker run` that does not use it:
+
 | Variable | Default | What it is |
 | --- | --- | --- |
-| `ConnectionStrings__Postgres` | — | Required. The database. The instance refuses to start without it, and never writes it to the log: what is printed is the same string with every credential replaced by `***`. |
-| `PERSONALAFFE_STORAGE_ROOT` | `/var/lib/personalaffe/files` in the image | Where the owner's files go. Must be writable by the user the container runs as, and must not be under the static web root. |
-| `PERSONALAFFE_MAX_FILE_MIB` | `64` | Whole mebibytes, 1 to 1048576. How large one stored file may be. |
-| `PERSONALAFFE_MAX_STORAGE_MIB` | `5120` | Whole mebibytes, 1 to 1048576. How much the Files application may store in all, what is in the Trash included. Must not be smaller than the per-file limit. |
-| `PERSONALAFFE_TRASH_RETENTION` | `30` | Whole days, 1 to 3650. How long deleted knowledge pages, tasks, lists, files and folders stay recoverable. See below. |
-| `PERSONALAFFE_SCRATCHPAD_RETENTION` | `7` | Whole days, 1 to 3650. How long an unpinned Scratchpad entry lasts after it was last changed. See below. |
-| `PERSONALAFFE_WEATHER` | `on` | `on` or `off`. Whether this instance asks anybody outside it about the weather. Off, and nothing in this product opens a socket to anywhere. See below. |
-| `PERSONALAFFE_WEATHER_FRESHNESS` | `15` | Whole minutes, 1 to 1440. How long a reading is held before the provider is asked again. |
-| `PERSONALAFFE_TRUSTED_PROXY` | unset | Which peers may speak for the caller. See below. |
-| `PERSONALAFFE_PUBLIC_URL` | unset | Where this instance is reached, like `https://workspace.example.com`. Optional: what it buys is a stricter check on writes made from a browser, which without it are checked against the host alone. It is never used to build a link. |
-| `PERSONALAFFE_LOG_LEVEL` | `Information` | `Verbose`, `Debug`, `Information`, `Warning`, `Error` or `Fatal`. |
-| `PERSONALAFFE_PORT` | `127.0.0.1:8080` | Compose only: the whole left half of the published port, so an address in front of it binds there and nowhere else. |
+| `PERSONALAFFE_PORT` | `127.0.0.1:8080` | The whole left half of the published port, so an address in front of it binds there and nowhere else. |
+| `PERSONALAFFE_IMAGE` | `personalaffe:local` | The image this instance runs. There is no published release yet, so the default is what a local `docker build` produces. |
 
-A value the instance will not accept stops the start with one line naming the
-variable. Overriding any of them is a line in `deploy/.env` followed by
-`docker compose up -d`.
+Overriding any of them is a line in `deploy/.env` followed by
+`docker compose -f deploy/docker-compose.yml up -d --wait`.
+
+**This table is checked rather than maintained.** A variable the code reads and
+this table does not list, or the other way round, fails
+`TheVariablesAreDocumentedTests` in the unit suite — along with the same
+comparison against `deploy/.env.example` and against the environment the Compose
+file passes through. A document nobody can run is not a document an operator can
+trust.
 
 ## The Trash empties itself
 
@@ -275,13 +397,104 @@ Swept the Scratchpad: removed 3 expired entry/entries.
 
 The instance terminates no TLS and asks for none: put a proxy you already run in
 front of it, give the proxy the certificate, and let it talk to
-`127.0.0.1:8080`.
+`127.0.0.1:8080`. **The proxy is yours.** This product does not ship one, does
+not configure one, and does not need a particular one — what follows is one
+worked configuration so that nothing has to be guessed, and the paragraph after
+it is what a different proxy has to be told instead.
+
+Nothing here needs WebSocket, streaming or HTTP/2 to the origin. Every screen
+that keeps up with the instance does so by asking again; an upload and a
+download are one ordinary request each. A proxy that can pass a large body and
+a large response through is the whole requirement.
+
+### Caddy, end to end
+
+```caddyfile
+workspace.example.com {
+	# The certificate. Caddy gets one from Let's Encrypt on first start and
+	# renews it; `tls internal` instead would be its own CA, for a name that
+	# is not public.
+	tls owner@example.com
+
+	# The instance, on the loopback address the Compose file publishes.
+	reverse_proxy 127.0.0.1:8080 {
+		# What the instance reads back out, once PERSONALAFFE_TRUSTED_PROXY
+		# names this proxy. Caddy sets all three by itself; they are written
+		# here because a configuration that relies on a default is one
+		# nobody can check.
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+
+	# No request body limit. The instance has one — PERSONALAFFE_MAX_FILE_MIB,
+	# 64 MiB by default — and refuses an over-large upload with a
+	# `problem+json` document both clients understand, while the body is still
+	# arriving. A smaller limit here would replace that with the proxy's own
+	# error page, which neither client can read and which says nothing about
+	# what the limit is.
+
+	encode zstd gzip
+}
+```
+
+`caddy reload --config /etc/caddy/Caddyfile`, and that is the whole of it.
+
+### What another proxy has to be told instead
+
+nginx is the other one most operators already run. Three of its defaults are
+wrong for this, and the rest is the same two headers:
+
+```nginx
+server {
+	listen 443 ssl;
+	server_name workspace.example.com;
+
+	ssl_certificate     /etc/letsencrypt/live/workspace.example.com/fullchain.pem;
+	ssl_certificate_key /etc/letsencrypt/live/workspace.example.com/privkey.pem;
+
+	location / {
+		proxy_pass http://127.0.0.1:8080;
+
+		proxy_http_version 1.1;
+		proxy_set_header Host              $host;
+		proxy_set_header X-Forwarded-For   $remote_addr;
+		proxy_set_header X-Forwarded-Proto $scheme;
+
+		# nginx's default is 1 MiB, and it refuses a larger upload itself
+		# with an HTML page the instance never sees and neither client can
+		# read. 0 hands every body through and lets the instance answer.
+		client_max_body_size 0;
+
+		# And hands it through as it arrives rather than spooling 64 MiB to
+		# disk first, so that a refusal arrives while the upload is still
+		# going rather than after all of it has been accepted.
+		proxy_request_buffering off;
+
+		# A download of a large file is one long response. The default is
+		# sixty seconds between reads, which is generous for a volume on the
+		# same machine and not for one that is not.
+		proxy_read_timeout 300s;
+	}
+}
+```
+
+Apache, HAProxy and Traefik need the same four things and nothing more: the
+certificate, the two forwarded headers, a request body limit that is not smaller
+than this instance's, and a read timeout that survives a large download.
+
+### Naming the proxy to the instance
 
 `X-Forwarded-For` is a header any client can write, so **nothing is believed
 until you name the proxy**. Unset, every request looks as if it came from
 whatever spoke to the socket — honest, if unhelpful, and the safe half of the
-trade: the throttle on failed sign-ins and the log lines are built on that
-address.
+trade: **the throttle on failed sign-ins is built on that address**, and behind
+an unnamed proxy every caller in the world shares one.
+
+Five failures for one account and twenty from one address, both counted over
+fifteen minutes, and what a throttled attempt answers is exactly what a wrong
+one answers — saying "you are being throttled" would tell a guesser they had
+found something worth guessing at.
 
 ```sh
 PERSONALAFFE_TRUSTED_PROXY=10.0.0.7            # one proxy
@@ -293,6 +506,11 @@ PERSONALAFFE_TRUSTED_PROXY=all                 # whoever connects
 which is what publishing the port on loopback does. One hop is believed and two
 headers are read, the caller's address and the scheme; a longer chain is not
 this product's to reason about.
+
+`PERSONALAFFE_PUBLIC_URL` is the second half of telling the instance where it
+is. It is optional and it is not a link: what it buys is that a write arriving
+from a browser has its origin compared against this address whole, rather than
+against the host the request happened to arrive at.
 
 ## The two volumes, and which commands destroy them
 

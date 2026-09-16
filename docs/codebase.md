@@ -592,6 +592,16 @@ rules of Domain and the acts of Application against substituted ports, the
 layering test, and the parts of Infrastructure that need nothing installed
 either — the password hasher is a function, and a function is a unit test.
 
+Two of its files test documents rather than code, because a document nobody can
+run is one an operator cannot trust. `LayeringTests` reads the four project
+files. `TheVariablesAreDocumentedTests` reads `docs/operations.md`,
+`deploy/docker-compose.yml` and `deploy/.env.example` and compares the three
+against every `const string …Variable` the settings types declare — so a
+variable that is added, renamed or removed fails the unit suite until the table
+an operator reads has heard about it. It is the one reason the unit tests
+reference `Personalaffe.Api` at all: one of the eleven is read by
+`Http/TrustedProxies` rather than by a settings record.
+
 **`Personalaffe.IntegrationTests`** also owns **the proving ground**: a `things`
 table with a tree, a history and the deletion columns, created by the test
 fixture and living nowhere in `src/`. PERSONAL-E3's conventions landed before

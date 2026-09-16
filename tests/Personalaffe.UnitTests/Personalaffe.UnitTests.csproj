@@ -10,6 +10,11 @@
     <!-- The password hasher is a function and needs nothing installed, so it is
          tested here rather than behind a container (docs/codebase.md). -->
     <ProjectReference Include="../../src/Personalaffe.Infrastructure/Personalaffe.Infrastructure.csproj" />
+    <!-- For TheVariablesAreDocumentedTests, and for that alone: one of the
+         eleven variables an operator sets is read by Http/TrustedProxies rather
+         than by a settings record, and a check that walked ten of them would be
+         a check with a hole in it. Nothing here starts a host. -->
+    <ProjectReference Include="../../src/Personalaffe.Api/Personalaffe.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

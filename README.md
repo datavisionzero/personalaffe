@@ -316,23 +316,27 @@ boundary, the two volumes and which commands destroy them.
 
 ## Checking that it hangs together
 
-With an instance running, one script asks the six questions nothing else answers
-from the outside:
+With an instance running, one script asks the eight questions nothing else
+answers from the outside — and it takes the address, so the one it is asked
+about can be the proxied one an owner actually uses:
 
 ```sh
-scripts/smoke.sh                          # or scripts/smoke.sh http://127.0.0.1:8080
+scripts/smoke.sh                          # or scripts/smoke.sh https://workspace.example.com
 ```
 
-It checks that the API answers, that liveness and readiness both do, that the
-web application is served from the same origin, that an unknown address under
-`/api` is still an API error, that the contract the instance serves is the one
-checked in, and that both clients generate from that document — with `pea`,
-built there and then, reporting the same version the browser would read. It
-writes nothing into the repository and needs no credential.
+It checks that the API answers and says what it is, that liveness and readiness
+both answer, that the door in front of everything else is shut and says which
+refusal it is, that the instance says whether it has an owner and nothing else,
+that the web application is served from the same origin, that an unknown address
+under `/api` is still an API error and not the page, that the contract the
+instance serves is the one checked in, and that both clients generate from that
+document — with `pea`, built there and then, reporting the same version the
+browser would read. It writes nothing into the repository and needs no
+credential.
 
 ## Known limits
 
-Everything here is PERSONAL-E1 to PERSONAL-E8, and nothing more.
+Everything here is PERSONAL-E1 to PERSONAL-E9, and nothing more.
 
 - **All four applications work, and none of what is left is content.** What the
   database carries is an owner, their sessions, their recovery codes, the agents
