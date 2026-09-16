@@ -316,7 +316,7 @@ boundary, the two volumes and which commands destroy them.
 
 ## Checking that it hangs together
 
-With an instance running, one script asks the eight questions nothing else
+With an instance running, one script asks the ten questions nothing else
 answers from the outside — and it takes the address, so the one it is asked
 about can be the proxied one an owner actually uses:
 
@@ -344,7 +344,9 @@ scripts/rehearse-an-upgrade.sh            # builds two earlier builds out of the
 It checks that the API answers and says what it is, that liveness and readiness
 both answer, that the door in front of everything else is shut and says which
 refusal it is, that the instance says whether it has an owner and nothing else,
-that the web application is served from the same origin, that an unknown address
+that a body the reader cannot make sense of is a document rather than an empty
+status, that every answer carries the headers that say what a browser may do
+with it, that the web application is served from the same origin, that an unknown address
 under `/api` is still an API error and not the page, that the contract the
 instance serves is the one checked in, and that both clients generate from that
 document — with `pea`, built there and then, reporting the same version the
@@ -426,6 +428,13 @@ workspace, the CLI, the contract against a real PostgreSQL, and the image with a
 smoke test that starts it through the Compose file and checks that one container
 serves both halves. It publishes nothing and holds no credential.
 [`docs/codebase.md`](docs/codebase.md) has the job-by-job table.
+
+## Security
+
+[`SECURITY.md`](SECURITY.md) says how to report a vulnerability, what is in
+scope, what this product deliberately does not promise, and — claim by claim,
+with the test that proves each one — what the door in front of the workspace is
+made of.
 
 ## Licence
 

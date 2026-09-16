@@ -349,6 +349,12 @@ app.UseExceptionHandler();
 
 app.UsePersonalaffeVersion();
 
+// And the headers that say what a browser may do with what it was given
+// (SecurityHeaders). In front of everything for the same reason the version is:
+// the answer that must not be framed, sniffed or allowed to call out is any of
+// them, the refusals and the web application included.
+app.UsePersonalaffeSecurityHeaders();
+
 app.UseRouting();
 
 // After routing, because it asks the endpoint whether it is behind the door;

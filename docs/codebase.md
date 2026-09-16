@@ -187,7 +187,7 @@ personalaffe/
 ├─ .github/workflows/          the gate: ci on every push and pull request
 ├─ deploy/                     Dockerfile, Compose (production and development), .env.example
 ├─ scripts/
-│  ├─ smoke.sh                 does this hang together? nine checks against a running instance
+│  ├─ smoke.sh                 does this hang together? ten checks against a running instance
 │  ├─ restore.sh               a backup put back: stop, restore, start
 │  ├─ rehearse-a-restore.sh    the whole circle, against the image, and what CI's `restore` job runs
 │  ├─ rehearse-an-upgrade.sh   an earlier build, upgraded and rolled back; CI's `upgrade` job
@@ -210,6 +210,7 @@ personalaffe/
 ├─ tests/
 │  ├─ Personalaffe.UnitTests/
 │  └─ Personalaffe.IntegrationTests/
+├─ SECURITY.md                 how to report something, what is in scope, and what holds the door
 └─ Personalaffe.slnx           plus global.json and the Directory.* properties
 ```
 

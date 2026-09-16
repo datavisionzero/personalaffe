@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Does this foundation actually hang together?
 #
-# Nine checks against a running instance, and they are the ones nothing else
+# Ten checks against a running instance, and they are the ones nothing else
 # proves from the outside: that the API answers, that the door in front of it is
 # shut, that a refusal is the document the contract promises rather than a bare
-# status, that the web application is served from the same origin, that the line
+# status, that every answer still carries the headers that say what a browser may
+# do with it, that the web application is served from the same origin, that the line
 # between them holds, that the contract the instance serves is the one that is
 # checked in, and that both clients can still be generated from it — with `pea`,
 # built here from that document, asking the instance the same question the
@@ -104,6 +105,36 @@ esac
 grep -q '"/problems/unknown-field"' "$work/unreadable.json" \
   || fail "a field the object does not define was not unknown-field: $(cat "$work/unreadable.json")"
 printf '    validation and unknown-field, both as problem+json\n'
+
+# ------------------------------------------------------------ the headers ----
+step "Every answer says what a browser may do with it"
+# From the outside, because this is a header an operator's reverse proxy can
+# strip or replace without anybody noticing until it matters (PERSONAL-66,
+# SECURITY.md). Asked of a refusal, which is the answer a misconfigured proxy is
+# least likely to be rewriting.
+headers="$(curl --silent --max-time 10 --output /dev/null --dump-header "$work/headers.txt" \
+  "$instance/api/me" && tr -d '\r' < "$work/headers.txt" | tr 'A-Z' 'a-z')"
+for header in \
+  "content-security-policy: default-src 'self'" \
+  "x-frame-options: deny" \
+  "x-content-type-options: nosniff" \
+  "referrer-policy: no-referrer" \
+  "cross-origin-opener-policy: same-origin" \
+  "permissions-policy: "
+do
+  printf '%s' "$headers" | grep -q "^${header}" \
+    || fail "an answer carried no ${header%%:*}. Is something in front of this instance dropping it?"
+done
+case "$instance" in
+  https://*)
+    printf '%s' "$headers" | grep -q '^strict-transport-security: max-age=' \
+      || fail "an answer over HTTPS carried no Strict-Transport-Security" ;;
+  *)
+    if printf '%s' "$headers" | grep -q '^strict-transport-security'; then
+      fail "an answer over plain HTTP pinned this host, which would lock an owner out of it"
+    fi ;;
+esac
+printf '    the policy, the frame, the sniff, the referrer and the rest\n'
 
 # ------------------------------------------------------ the web application ----
 step "The web application is served from the same origin as the API"

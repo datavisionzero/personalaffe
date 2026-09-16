@@ -144,12 +144,14 @@ credentials, change security settings, empty the Trash or reset the instance.
 scripts/smoke.sh https://workspace.example.com
 ```
 
-Nine checks against the address an owner actually uses, and every one of them
+Ten checks against the address an owner actually uses, and every one of them
 is an operation that answers before anything has authenticated: that the API
 answers and says what it is, that liveness and readiness both answer, that the
 door in front of everything else is shut, that a body the reader cannot make
 sense of is refused as the document the contract promises rather than as a bare
-status, that the web application is served from the same origin, that an unknown
+status, that every answer carries the headers that say what a browser may do
+with it — which is the check that catches a proxy in front of this instance
+stripping them — that the web application is served from the same origin, that an unknown
 address under `/api` is still an API error and not the page, that the contract
 the instance serves is the one that is checked in, and that `pea` — built there
 and then from that document — reports the same version the browser reads. It
