@@ -1,5 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql;
+using Personalaffe.Domain.Knowledge;
+using Personalaffe.Domain.Scratchpad;
 using Personalaffe.Infrastructure.Persistence;
 
 namespace Personalaffe.IntegrationTests;
@@ -116,6 +120,63 @@ public sealed class MigrationTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task The_newest_migration_is_applied_over_a_database_that_already_has_content_in_it()
+    {
+        // Every other test in this file migrates an empty database, and an empty
+        // database cannot produce the shape a migration actually fails in: a
+        // column made NOT NULL with rows that have none, a unique index over
+        // values that already repeat, a generated column over a row written
+        // before it existed. An upgrade is the only time migrations ever meet
+        // content, so this is that, against a real PostgreSQL.
+        //
+        // The whole circle against the real image is `scripts/rehearse-an-upgrade.sh`;
+        // what this carries is the half that needs no container and can fail on
+        // a laptop in two seconds.
+        var connectionString = await postgres.CreateDatabaseAsync();
+        var written = new DateTimeOffset(2026, 9, 16, 12, 0, 0, TimeSpan.Zero);
+
+        await using var context = AnInstance.ContextFor(connectionString);
+        await AnInstance.MigratorFor(context).ApplyAsync(TestContext.Current.CancellationToken);
+
+        var entry = ScratchpadEntry.Capture("Ünïcödé, and\ntwo lines.", pinned: true, written);
+        var page = Page.Written("What I know", parent: null, "# First\n\nThe first version.", written);
+        context.ScratchpadEntries.Add(entry);
+        context.Pages.Add(page);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // The earlier schema is made from the later one rather than from an
+        // earlier build, because there is no earlier build in a test process.
+        // One migration back and no further: the ones before it drop the tables
+        // the content above is in, and a database with nothing left in it would
+        // be the empty case again. The product has no downgrade path and this
+        // is not one — it is how the forward step is given something to fail on.
+        var known = context.Database.GetMigrations().ToArray();
+        await context.GetService<IMigrator>().MigrateAsync(
+            known[^2], TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            known[^1],
+            Assert.Single(await context.Database.GetPendingMigrationsAsync(
+                TestContext.Current.CancellationToken)));
+
+        await AnInstance.MigratorFor(context).ApplyAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(
+            TestContext.Current.CancellationToken));
+
+        // Read through a context of its own, so that what is asserted came out
+        // of the database rather than out of the one that put it there.
+        await using var afterwards = AnInstance.ContextFor(connectionString);
+
+        Assert.Equal(
+            "Ünïcödé, and\ntwo lines.",
+            (await afterwards.ScratchpadEntries.SingleAsync(TestContext.Current.CancellationToken)).Text);
+        Assert.Equal(
+            page.Id,
+            (await afterwards.Pages.SingleAsync(TestContext.Current.CancellationToken)).Id);
+    }
+
+    [Fact]
     public async Task A_schema_written_by_a_newer_binary_is_refused_rather_than_served()
     {
         var connectionString = await postgres.CreateDatabaseAsync();
@@ -181,11 +242,7 @@ public sealed class MigrationTests(PostgresFixture postgres)
         return await command.ExecuteScalarAsync(TestContext.Current.CancellationToken) as string;
     }
 
-    /// <summary>
-    /// Writes a history row for a migration that does not exist in this build,
-    /// which is what a database another version has migrated looks like from
-    /// here.
-    /// </summary>
+    /// <summary>The columns one table has, by name, for a question about its shape.</summary>
     private static async Task<IReadOnlyList<string>> ColumnsOfAsync(
         PersonalaffeDbContext context, string table)
     {
@@ -209,6 +266,11 @@ public sealed class MigrationTests(PostgresFixture postgres)
         return columns;
     }
 
+    /// <summary>
+    /// Writes a history row for a migration that does not exist in this build,
+    /// which is what a database another version has migrated looks like from
+    /// here.
+    /// </summary>
     private static async Task MigratedByANewerVersionAsync(string connectionString, string migration)
     {
         await using var connection = new NpgsqlConnection(connectionString);

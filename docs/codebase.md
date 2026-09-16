@@ -189,7 +189,9 @@ personalaffe/
 ├─ scripts/
 │  ├─ smoke.sh                 does this hang together? nine checks against a running instance
 │  ├─ restore.sh               a backup put back: stop, restore, start
-│  └─ rehearse-a-restore.sh    the whole circle, against the image, and what CI's `restore` job runs
+│  ├─ rehearse-a-restore.sh    the whole circle, against the image, and what CI's `restore` job runs
+│  ├─ rehearse-an-upgrade.sh   an earlier build, upgraded and rolled back; CI's `upgrade` job
+│  └─ an-instance.sh           what both rehearsals say to an instance, and the life they put in one
 ├─ docs/
 │  ├─ adr/                     the decisions
 │  ├─ api/openapi.json         the HTTP contract, captured and checked in
@@ -584,6 +586,13 @@ each other. A database carrying migrations this binary does not know about stops
 the start rather than being served against — there is no downgrade path, and the
 way back from a bad upgrade is the backup taken before it.
 
+All three of those are walked rather than asserted. `MigrationTests` applies
+them to an empty database, to a populated one, and against a history row a
+newer build would have written; `scripts/rehearse-an-upgrade.sh` does the same
+three things to the real image, upgrading a build one migration behind this one
+with a second container starting beside it, and then rolling it back
+([`docs/operations.md`](./operations.md), Upgrading).
+
 A migration is added with the pinned tool and no running instance anywhere:
 
 ```sh
@@ -700,8 +709,8 @@ its id, and `incoming/`, which holds only uploads still arriving.
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request and
 on demand. It is the only thing standing between a mistake and the trunk, and it
-runs the same commands a contributor runs — eight jobs, six of them beside each
-other and two after all of them:
+runs the same commands a contributor runs — nine jobs: six beside each other,
+the image once they are all green, and two more on top of the image:
 
 | Job | What it runs | The same thing locally |
 | --- | --- | --- |
@@ -713,6 +722,7 @@ other and two after all of them:
 | Browser checks | builds the application into the host's `wwwroot`, starts the instance, drives it in Chromium | `npm run browser`, against an instance you have up (README) |
 | Image and smoke test | builds `deploy/Dockerfile`, starts `deploy/docker-compose.yml`, waits for readiness, checks both halves | `docker build -f deploy/Dockerfile …` then `docker compose … up -d` |
 | Backup and restore | puts a life into an instance, backs it up, destroys both volumes, puts the backup back, reads every bit of it out again | `scripts/rehearse-a-restore.sh` |
+| Upgrade and rollback | puts a life into an earlier build, upgrades it while a second container starts beside it, reads it out, then walks the way back from a failed upgrade | `scripts/rehearse-an-upgrade.sh` |
 
 **No job stands in for a toolchain.** There is no skip condition and no
 always-succeeding placeholder: every one of them builds or runs the thing it is
@@ -848,9 +858,9 @@ same commit, because `ContractTests` compares the two. A new refusal code is a
 row in the table in `docs/api.md` and a case in `Problems`, which throws rather
 than guesses when a code has no status. New tests are more tests in the projects
 CI already runs; another job is only for a subject none of the existing ones
-covers, and two have ever qualified — `browser`, which needs an engine that lays
-things out, and `restore`, which needs a whole installation destroyed and put
-back.
+covers, and three have ever qualified — `browser`, which needs an engine that
+lays things out, `restore`, which needs a whole installation destroyed and put
+back, and `upgrade`, which needs two builds of this product at once.
 
 ## What is deliberately not here
 

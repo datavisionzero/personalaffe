@@ -332,6 +332,15 @@ backup put back, and then every bit of it read out again through the API:
 scripts/rehearse-a-restore.sh             # destroys the volumes it uses, twice
 ```
 
+And one rehearses the other thing that happens to an instance with everything in
+it — a life put into an earlier build, upgraded while a second container starts
+beside it, read back out, and then the whole way back from an upgrade that went
+wrong: the pre-upgrade backup put back, and the page written after it gone:
+
+```sh
+scripts/rehearse-an-upgrade.sh            # builds two earlier builds out of the history
+```
+
 It checks that the API answers and says what it is, that liveness and readiness
 both answer, that the door in front of everything else is shut and says which
 refusal it is, that the instance says whether it has an owner and nothing else,
@@ -387,6 +396,14 @@ Everything here is PERSONAL-E1 to PERSONAL-E9, and nothing more.
   in it ([`docs/operations.md`](docs/operations.md)). The whole circle — a life,
   a backup, both volumes destroyed, the backup put back, everything read out
   again — is `scripts/rehearse-a-restore.sh`, and CI runs it on every push.
+- **An upgrade is a pull and an up, and the way back is that backup.** Migrations
+  apply themselves on start, only ever forward; two containers starting at once
+  take an advisory lock rather than migrating against each other; and a build
+  put in front of a schema a newer one wrote refuses to serve and names what it
+  does not know. Rolling back is `scripts/restore.sh` with the earlier image
+  named. All of it is walked rather than asserted, by
+  `scripts/rehearse-an-upgrade.sh`, which builds an earlier build out of this
+  repository's history — and CI runs that on every push too.
 
 Where each of those plugs in is written down in
 [`docs/codebase.md`](docs/codebase.md), under *What the next epics plug into*.

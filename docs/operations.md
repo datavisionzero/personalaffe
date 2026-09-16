@@ -823,21 +823,104 @@ direction is refused: a build does not serve a schema it has never heard of.
 
 ## Upgrading
 
+Three commands, and the first one is not optional. Migrations apply themselves
+on start, **only ever forward**; there is no downgrade path, so the backup taken
+before the upgrade is the way back and there is no other one.
+
 ```sh
-docker compose -f deploy/docker-compose.yml exec db \
-  pg_dump -U personalaffe personalaffe > backup.sql     # first
+docker compose -f deploy/docker-compose.yml exec -T personalaffe \
+  personalaffe backup --to - > before-the-upgrade.tar   # first, and not pg_dump
 docker compose -f deploy/docker-compose.yml pull        # or rebuild
-docker compose -f deploy/docker-compose.yml up -d
+docker compose -f deploy/docker-compose.yml up -d --wait
 ```
 
-Migrations apply themselves on start, **only ever forward**. There is no
-downgrade path: going back a version means restoring the backup taken before the
-upgrade. An instance started against a schema a newer build wrote refuses to
-serve rather than guessing, and says which migrations it has never heard of.
+**`personalaffe backup` and not `pg_dump`.** A dump is the database and nothing
+else; what an upgrade could cost you is the database *and* the files, and only
+the archive carries both with a manifest tying them together ("Backing it up"
+above). A `pg_dump` taken before an upgrade is a rollback that comes back with
+every file missing.
 
-Two containers starting at once do not migrate against each other — the
-migration takes a Postgres advisory lock, and the second waits and then finds
-nothing to do.
+The archive lands where you ran the command, which is the host and not either
+volume — a way back stored inside the thing you are about to change is not one.
+
+**How long it is down.** The instance stops answering when the old container
+does and answers again when the new one has migrated and reported ready. On the
+rehearsal below, on a laptop, that is **seven seconds**, of which the migration
+is a fraction: most of it is a container starting. A migration that rewrites a
+large table is longer, and `up -d --wait` is what tells you it is over — without
+`--wait` the command returns while the migration is still running.
+
+**What the log says.** Two lines, and they are the whole of it:
+
+```
+[17:18:24 INF] Applying 1 migration(s): ["20260916141952_TheMaintenancePause"]
+[17:18:24 INF] Schema is current.
+```
+
+A build with nothing to do says `Schema is current; nothing to migrate.`
+instead, which is also what the second of two containers says: **two starting at
+once do not migrate against each other.** The migration takes a Postgres
+advisory lock, so the second waits for the first and then finds the work done.
+A restart policy that fires during an upgrade is the ordinary way to get two,
+and the rehearsal performs the upgrade with a second container beside the first
+on purpose.
+
+### When the upgrade is the thing that went wrong
+
+Going back a version is restoring the backup you took, and it is one command —
+the image an instance runs is a variable, so naming the earlier one is the whole
+of it:
+
+```sh
+PERSONALAFFE_IMAGE=personalaffe:the-one-you-were-on \
+  scripts/restore.sh before-the-upgrade.tar --over-a-populated-instance
+```
+
+That stops what is serving, puts the archive back with a one-off container from
+that image, and starts it again — eight to twelve seconds on the same rehearsal,
+for an archive of three megabytes. A larger one takes longer in proportion:
+every byte of it is unpacked and hashed against the manifest **before** anything
+is replaced. `--over-a-populated-instance` is **the irreversible step**:
+everything before it is refusable and refuses ("What it refuses, before it
+changes anything"), and past it what the instance held is gone.
+
+**What it costs is the window.** Everything written between the backup and the
+rollback is not in the archive and does not come back. Say what that window is
+before you open it, and take the backup as late as you can.
+
+You do not have to roll back to discover the upgrade failed halfway: an instance
+started against a schema a newer build wrote **refuses to serve rather than
+guessing**, and names what it does not know.
+
+```
+[17:18:32 FTL] This database was migrated by a newer personalaffe. It carries 1
+migration(s) this version does not know about: 20260916141952_TheMaintenancePause.
+Start the version that migrated it, or restore the backup taken before the
+upgrade — there is no downgrade path. The instance will not start.
+```
+
+So putting the old image back on its own is not a rollback. It is a container
+that will not start, which is the honest outcome — the schema in front of it is
+one it misunderstands, and serving it would be worse.
+
+### The rehearsal
+
+```sh
+scripts/rehearse-an-upgrade.sh
+```
+
+Fifteen steps, against the images an operator installs, and CI runs it on every
+push. Every claim in this section was run rather than written: a life put into an
+earlier build through the API, upgraded with a second container starting beside
+it, read back out through the same browser session that was open before it — an
+upgrade does not sign anybody out, and that is the one place it differs from a
+restore — the earlier image put back in front of the new schema to earn the
+refusal above, and then, on a second instance, the whole way back: backup,
+upgrade, a page written afterwards, rollback, and that page gone.
+
+It builds the earlier builds out of this repository's own history and it
+destroys both volumes twice. Do not run it against an installation you care
+about.
 
 ## The three verbs this image has
 
