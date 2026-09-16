@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Personalaffe.Api.Http;
 using Personalaffe.Domain;
+using Personalaffe.Domain.Dashboard;
 
 namespace Personalaffe.IntegrationTests;
 
@@ -32,9 +33,12 @@ internal static partial class AnAddress
             path,
             match => match.Groups[1].Value switch
             {
-                // The one parameter that is not an id: a closed set of four
-                // words, and any of them will do.
+                // The two parameters that are not ids: closed sets of words,
+                // and any of them will do. A guid here would be refused as
+                // `validation` before the endpoint's own guard was reached,
+                // and the check would read as green for the wrong reason.
                 Applications.Parameter => WorkspaceApplication.Knowledge.Wire(),
+                Tiles.Parameter => DashboardTile.Knowledge.Wire(),
                 "id" => (id ?? Guid.CreateVersion7()).ToString(),
                 _ => Guid.CreateVersion7().ToString(),
             });

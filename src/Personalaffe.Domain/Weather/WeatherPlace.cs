@@ -18,6 +18,22 @@ public enum WeatherUnits
     Imperial,
 }
 
+/// <summary>How a scale is written beside a number.</summary>
+/// <remarks>
+/// Here rather than in each client, so that the browser, the console and
+/// anything generated from the contract all print the same two characters.
+/// </remarks>
+public static class Scale
+{
+    /// <summary>What a temperature is written in.</summary>
+    public static string Temperature(this WeatherUnits units) =>
+        units == WeatherUnits.Imperial ? "°F" : "°C";
+
+    /// <summary>What a wind is written in.</summary>
+    public static string Wind(this WeatherUnits units) =>
+        units == WeatherUnits.Imperial ? "mph" : "km/h";
+}
+
 /// <summary>
 /// Where the owner wants the weather for (VISION §6.1).
 /// </summary>

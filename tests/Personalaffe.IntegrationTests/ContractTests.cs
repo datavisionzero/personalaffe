@@ -47,6 +47,8 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/agents/{id}/token",
                 "/api/applications",
                 "/api/applications/{application}",
+                "/api/dashboard",
+                "/api/dashboard/tiles/{tile}",
                 "/api/files",
                 "/api/files/content",
                 "/api/files/folders",
@@ -63,6 +65,7 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/me",
                 "/api/scratchpad/entries",
                 "/api/scratchpad/entries/{id}",
+                "/api/search",
                 "/api/security",
                 "/api/security/password",
                 "/api/security/recovery-codes",
@@ -81,6 +84,9 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/trash/{application}/{id}",
                 "/api/trash/{application}/{id}/restore",
                 "/api/version",
+                "/api/weather",
+                "/api/weather/place",
+                "/api/weather/places",
             ],
             paths);
 

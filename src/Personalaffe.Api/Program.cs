@@ -319,6 +319,9 @@ api.MapScratchpad();
 api.MapFiles();
 api.MapKnowledge();
 api.MapTasks();
+api.MapSearch();
+api.MapDashboard();
+api.MapWeather();
 
 // An address under the prefix that no endpoint took is an API mistake and
 // answers as one. Without this it would fall through to the web application's

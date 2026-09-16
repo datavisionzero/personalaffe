@@ -16,7 +16,7 @@ namespace Personalaffe.Domain.Dashboard;
 /// <para>
 /// <strong>Four of them are an application's and the fifth is nobody's.</strong>
 /// A tile over an application is offered only while that application is
-/// switched on and this caller can read it (<see cref="Tiles.Application"/>).
+/// switched on and this caller can read it (<see cref="Belongs.Application"/>).
 /// The weather belongs to no application, cannot be switched off with one, and
 /// is the only tile whose content does not come out of this instance's own
 /// database.
@@ -40,8 +40,15 @@ public enum DashboardTile
     Weather,
 }
 
-/// <summary>Which application a tile draws from, where it draws from one.</summary>
-public static class Tiles
+/// <summary>
+/// Which application a tile draws from, where it draws from one.
+/// </summary>
+/// <remarks>
+/// Named for the question rather than for the type, because the word
+/// <em>tiles</em> is taken twice over: by the store that keeps their settings
+/// and by the spelling the contract uses in an address.
+/// </remarks>
+public static class Belongs
 {
     /// <summary>
     /// The application whose switch and permission decide whether this tile is
