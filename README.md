@@ -324,6 +324,14 @@ about can be the proxied one an owner actually uses:
 scripts/smoke.sh                          # or scripts/smoke.sh https://workspace.example.com
 ```
 
+And one rehearses the thing nobody wants to rehearse for the first time in
+anger — a life put into an instance, a backup taken, both volumes destroyed, the
+backup put back, and then every bit of it read out again through the API:
+
+```sh
+scripts/rehearse-a-restore.sh             # destroys the volumes it uses, twice
+```
+
 It checks that the API answers and says what it is, that liveness and readiness
 both answer, that the door in front of everything else is shut and says which
 refusal it is, that the instance says whether it has an owner and nothing else,
@@ -371,13 +379,14 @@ Everything here is PERSONAL-E1 to PERSONAL-E9, and nothing more.
   socket to anywhere.
 - **There is no release.** No image is published anywhere, and CI deliberately
   has no credential to publish one with. Release artifacts are PERSONAL-E10's.
-- **A backup is one command and has not been restored yet.**
+- **A backup is one command, and putting it back is one script.**
   `personalaffe backup --to -` holds the instance still — reads keep working —
   and writes one tar carrying the database, the owner's files and a manifest of
-  both ([`docs/operations.md`](docs/operations.md)). **Putting one back is
-  PERSONAL-E10's remaining work**, and a backup nobody has restored is not yet
-  known to be a backup, so anything you would mind losing still belongs
-  somewhere else as well.
+  both; `scripts/restore.sh` puts it back, refusing an archive that is damaged,
+  interrupted, from a newer build, or pointed at an instance that has something
+  in it ([`docs/operations.md`](docs/operations.md)). The whole circle — a life,
+  a backup, both volumes destroyed, the backup put back, everything read out
+  again — is `scripts/rehearse-a-restore.sh`, and CI runs it on every push.
 
 Where each of those plugs in is written down in
 [`docs/codebase.md`](docs/codebase.md), under *What the next epics plug into*.

@@ -161,3 +161,101 @@ public sealed class PgDump(DatabaseSettings settings) : IDatabaseDump
         return start;
     }
 }
+
+/// <summary>
+/// A dump, put back (<see cref="IDatabaseRestore"/>).
+/// </summary>
+/// <remarks>
+/// <para>
+/// <c>psql</c> and not <c>pg_restore</c>, because <see cref="PgDump"/> writes
+/// plain SQL: one tool, present wherever the other one is, and a file a human
+/// can read before they trust it.
+/// </para>
+/// <para>
+/// <strong><c>ON_ERROR_STOP</c> is the whole of its safety.</strong> Without it
+/// psql reports success having skipped every statement it could not run, and a
+/// restore that half-happened is the one outcome nobody can recover from —
+/// because it looks exactly like one that worked.
+/// </para>
+/// </remarks>
+public sealed class Psql(DatabaseSettings settings) : IDatabaseRestore
+{
+    /// <summary>The tool, as it is found on the path.</summary>
+    public const string Tool = "psql";
+
+    public async Task<string> ToolAsync(CancellationToken cancellationToken)
+    {
+        var start = Started([Tool, "--version"]);
+
+        using var process = Process.Start(start)
+            ?? throw new InvalidOperationException($"{Tool} could not be started.");
+
+        var said = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+
+        return said.Trim();
+    }
+
+    public async Task LoadAsync(Stream dump, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(dump);
+
+        var connection = new NpgsqlConnectionStringBuilder(settings.ConnectionString);
+
+        var start = Started(
+        [
+            Tool,
+            "--host", connection.Host ?? "localhost",
+            "--port", connection.Port.ToString(CultureInfo.InvariantCulture),
+            "--username", connection.Username ?? string.Empty,
+            "--dbname", connection.Database ?? string.Empty,
+            // The first statement that fails stops the whole thing, inside one
+            // transaction, so what is in the database afterwards is either the
+            // dump or what was there before it.
+            "--set", "ON_ERROR_STOP=on",
+            "--single-transaction",
+            "--quiet",
+            "--no-psqlrc",
+        ]);
+
+        start.RedirectStandardInput = true;
+
+        if (connection.Password is { Length: > 0 } password)
+        {
+            start.Environment["PGPASSWORD"] = password;
+        }
+
+        using var process = Process.Start(start)
+            ?? throw new InvalidOperationException($"{Tool} could not be started.");
+
+        var complaint = process.StandardError.ReadToEndAsync(cancellationToken);
+
+        await dump.CopyToAsync(process.StandardInput.BaseStream, cancellationToken);
+        process.StandardInput.Close();
+
+        await process.WaitForExitAsync(cancellationToken);
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"{Tool} stopped with {process.ExitCode}: {(await complaint).Trim()}");
+        }
+    }
+
+    private static ProcessStartInfo Started(string[] command)
+    {
+        var start = new ProcessStartInfo(command[0])
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+
+        foreach (var argument in command[1..])
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        return start;
+    }
+}

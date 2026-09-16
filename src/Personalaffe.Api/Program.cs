@@ -24,12 +24,12 @@ using Serilog;
 // away costs a line on standard error, never a request.
 Serilog.Debugging.SelfLog.Enable(Console.Error);
 
-// This binary serves the instance and has exactly two verbs. A word handed to it
-// is somebody looking for one — `personalaffe reset`, `personalaffe migrate` —
+// This binary serves the instance and has exactly three verbs. A word handed to
+// it is somebody looking for one — `personalaffe reset`, `personalaffe migrate` —
 // and the host would otherwise ignore it, start a second server beside the one
 // already running and die on a port that is taken. What that person is looking
-// for is `pea`, the database, or one of the two verbs below, so the answer says
-// which, here, rather than twenty lines of stack trace later.
+// for is `pea`, the database, or one of the three verbs below, so the answer
+// says which, here, rather than twenty lines of stack trace later.
 //
 // A `--switch` is not a verb: that is the configuration the host itself reads,
 // and it is left alone.
@@ -65,13 +65,27 @@ if (Array.Find(args, argument => !argument.StartsWith('-')) is { } verb)
             Console.OpenStandardOutput);
     }
 
+    // And the other direction, which is the only thing that makes a backup one.
+    // It is not run against a serving instance: an operator stops the container
+    // and runs this one-off beside it (docs/operations.md).
+    if (verb == Restore.Verb)
+    {
+        return await Restore.RunAsync(
+            args,
+            new ConfigurationBuilder().AddEnvironmentVariables().Build(),
+            Console.Error,
+            Console.OpenStandardInput);
+    }
+
     Console.Error.WriteLine($"""
-        personalaffe: `{verb}` is not a command. This image serves the instance and takes two verbs.
+        personalaffe: `{verb}` is not a command. This image serves the instance and takes three verbs.
 
         The way back in when the owner is locked out, on this machine (docs/operations.md):
             personalaffe {OwnerRecovery.Verb} --password-file -
         Both stores, taken as of one moment, with this instance held still (docs/operations.md):
             personalaffe {Backup.Verb} --to -  > personalaffe.tar
+        And put back, with the instance stopped rather than held still:
+            personalaffe {Restore.Verb} {Restore.FromFlag} - < personalaffe.tar
         The workspace is reached with the CLI, over the API, from anywhere:
             pea version                     (docs/cli.md)
         """);

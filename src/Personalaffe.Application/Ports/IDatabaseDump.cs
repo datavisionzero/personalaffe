@@ -40,3 +40,32 @@ public interface IDatabaseDump
     /// </exception>
     Task WriteAsync(Stream destination, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// The other direction: a dump, put back into the database it came out of a
+/// shape of.
+/// </summary>
+/// <remarks>
+/// A port for the same reason <see cref="IDatabaseDump"/> is one — the thing
+/// that restores a PostgreSQL is a PostgreSQL — and separate from it because
+/// the two are used by different verbs at different moments, and an instance
+/// that can only ever take a backup should not carry the ability to overwrite
+/// itself in the same interface.
+/// </remarks>
+public interface IDatabaseRestore
+{
+    /// <summary>
+    /// What will put the dump back, as it names itself.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The tool is missing.</exception>
+    Task<string> ToolAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads <paramref name="dump"/> into the database, replacing what is there.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// It did not finish, and the database is now neither what it was nor what
+    /// the dump says. What the tool said is in the message.
+    /// </exception>
+    Task LoadAsync(Stream dump, CancellationToken cancellationToken);
+}

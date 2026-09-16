@@ -186,7 +186,10 @@ so that the next primitive is generated the same way these were.
 personalaffe/
 ├─ .github/workflows/          the gate: ci on every push and pull request
 ├─ deploy/                     Dockerfile, Compose (production and development), .env.example
-├─ scripts/smoke.sh            does this foundation hang together? six checks against a running instance
+├─ scripts/
+│  ├─ smoke.sh                 does this hang together? eight checks against a running instance
+│  ├─ restore.sh               a backup put back: stop, restore, start
+│  └─ rehearse-a-restore.sh    the whole circle, against the image, and what CI's `restore` job runs
 ├─ docs/
 │  ├─ adr/                     the decisions
 │  ├─ api/openapi.json         the HTTP contract, captured and checked in
@@ -688,8 +691,8 @@ its id, and `incoming/`, which holds only uploads still arriving.
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request and
 on demand. It is the only thing standing between a mistake and the trunk, and it
-runs the same commands a contributor runs — seven jobs, six of them beside each
-other and the seventh after all of them:
+runs the same commands a contributor runs — eight jobs, six of them beside each
+other and two after all of them:
 
 | Job | What it runs | The same thing locally |
 | --- | --- | --- |
@@ -700,6 +703,7 @@ other and the seventh after all of them:
 | OpenAPI contract | starts the instance against a real Postgres, captures the served document, `git diff --exit-code` | `dotnet test tests/Personalaffe.IntegrationTests --filter ContractTests` |
 | Browser checks | builds the application into the host's `wwwroot`, starts the instance, drives it in Chromium | `npm run browser`, against an instance you have up (README) |
 | Image and smoke test | builds `deploy/Dockerfile`, starts `deploy/docker-compose.yml`, waits for readiness, checks both halves | `docker build -f deploy/Dockerfile …` then `docker compose … up -d` |
+| Backup and restore | puts a life into an instance, backs it up, destroys both volumes, puts the backup back, reads every bit of it out again | `scripts/rehearse-a-restore.sh` |
 
 **No job stands in for a toolchain.** There is no skip condition and no
 always-succeeding placeholder: every one of them builds or runs the thing it is
@@ -835,7 +839,9 @@ same commit, because `ContractTests` compares the two. A new refusal code is a
 row in the table in `docs/api.md` and a case in `Problems`, which throws rather
 than guesses when a code has no status. New tests are more tests in the projects
 CI already runs; another job is only for a subject none of the existing ones
-covers, and `browser` is the one that has ever qualified.
+covers, and two have ever qualified — `browser`, which needs an engine that lays
+things out, and `restore`, which needs a whole installation destroyed and put
+back.
 
 ## What is deliberately not here
 

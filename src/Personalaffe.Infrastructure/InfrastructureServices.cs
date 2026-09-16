@@ -50,6 +50,7 @@ public static class InfrastructureServices
         // other things that know about PostgreSQL, and resolved only by the
         // backup verb — an instance serving requests never asks for it.
         services.AddScoped<IDatabaseDump, PgDump>();
+        services.AddScoped<IDatabaseRestore, Psql>();
 
         // One store per port, beside the context that answers it.
         services.AddScoped<IOwners, Owners>();

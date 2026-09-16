@@ -673,6 +673,86 @@ schema this build knows — a backup that could not be described is not one wort
 taking — and when the storage root is not where
 `PERSONALAFFE_STORAGE_ROOT` says.
 
+## Restoring
+
+**A backup that has not been restored is not yet known to be a backup.** Read
+this before you need it, and better still, run it once against something you do
+not mind losing — `scripts/rehearse-a-restore.sh` does exactly that and is what
+CI runs on every push.
+
+```sh
+scripts/restore.sh personalaffe-20260916-143237.tar
+```
+
+Three steps and a stop between them, which is why it is a script and not a line:
+
+1. `docker compose stop personalaffe` — the database stays up, because it is
+   about to be written to. The instance must not be serving while its own
+   database is replaced underneath it.
+2. `docker compose run --rm -T personalaffe restore --from -` — a one-off
+   container from the same image, with the same volumes and the same connection
+   string, reading the archive on its standard input.
+3. `docker compose up -d --wait` — and the instance starts on what the backup
+   says it is.
+
+### What it refuses, before it changes anything
+
+Everything slow and fallible happens before anything is replaced. The archive is
+unpacked beside the storage root and every part of it is weighed and hashed
+against the manifest; only then is the database loaded, in one transaction, and
+only then do two renames put the files in place.
+
+| It refuses | Because |
+| --- | --- |
+| an archive with no `manifest.json` | the manifest is written last, so an archive without one is a backup that was interrupted |
+| a file the manifest names and the archive does not carry | half a backup is not a backup, and the failure it would otherwise cause is a download that 404s months later |
+| a length or a checksum that does not match | the archive is damaged; better to know now |
+| a schema this build does not know | the same refusal an instance makes when it meets a database a newer build wrote — there is no downgrade path |
+| an instance that is not empty | you may have pointed it at the wrong one |
+
+**Nothing is changed by any of those.** The last one is the only one with a way
+past it, and it is deliberately a mouthful:
+
+```sh
+scripts/restore.sh backup.tar --over-a-populated-instance
+```
+
+That replaces the database and the files of an instance that has something in
+it. There is no undo.
+
+### What comes back, and the one thing that does not
+
+| | |
+| --- | --- |
+| The owner's email, password, second factor and unused recovery codes | as they were |
+| Every page, its history, every task, every list, every Scratchpad entry | as they were |
+| Every file, byte for byte, under the name the database points at | as they were |
+| The Trash | as it was, **with its deadlines still counting from the original moments** — something deleted twenty-nine days before the backup has one day left |
+| Agent access, its permission per application, and every revocation | as it was |
+| Application switches, dashboard tiles, the weather place | as they were |
+| **Every signed-in browser** | **signed out** |
+
+**The sessions are the deliberate exception.** A session in a dump is a browser
+that was signed in when the backup was taken — possibly months ago, possibly
+signed out on purpose since — and bringing one back would undo a decision the
+owner made. **Agent access is the opposite case** and survives: it is a
+credential the owner issued and has not revoked, and a restore that silently
+broke every automation would be a restore nobody could use. A revoked one stays
+revoked, because the dump says so.
+
+So: sign in again afterwards, and check something you would notice the loss of.
+
+**The pause in the dump is not your pause.** A backup is taken while the
+instance is held still, so the row saying so is in the dump. The restore lets go
+of it, and the instance takes writes from the moment it starts.
+
+### Restoring into a newer build
+
+A backup from an older build restores into a newer one and the instance migrates
+it on start, exactly as it migrates anything else — **which is how an upgrade by
+restore works**, and how the way back from a failed upgrade works. The other
+direction is refused: a build does not serve a schema it has never heard of.
+
 ## Upgrading
 
 ```sh
@@ -691,13 +771,13 @@ Two containers starting at once do not migrate against each other — the
 migration takes a Postgres advisory lock, and the second waits and then finds
 nothing to do.
 
-## The two verbs this image has
+## The three verbs this image has
 
-`personalaffe recover-owner` and `personalaffe backup`, both above, and nothing
-else. They are here for the same reason: **their authorization is that somebody
-is standing at the machine**, which is the authorization `pg_dump` has and no
-token, permission or header reaches. Migrations apply themselves, so there is no
-verb for them; a word this binary does not know stops it with a line saying
+`personalaffe recover-owner`, `personalaffe backup` and `personalaffe restore`,
+all three above, and nothing else. They are here for the same reason: **their authorization is that somebody is
+standing at the machine**, which is the authorization `pg_dump` has and no token,
+permission or header reaches. Migrations apply themselves, so there is no verb
+for them; a word this binary does not know stops it with a line saying
 where to look, rather than starting a second server on a port that is taken.
 
 ## The CLI is not in the image
