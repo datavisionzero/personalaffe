@@ -39,6 +39,7 @@ public sealed class TheLogTests(PostgresFixture postgres)
     {
         var token = TestContext.Current.CancellationToken;
         await using var knowledge = await AKnowledgeBase.StartedAsync(postgres, token);
+        var mark = knowledge.Instance.Mark;
 
         var first = await knowledge.WriteAsync(Title, parent: null, "nothing in particular", token);
         Assert.Equal(HttpStatusCode.Created, first.Status);
@@ -61,8 +62,9 @@ public sealed class TheLogTests(PostgresFixture postgres)
 
         // And nothing about it was an incident: a conflict is an ordinary
         // answer, and an operator watching for warnings is watching for
-        // something else.
-        Assert.Empty(knowledge.Instance.Warnings);
+        // something else. Since the mark, because what the host said while it
+        // was starting is not what this test is about (AnInstance.Mark).
+        Assert.Empty(knowledge.Instance.WarningsSince(mark));
     }
 
     [Theory]
@@ -72,6 +74,7 @@ public sealed class TheLogTests(PostgresFixture postgres)
     {
         var token = TestContext.Current.CancellationToken;
         await using var knowledge = await AKnowledgeBase.StartedAsync(postgres, token);
+        var mark = knowledge.Instance.Mark;
 
         using var response = await knowledge.Owner.GetAsync(address, token);
 
@@ -80,7 +83,7 @@ public sealed class TheLogTests(PostgresFixture postgres)
             $"responded {status}",
             string.Join("\n", knowledge.Instance.Logged),
             StringComparison.Ordinal);
-        Assert.Empty(knowledge.Instance.Warnings);
+        Assert.Empty(knowledge.Instance.WarningsSince(mark));
     }
 
     [Fact]
@@ -88,6 +91,7 @@ public sealed class TheLogTests(PostgresFixture postgres)
     {
         var token = TestContext.Current.CancellationToken;
         await using var knowledge = await AKnowledgeBase.StartedAsync(postgres, token);
+        var mark = knowledge.Instance.Mark;
 
         // No If-Match at all, which is the guard refusing rather than a version
         // that has moved — the same refusal by the shortest route to it.
@@ -104,7 +108,7 @@ public sealed class TheLogTests(PostgresFixture postgres)
             "responded 412",
             string.Join("\n", knowledge.Instance.Logged),
             StringComparison.Ordinal);
-        Assert.Empty(knowledge.Instance.Warnings);
+        Assert.Empty(knowledge.Instance.WarningsSince(mark));
     }
 
     [Fact]

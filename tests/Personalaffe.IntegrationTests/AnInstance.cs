@@ -136,6 +136,30 @@ internal sealed class AnInstance(
         [.. _logged.Where(line => line.Warning).Select(line => line.Text)];
 
     /// <summary>
+    /// A place in the log to measure from, for a test whose subject is one
+    /// request rather than the whole run.
+    /// </summary>
+    /// <remarks>
+    /// <strong>Starting writes lines no request can be blamed for, and one of
+    /// them depends on the machine.</strong> A checkout whose web application
+    /// has not been built has no <c>src/Personalaffe.Api/wwwroot</c> — it is
+    /// generated and git ignores it — and the host says so at warning level,
+    /// twice. That is true of every fresh clone and of CI's integration job, and
+    /// false on a laptop that has run the web build. So a test that asserts a
+    /// request warned about nothing has to say which warnings it means, or it is
+    /// a test that passes in one configuration and fails in the other
+    /// (<c>docs/operations.md</c>, "What the environment does not decide").
+    /// </remarks>
+    public int Mark => _logged.Count;
+
+    /// <summary>
+    /// What was logged at warning or above after <paramref name="mark"/> was
+    /// taken.
+    /// </summary>
+    public IReadOnlyList<string> WarningsSince(int mark) =>
+        [.. _logged.Skip(mark).Where(line => line.Warning).Select(line => line.Text)];
+
+    /// <summary>
     /// Everything the instance logged, at every level. What this is for is the
     /// one assertion that cannot be made from the outside: that no secret the
     /// owner or an agent holds is written down anywhere.
