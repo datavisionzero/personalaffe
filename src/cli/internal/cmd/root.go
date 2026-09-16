@@ -119,7 +119,8 @@ func newRoot(env Env) *cobra.Command {
 
 	root.AddCommand(
 		newVersion(g), newStatus(g), newLogin(g), newLogout(g), newWhoami(g),
-		newApplications(g), newScratchpad(g), newFiles(g), newKnowledge(g), newTasks(g), newTrash(g))
+		newApplications(g), newScratchpad(g), newFiles(g), newKnowledge(g), newTasks(g), newTrash(g),
+		newSearch(g), newDashboard(g), newWeather(g))
 
 	usageMistakes(root)
 	return root

@@ -40,8 +40,16 @@ public sealed record FoundResponse(
         found.Rank);
 }
 
-/// <summary>What one search found, and whether the limit cut it short.</summary>
-public sealed record SearchResponse(
+/// <summary>
+/// What one search found, and whether the limit cut it short.
+/// </summary>
+/// <remarks>
+/// Not <c>SearchResponse</c>: an operation called <c>Search</c> makes a generated
+/// client name its own response type that, and two types with one name is a
+/// client that does not compile. <c>ContractTests</c> is what keeps the next one
+/// from happening.
+/// </remarks>
+public sealed record FindingsResponse(
     string Query, IReadOnlyList<FoundResponse> Items, bool HasMore);
 
 /// <summary>
@@ -80,7 +88,7 @@ public static class SearchEndpoints
                 var findings = await act.ExecuteAsync(
                     q, Applications.Chosen(application), limit, cancellationToken);
 
-                return Results.Ok(new SearchResponse(
+                return Results.Ok(new FindingsResponse(
                     findings.Needle,
                     [.. findings.Items.Select(FoundResponse.Of)],
                     findings.HasMore));
@@ -92,7 +100,7 @@ public static class SearchEndpoints
                 + $"finds \"Architecture decisions\". At most {Needle.MaxWords} words are used and "
                 + $"single letters are dropped. At most {SearchTheWorkspace.MaxLimit} findings come "
                 + $"back, {SearchTheWorkspace.DefaultLimit} where no limit is asked for.")
-            .Produces<SearchResponse>()
+            .Produces<FindingsResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .NamesAnApplication();
 

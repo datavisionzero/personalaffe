@@ -4418,7 +4418,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SearchResponse"
+                  "$ref": "#/components/schemas/FindingsResponse"
                 }
               }
             }
@@ -5351,6 +5351,29 @@
         },
         "additionalProperties": false
       },
+      "FindingsResponse": {
+        "required": [
+          "query",
+          "items",
+          "has_more"
+        ],
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoundResponse"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "FolderResponse": {
         "required": [
           "id",
@@ -6013,29 +6036,6 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ScratchpadEntryResponse"
-            }
-          },
-          "has_more": {
-            "type": "boolean"
-          }
-        },
-        "additionalProperties": false
-      },
-      "SearchResponse": {
-        "required": [
-          "query",
-          "items",
-          "has_more"
-        ],
-        "type": "object",
-        "properties": {
-          "query": {
-            "type": "string"
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FoundResponse"
             }
           },
           "has_more": {

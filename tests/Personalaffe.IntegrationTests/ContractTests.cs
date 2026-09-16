@@ -90,7 +90,22 @@ public sealed class ContractTests(PostgresFixture postgres)
             ],
             paths);
 
+        // No schema may be named after what a generated client will call an
+        // operation's own response type. `oapi-codegen` names that
+        // `<operationId>Response`, so an operation `Search` beside a schema
+        // `SearchResponse` is two types with one name and a Go client that does
+        // not compile — which is exactly what PERSONAL-E9 walked into.
+        var operations = document["paths"]!.AsObject()
+            .SelectMany(path => path.Value!.AsObject())
+            .Select(operation => operation.Value!["operationId"]?.GetValue<string>())
+            .Where(name => name is not null)
+            .Select(name => $"{name}Response")
+            .ToHashSet(StringComparer.Ordinal);
+
         var schemas = document["components"]!["schemas"]!.AsObject().Select(schema => schema.Key).ToHashSet();
+
+        Assert.Empty(schemas.Intersect(operations, StringComparer.Ordinal));
+
         Assert.Contains("VersionResponse", schemas);
         Assert.Contains("HealthResponse", schemas);
         Assert.Contains("SetupStateResponse", schemas);
