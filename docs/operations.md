@@ -34,13 +34,20 @@ variable below.
 
 ### 2. The image
 
+A release publishes one, and naming the version is the whole step:
+
+```sh
+# in deploy/.env
+PERSONALAFFE_IMAGE=ghcr.io/datavisionzero/personalaffe:0.1.0
+```
+
+[`docs/install.md`](install.md) is that route from beginning to end, and it
+assumes no checkout at all. From a checkout, the image is built rather than
+pulled, which is what the Compose file's default means:
+
 ```sh
 docker build -f deploy/Dockerfile -t personalaffe:local .
 ```
-
-There is no published image yet, which is why the build is a step of its own;
-`PERSONALAFFE_IMAGE` in `deploy/.env` is what names a published one when there
-is.
 
 ### 3. Up, and waited for
 

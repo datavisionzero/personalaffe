@@ -72,6 +72,8 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
 conventions and its errors. Read them before adding a file or an endpoint.
+Installing what was published, rather than running what is here, is
+[`docs/install.md`](docs/install.md).
 
 ## Prerequisites
 
@@ -388,8 +390,16 @@ Everything here is PERSONAL-E1 to PERSONAL-E9, and nothing more.
   needs no account and no key; what is sent is two coordinates and nothing about
   who is asking. `PERSONALAFFE_WEATHER=off` and nothing in this product opens a
   socket to anywhere.
-- **There is no release.** No image is published anywhere, and CI deliberately
-  has no credential to publish one with. Release artifacts are PERSONAL-E10's.
+- **Nothing is published until somebody cuts a tag.** The workflow that
+  publishes a release exists and is rehearsed
+  ([`release.yml`](.github/workflows/release.yml)): a tag builds the image for
+  `linux/amd64` and `linux/arm64`, builds `pea` for macOS and Linux on both
+  architectures, checksums every archive, proves that the published image and
+  the published binary agree about the version, and puts the lot under the tag
+  with the notes out of [`CHANGELOG.md`](CHANGELOG.md). **Cutting that tag is
+  the owner's decision**, and until one is cut there is nothing to download —
+  [`docs/install.md`](docs/install.md) is what an operator follows when there is.
+  The gate still publishes nothing and still holds no credential.
 - **A backup is one command, and putting it back is one script.**
   `personalaffe backup --to -` holds the instance still — reads keep working —
   and writes one tar carrying the database, the owner's files and a manifest of
@@ -427,7 +437,13 @@ on every push and every pull request: the two .NET test projects, the web
 workspace, the CLI, the contract against a real PostgreSQL, and the image with a
 smoke test that starts it through the Compose file and checks that one container
 serves both halves. It publishes nothing and holds no credential.
-[`docs/codebase.md`](docs/codebase.md) has the job-by-job table.
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) is the other
+one, and the only thing here that writes anywhere outside this repository. It
+runs on a tag, refuses one that is not on `main` or that
+[`CHANGELOG.md`](CHANGELOG.md) has no notes for, and publishes the image, the
+four `pea` binaries and their checksums under it.
+[`docs/codebase.md`](docs/codebase.md) has the job-by-job table for both.
 
 ## Security
 

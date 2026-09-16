@@ -184,13 +184,14 @@ so that the next primitive is generated the same way these were.
 
 ```
 personalaffe/
-├─ .github/workflows/          the gate: ci on every push and pull request
+├─ .github/workflows/          the gate: ci on every push and pull request; release on a tag
 ├─ deploy/                     Dockerfile, Compose (production and development), .env.example
 ├─ scripts/
 │  ├─ smoke.sh                 does this hang together? ten checks against a running instance
 │  ├─ restore.sh               a backup put back: stop, restore, start
 │  ├─ rehearse-a-restore.sh    the whole circle, against the image, and what CI's `restore` job runs
 │  ├─ rehearse-an-upgrade.sh   an earlier build, upgraded and rolled back; CI's `upgrade` job
+│  ├─ the-notes.sh             what shipped in one version, out of CHANGELOG.md; the release reads it
 │  └─ an-instance.sh           what both rehearsals say to an instance, and the life they put in one
 ├─ docs/
 │  ├─ adr/                     the decisions
@@ -198,6 +199,7 @@ personalaffe/
 │  ├─ codebase.md              this
 │  ├─ api.md                   the HTTP surface: conventions, errors, endpoints
 │  ├─ cli.md                   `pea`: configuration, input, exit codes, verbs
+│  ├─ install.md               installing what was published, from no checkout at all
 │  ├─ operations.md            running it: variables, volumes, upgrade, reset
 │  └─ mvp-plan.md              what is built, in what order
 ├─ src/
@@ -210,6 +212,7 @@ personalaffe/
 ├─ tests/
 │  ├─ Personalaffe.UnitTests/
 │  └─ Personalaffe.IntegrationTests/
+├─ CHANGELOG.md                what shipped in each version, written before the tag
 ├─ SECURITY.md                 how to report something, what is in scope, and what holds the door
 └─ Personalaffe.slnx           plus global.json and the Directory.* properties
 ```
@@ -732,7 +735,33 @@ quiet.
 
 Three things it deliberately does not do: it publishes no image, it deploys
 nothing, and it holds no credential — `permissions: contents: read` is the whole
-of what it is given. Publishing is the release epic's.
+of what it is given. Publishing is `release.yml`'s, below.
+
+### The release, which is the other workflow
+
+`.github/workflows/release.yml` runs on a tag and on nothing else, and it is the
+only thing in this repository that writes anywhere outside it: the release under
+the tag, and the image in this repository's package registry. What it is given
+is `contents: write` and `packages: write`, and the token GitHub hands the run —
+there is no other credential, here or anywhere.
+
+| Job | What it does |
+| --- | --- |
+| What is being released | The version out of the tag, the refusal of a tag that is not on `main`, and the notes out of `CHANGELOG.md` — no notes, no release |
+| `pea` | Four static binaries — `darwin/arm64`, `darwin/amd64`, `linux/amd64`, `linux/arm64` — each with the tag compiled in and the licence beside it, and one `SHA256SUMS` over the archives |
+| Image | `linux/amd64` and `linux/arm64`, pushed as `<version>` and, for a release that is not a pre-release, `latest` |
+| The two of them agree | The published image started the documented way, the binary from the archive talking to it, and an instance built a major ahead to prove the refusal is real |
+| The release | The notes, the archives, the checksums, the Compose file, the example environment and the licence, under the tag |
+
+**The four platforms and the two architectures are decisions**, written down
+where they are made: a workspace is reached from the machine its owner sits at
+and from whatever a script runs on, and an instance runs on a small server
+somebody rents or a box at home. There is no Windows binary because nobody has
+asked for one.
+
+A tag with a hyphen in it is a pre-release: published on purpose, marked as one,
+and `latest` does not move. That is what makes this workflow rehearsable without
+telling anybody they have a new version.
 
 Two details worth keeping when it grows. The generation steps are never cached
 away: `npm ci` runs the package's own `pre*` scripts and the Go job runs
