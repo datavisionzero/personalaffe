@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { addressOf, useFindings, useSettled, worthAsking } from "@/search/useFindings";
 import { home } from "./applications";
 import { Keys } from "./ShortcutsDialog";
 import { is } from "./shortcuts";
@@ -33,10 +34,15 @@ type Command = {
  * either: a palette that could walk somewhere the navigation will not is a
  * second answer to the same question.
  *
- * It searches commands and no content. <b>Searching the workspace is
- * PERSONAL-E9</b>, and it lands here: the field is already the place a person
- * types a word they half remember, and the rows the instance finds go above the
- * commands when there are any.
+ * <b>It searches the workspace as well as itself.</b> The field is where a
+ * person types a word they half remember, so what the instance finds goes above
+ * the commands: pages, tasks, Scratchpad text and file names, best match first,
+ * the same list `/search` draws. The commands stay underneath, because a
+ * palette that stopped offering "Settings" the moment somebody typed "se" would
+ * be a palette that gets worse the more you use it.
+ *
+ * It asks a moment after the typing stops rather than on every keystroke, and
+ * it asks nothing at all until there is a word the instance would look for.
  *
  * Owned rather than imported: a filtered list with a roving index inside a Base
  * UI dialog, which is what a palette is before it does more.
@@ -80,6 +86,13 @@ function PaletteBody({
   const field = useId();
 
   const needle = query.trim();
+  const settled = useSettled(needle);
+  const { asked: findings } = useFindings(settled, 8);
+
+  const found = useMemo(
+    () => (findings.at === "known" ? findings.value.items : []),
+    [findings],
+  );
 
   const commands = useMemo<Command[]>(() => {
     const go = (to: string) => () => {
@@ -135,12 +148,45 @@ function PaletteBody({
     );
   }, [commands, needle]);
 
-  const selected = matching[Math.min(index, Math.max(matching.length - 1, 0))];
+  // Findings first, commands after, as one list with one roving index — so that
+  // the arrow keys walk everything the palette is offering rather than two
+  // lists that each have a "first".
+  const rows = useMemo<Command[]>(() => {
+    if (!worthAsking(settled)) {
+      return matching;
+    }
+
+    return [
+      ...found.map((one) => ({
+        id: `found:${one.application}:${one.id}`,
+        label: one.title,
+        hint: one.snippet ?? one.application,
+        group: "In this workspace",
+        run: () => {
+          onOpenChange(false);
+          void navigate(addressOf(one));
+        },
+      })),
+      {
+        id: "search:all",
+        label: `Search for “${settled}”`,
+        hint: "Everything that matches, on one screen.",
+        group: "In this workspace",
+        run: () => {
+          onOpenChange(false);
+          void navigate(`/search?q=${encodeURIComponent(settled)}`);
+        },
+      },
+      ...matching,
+    ];
+  }, [found, matching, navigate, onOpenChange, settled]);
+
+  const selected = rows[Math.min(index, Math.max(rows.length - 1, 0))];
 
   function onKeyDown(event: KeyboardEvent) {
     if (is("palette:next", event)) {
       event.preventDefault();
-      setIndex((current) => Math.min(current + 1, matching.length - 1));
+      setIndex((current) => Math.min(current + 1, rows.length - 1));
     } else if (is("palette:previous", event)) {
       event.preventDefault();
       setIndex((current) => Math.max(current - 1, 0));
@@ -177,10 +223,10 @@ function PaletteBody({
       </div>
 
       <ul id="palette-commands" role="listbox" className="max-h-80 overflow-y-auto p-1">
-        {matching.length === 0 && (
+        {rows.length === 0 && (
           <li className="text-muted-foreground px-3 py-6 text-center text-sm">Nothing matches.</li>
         )}
-        {matching.map((command) => {
+        {rows.map((command) => {
           const heading = command.group !== lastGroup ? command.group : undefined;
           lastGroup = command.group;
 
@@ -195,7 +241,7 @@ function PaletteBody({
                 id={`palette-${command.id}`}
                 role="option"
                 aria-selected={command === selected}
-                onMouseMove={() => setIndex(matching.indexOf(command))}
+                onMouseMove={() => setIndex(rows.indexOf(command))}
                 onClick={command.run}
                 className={cn(
                   "flex cursor-default items-center gap-3 rounded-md px-2 py-1.5 text-sm",

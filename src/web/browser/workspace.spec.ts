@@ -20,7 +20,9 @@ test.describe("the workspace in a browser", () => {
     await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
 
     await navigation.getByRole("link", { name: "Home" }).click();
-    await expect(page.getByRole("heading", { name: "Your workspace" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "What is useful or pending" }),
+    ).toBeVisible();
   });
 
   test("opens an application from a pasted address, and says so for one that is not there", async ({
@@ -43,7 +45,14 @@ test.describe("the workspace in a browser", () => {
     await expect(field).toBeFocused();
 
     await field.fill("scratch");
-    await page.keyboard.press("Enter");
+
+    // The row is picked by name rather than by position. The palette searches
+    // the workspace as well as itself since PERSONAL-E9, so what is first
+    // depends on what this instance happens to hold — and this check is about
+    // the keyboard reaching a command, not about the ranking.
+    const command = page.getByRole("option", { name: /^Scratchpad/ });
+    await expect(command).toBeVisible();
+    await command.click();
 
     await expect(page).toHaveURL(/\/scratchpad$/);
     await expect(page.getByRole("heading", { name: "Scratchpad" })).toBeVisible();
