@@ -20,8 +20,10 @@ permissions:
 #
 # A feature epic extends these jobs rather than adding its own: a new
 # application's tests are more tests in the projects that already exist. What
-# justifies another job is a subject none of the others covers, which is what
-# `browser` is — an engine that lays things out (docs/codebase.md).
+# justifies another job is a subject none of the others covers, and two have
+# qualified: `browser`, which needs an engine that lays things out, and
+# `restore`, which needs a whole installation destroyed and put back
+# (docs/codebase.md).
 #
 # Nothing is published, so an overtaken run has nothing to leave standing wrong:
 # a new push cancels the one it replaced.
@@ -351,6 +353,32 @@ jobs:
           test "$setup" = '{"required":true}' || { echo "/api/setup answered $setup"; exit 1; }
           echo "the door is shut, and the instance is unclaimed"
 
+          # A body the reader cannot make sense of is a document too, and this is
+          # the one refusal that has to be asked of the image rather than of the
+          # suite. `RouteHandlerOptions.ThrowOnBadRequest` defaults to on in
+          # Development and off everywhere else, and off is an empty 400 with no
+          # document at all — which is what every build before PERSONAL-70
+          # shipped, under five suites that could not see it because a test host
+          # runs as Development (docs/operations.md). It is pinned now; this is
+          # what would notice it coming back.
+          for body in '{not json' '{"email":"ci@example.com","passwrd":"not-the-field"}'; do
+            unreadable=$(curl --silent --output /tmp/unreadable.json \
+              --write-out '%{http_code} %{content_type}' \
+              --header 'Content-Type: application/json' --data "$body" http://127.0.0.1:8080/api/setup)
+            case "$unreadable" in
+              "400 application/problem+json"*) ;;
+              *) echo "a body the reader cannot bind answered $unreadable"; cat /tmp/unreadable.json; exit 1;;
+            esac
+          done
+          grep -q '"/problems/unknown-field"' /tmp/unreadable.json \
+            || { echo "a field the object does not define was not unknown-field"; cat /tmp/unreadable.json; exit 1; }
+
+          # And it is still unclaimed: both of those were refused while the
+          # reader was still parsing, so neither could have set an owner.
+          test "$(curl --fail --silent http://127.0.0.1:8080/api/setup)" = '{"required":true}' \
+            || { echo "a refused body claimed the instance"; exit 1; }
+          echo "every refusal is one document, on the image"
+
       # The useful half of a failure. `up -d` says nothing about why a container
       # is unhealthy; its log does.
       - name: What the instance said, if any of that went wrong
@@ -362,6 +390,117 @@ jobs:
       # Its own resources, taken away whatever happened — volumes included, so
       # that a retried job starts from an empty database rather than from
       # whatever the last attempt left.
+      - name: Take it down again
+        if: always()
+        env:
+          PERSONALAFFE_IMAGE: personalaffe:ci
+        run: docker compose -f deploy/docker-compose.yml down -v --remove-orphans
+
+  # A backup that has not been restored is not yet known to be a backup, and a
+  # restore that is only ever exercised by hand is exercised for the first time
+  # on the day it is needed. This is the subject none of the others covers: the
+  # whole circle, against the artifact that ships — put a life into an instance,
+  # back it up, destroy both volumes, put it back, and then read every bit of it
+  # out again through the API.
+  #
+  # `needs: image`, so the layers are already in the cache and this build is a
+  # cache hit rather than a second three-minute build. It is a separate job all
+  # the same: the smoke test's subject is an instance nobody has claimed, and
+  # this one has to claim it before it can prove anything.
+  restore:
+    name: Backup and restore
+    needs: [image]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          load: true
+          tags: personalaffe:ci
+          build-args: |
+            REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=image
+
+      - name: A password for the minutes this database lives
+        run: echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+
+      # Every assertion it makes is made through the API, against the image, and
+      # the script is the one an operator can run against their own installation
+      # — which is what keeps the rehearsal and the documented procedure the
+      # same thing.
+      - name: Take one, destroy the instance, put it back, read it all out
+        env:
+          PERSONALAFFE_IMAGE: personalaffe:ci
+        run: scripts/rehearse-a-restore.sh
+
+      - name: What the instance said, if any of that went wrong
+        if: failure()
+        env:
+          PERSONALAFFE_IMAGE: personalaffe:ci
+        run: docker compose -f deploy/docker-compose.yml logs --no-color
+
+      - name: Take it down again
+        if: always()
+        env:
+          PERSONALAFFE_IMAGE: personalaffe:ci
+        run: docker compose -f deploy/docker-compose.yml down -v --remove-orphans
+
+  # The other operation that happens to an instance with everything in it, and
+  # the one an owner cannot practise on a spare: an upgrade, and the way back
+  # from one that went wrong. The subject is two images at once — an earlier
+  # build out of this repository's own history and the one this push produces —
+  # so it is a job of its own rather than another step in the one above.
+  #
+  # `fetch-depth: 0`, because the earlier builds are worked out from history:
+  # the commit that added the newest migration minus one, and the commit that
+  # brought `scripts/restore.sh`. A shallow clone has neither.
+  #
+  # It builds those two itself, without the cache: they are other commits, so
+  # there is nothing of theirs in it. That is the price of rehearsing an upgrade
+  # rather than asserting one, and it is paid on a job that runs beside the rest.
+  upgrade:
+    name: Upgrade and rollback
+    needs: [image]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          load: true
+          tags: personalaffe:ci
+          build-args: |
+            REVISION=${{ github.sha }}
+          cache-from: type=gha,scope=image
+
+      - name: A password for the minutes this database lives
+        run: echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> "$GITHUB_ENV"
+
+      # The same script an operator can run against their own installation, so
+      # that the rehearsal and the documented procedure cannot become two
+      # different things.
+      - name: Upgrade a populated earlier build, then roll it back by restoring
+        env:
+          PERSONALAFFE_IMAGE: personalaffe:ci
+        run: scripts/rehearse-an-upgrade.sh
+
+      - name: What the instance said, if any of that went wrong
+        if: failure()
+        env:
+          PERSONALAFFE_IMAGE: personalaffe:ci
+        run: docker compose -f deploy/docker-compose.yml logs --no-color
+
       - name: Take it down again
         if: always()
         env:

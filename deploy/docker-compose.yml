@@ -2,17 +2,19 @@
 # beside two volumes that are the whole of what has to be backed up.
 #
 #   cp deploy/.env.example deploy/.env   # and set POSTGRES_PASSWORD
-#   docker compose -f deploy/docker-compose.yml up -d
+#   docker compose -f deploy/docker-compose.yml up -d --wait
 #
-# Upgrading is `docker compose pull` followed by `docker compose up -d`:
-# migrations apply themselves on start, only ever forward, so take a `pg_dump`
+# `--wait` and not `-d` alone: without it the command returns once the
+# containers have been started, which is before the migrations have run, and an
+# operator reading "done" then curls a port that answers nothing.
+#
+# This file terminates no TLS and publishes nothing but loopback. A reverse
+# proxy you already run goes in front of it, and docs/operations.md has a worked
+# configuration for one, the first run in order, and every variable below.
+#
+# Upgrading is `docker compose pull` followed by `docker compose up -d --wait`:
+# migrations apply themselves on start, only ever forward, so take a backup
 # before it — that is the way back.
-#
-# WARNING. There is a door — an instance is claimed once by its owner, and
-# everything but five operations then needs a credential — but the second
-# factor, agent access and the four applications are still being built. Run it
-# on a machine you own, published on loopback, and put nothing personal in it.
-# Every variable is documented in docs/operations.md.
 
 name: personalaffe
 
@@ -51,11 +53,20 @@ services:
       # and from a year of them.
       PERSONALAFFE_MAX_FILE_MIB: "${PERSONALAFFE_MAX_FILE_MIB:-}"
       PERSONALAFFE_MAX_STORAGE_MIB: "${PERSONALAFFE_MAX_STORAGE_MIB:-}"
+      # Whether this instance asks anybody outside it about the weather, and how
+      # long a reading is held before it asks again. `off` and nothing in this
+      # product opens a socket to anywhere — the tile stays on the home page and
+      # says so. Empty means the instance's own defaults, on and fifteen
+      # minutes (docs/operations.md).
+      PERSONALAFFE_WEATHER: "${PERSONALAFFE_WEATHER:-}"
+      PERSONALAFFE_WEATHER_FRESHNESS: "${PERSONALAFFE_WEATHER_FRESHNESS:-}"
     ports:
-      # Loopback by default, and that is not a formality while there is no
-      # authentication: the whole value is the left half of the published port,
-      # so an address in front of it binds there and nowhere else. A reverse
-      # proxy on the same machine reaches it; the internet does not.
+      # Loopback by default, and that is the deployment this product is meant
+      # for: the whole value is the left half of the published port, so an
+      # address in front of it binds there and nowhere else. A reverse proxy on
+      # the same machine reaches the instance; the internet reaches it only
+      # through that proxy, which is also what makes
+      # PERSONALAFFE_TRUSTED_PROXY=all safe to set.
       - "${PERSONALAFFE_PORT:-127.0.0.1:8080}:8080"
     volumes:
       # The owner's files. Everything the product stores is this and the database

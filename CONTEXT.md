@@ -66,6 +66,16 @@ _Avoid_: Report, application, widget
 One thing a search matched, in whichever application holds it.
 _Avoid_: Hit, document, result set
 
+**Backup**:
+One archive holding the database and the stored files as of one moment, with a
+manifest describing both. Anything that carries only one of the two is not one.
+_Avoid_: Export, dump, snapshot
+
+**Maintenance pause**:
+The short stillness a backup holds an instance in: reads continue and writes are
+refused until it ends or its deadline passes.
+_Avoid_: Downtime, maintenance mode, read-only mode
+
 **Weather place**:
 The point and the label the owner chose for the weather tile. It is not an
 address and it is never resolved by a tile.

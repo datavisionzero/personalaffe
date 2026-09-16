@@ -72,6 +72,15 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     public DbSet<WeatherPlace> WeatherPlace => Set<WeatherPlace>();
 
     /// <summary>
+    /// Whether this instance is being held still while a backup takes the
+    /// database and the file volume as of one moment
+    /// (<see cref="Domain.MaintenancePause"/>). One row, held to one by the
+    /// check constraint the configuration declares, and holding nothing until
+    /// a backup says otherwise.
+    /// </summary>
+    public DbSet<MaintenancePause> MaintenancePause => Set<MaintenancePause>();
+
+    /// <summary>
     /// The temporary plain text the owner keeps for cross-device use
     /// (<see cref="ScratchpadEntry"/>). The one table here with no
     /// <c>deleted_at</c>: what is deleted from it is destroyed.

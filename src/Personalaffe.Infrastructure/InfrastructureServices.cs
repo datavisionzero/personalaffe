@@ -42,6 +42,16 @@ public static class InfrastructureServices
         // however many containers are running.
         services.AddScoped<IExclusiveWork, ExclusiveWork>();
 
+        // And whether every instance over this database is being held still
+        // while a backup takes both of its stores.
+        services.AddScoped<IMaintenance, Maintenance>();
+
+        // What takes the database half of a backup. Registered here beside the
+        // other things that know about PostgreSQL, and resolved only by the
+        // backup verb — an instance serving requests never asks for it.
+        services.AddScoped<IDatabaseDump, PgDump>();
+        services.AddScoped<IDatabaseRestore, Psql>();
+
         // One store per port, beside the context that answers it.
         services.AddScoped<IOwners, Owners>();
         services.AddScoped<IBrowserSessions, BrowserSessions>();

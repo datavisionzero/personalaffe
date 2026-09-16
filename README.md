@@ -316,23 +316,44 @@ boundary, the two volumes and which commands destroy them.
 
 ## Checking that it hangs together
 
-With an instance running, one script asks the six questions nothing else answers
-from the outside:
+With an instance running, one script asks the eight questions nothing else
+answers from the outside — and it takes the address, so the one it is asked
+about can be the proxied one an owner actually uses:
 
 ```sh
-scripts/smoke.sh                          # or scripts/smoke.sh http://127.0.0.1:8080
+scripts/smoke.sh                          # or scripts/smoke.sh https://workspace.example.com
 ```
 
-It checks that the API answers, that liveness and readiness both do, that the
-web application is served from the same origin, that an unknown address under
-`/api` is still an API error, that the contract the instance serves is the one
-checked in, and that both clients generate from that document — with `pea`,
-built there and then, reporting the same version the browser would read. It
-writes nothing into the repository and needs no credential.
+And one rehearses the thing nobody wants to rehearse for the first time in
+anger — a life put into an instance, a backup taken, both volumes destroyed, the
+backup put back, and then every bit of it read out again through the API:
+
+```sh
+scripts/rehearse-a-restore.sh             # destroys the volumes it uses, twice
+```
+
+And one rehearses the other thing that happens to an instance with everything in
+it — a life put into an earlier build, upgraded while a second container starts
+beside it, read back out, and then the whole way back from an upgrade that went
+wrong: the pre-upgrade backup put back, and the page written after it gone:
+
+```sh
+scripts/rehearse-an-upgrade.sh            # builds two earlier builds out of the history
+```
+
+It checks that the API answers and says what it is, that liveness and readiness
+both answer, that the door in front of everything else is shut and says which
+refusal it is, that the instance says whether it has an owner and nothing else,
+that the web application is served from the same origin, that an unknown address
+under `/api` is still an API error and not the page, that the contract the
+instance serves is the one checked in, and that both clients generate from that
+document — with `pea`, built there and then, reporting the same version the
+browser would read. It writes nothing into the repository and needs no
+credential.
 
 ## Known limits
 
-Everything here is PERSONAL-E1 to PERSONAL-E8, and nothing more.
+Everything here is PERSONAL-E1 to PERSONAL-E9, and nothing more.
 
 - **All four applications work, and none of what is left is content.** What the
   database carries is an owner, their sessions, their recovery codes, the agents
@@ -367,9 +388,22 @@ Everything here is PERSONAL-E1 to PERSONAL-E8, and nothing more.
   socket to anywhere.
 - **There is no release.** No image is published anywhere, and CI deliberately
   has no credential to publish one with. Release artifacts are PERSONAL-E10's.
-- **Backups are two volumes and no procedure.** A file is a row in one and bytes
-  in the other, and neither on its own is the file. Taking them consistently
-  together, and proving a restore, is PERSONAL-E10's.
+- **A backup is one command, and putting it back is one script.**
+  `personalaffe backup --to -` holds the instance still — reads keep working —
+  and writes one tar carrying the database, the owner's files and a manifest of
+  both; `scripts/restore.sh` puts it back, refusing an archive that is damaged,
+  interrupted, from a newer build, or pointed at an instance that has something
+  in it ([`docs/operations.md`](docs/operations.md)). The whole circle — a life,
+  a backup, both volumes destroyed, the backup put back, everything read out
+  again — is `scripts/rehearse-a-restore.sh`, and CI runs it on every push.
+- **An upgrade is a pull and an up, and the way back is that backup.** Migrations
+  apply themselves on start, only ever forward; two containers starting at once
+  take an advisory lock rather than migrating against each other; and a build
+  put in front of a schema a newer one wrote refuses to serve and names what it
+  does not know. Rolling back is `scripts/restore.sh` with the earlier image
+  named. All of it is walked rather than asserted, by
+  `scripts/rehearse-an-upgrade.sh`, which builds an earlier build out of this
+  repository's history — and CI runs that on every push too.
 
 Where each of those plugs in is written down in
 [`docs/codebase.md`](docs/codebase.md), under *What the next epics plug into*.

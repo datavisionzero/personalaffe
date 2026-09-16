@@ -24,12 +24,12 @@ using Serilog;
 // away costs a line on standard error, never a request.
 Serilog.Debugging.SelfLog.Enable(Console.Error);
 
-// This binary serves the instance and has exactly one verb. A word handed to it
-// is somebody looking for one — `personalaffe backup`, `personalaffe reset` —
+// This binary serves the instance and has exactly three verbs. A word handed to
+// it is somebody looking for one — `personalaffe reset`, `personalaffe migrate` —
 // and the host would otherwise ignore it, start a second server beside the one
 // already running and die on a port that is taken. What that person is looking
-// for is `pea`, the database, or the one verb below, so the answer says which,
-// here, rather than twenty lines of stack trace later.
+// for is `pea`, the database, or one of the three verbs below, so the answer
+// says which, here, rather than twenty lines of stack trace later.
 //
 // A `--switch` is not a verb: that is the configuration the host itself reads,
 // and it is left alone.
@@ -51,15 +51,43 @@ if (Array.Find(args, argument => !argument.StartsWith('-')) is { } verb)
             Console.Error);
     }
 
+    // One backup, both stores, and the pause that makes them agree
+    // (docs/operations.md). It is here for the same reason recovery is: its
+    // authorization is that somebody is standing at the machine, and it needs
+    // the volume this container has mounted and the connection string it
+    // already reads.
+    if (verb == Backup.Verb)
+    {
+        return await Backup.RunAsync(
+            args,
+            new ConfigurationBuilder().AddEnvironmentVariables().Build(),
+            Console.Error,
+            Console.OpenStandardOutput);
+    }
+
+    // And the other direction, which is the only thing that makes a backup one.
+    // It is not run against a serving instance: an operator stops the container
+    // and runs this one-off beside it (docs/operations.md).
+    if (verb == Restore.Verb)
+    {
+        return await Restore.RunAsync(
+            args,
+            new ConfigurationBuilder().AddEnvironmentVariables().Build(),
+            Console.Error,
+            Console.OpenStandardInput);
+    }
+
     Console.Error.WriteLine($"""
-        personalaffe: `{verb}` is not a command. This image serves the instance and takes one verb.
+        personalaffe: `{verb}` is not a command. This image serves the instance and takes three verbs.
 
         The way back in when the owner is locked out, on this machine (docs/operations.md):
             personalaffe {OwnerRecovery.Verb} --password-file -
+        Both stores, taken as of one moment, with this instance held still (docs/operations.md):
+            personalaffe {Backup.Verb} --to -  > personalaffe.tar
+        And put back, with the instance stopped rather than held still:
+            personalaffe {Restore.Verb} {Restore.FromFlag} - < personalaffe.tar
         The workspace is reached with the CLI, over the API, from anywhere:
             pea version                     (docs/cli.md)
-        The database is reached beside this container, not through it:
-            docker compose exec db pg_dump -U personalaffe personalaffe > backup.sql
         """);
     return 2;
 }
@@ -256,9 +284,32 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddExceptionHandler<Problems.Handler>();
 builder.Services.AddProblemDetails();
 
-var app = builder.Build();
+// And it is one document whatever ASPNETCORE_ENVIRONMENT says, which is the
+// whole reason this line exists (docs/operations.md, "What the environment does
+// not decide"). Left unset, the framework turns this on in Development and off
+// everywhere else — and off means a body the reader cannot bind never reaches
+// Problems.Handler at all: minimal APIs write an empty 400 themselves, so
+// `unknown-field` and `validation` became a status with no document in the only
+// configuration anybody installs. The suite could not see it, because a suite
+// started by WebApplicationFactory runs in Development.
+//
+// A contract that depends on which environment an instance was started in is
+// not a contract. TheEnvironmentDecidesNothingTests starts one as Production
+// and asks it.
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
-app.UseExceptionHandler();
+// The same reasoning, one layer down. The host validates the service graph and
+// catches a scoped service captured by a singleton in Development only; pinned
+// on, a graph this instance cannot build is a refused start rather than a
+// request that fails in production and nowhere else. Both cost a fraction of
+// one start-up and a pointer comparison per resolution.
+builder.Host.UseDefaultServiceProvider(options =>
+{
+    options.ValidateOnBuild = true;
+    options.ValidateScopes = true;
+});
+
+var app = builder.Build();
 
 // Before anything reads a scheme or an address: the log line wants the caller's
 // and so does the throttle on failed sign-ins, and the cookie's strictness
@@ -269,8 +320,33 @@ if (trustedProxies.Configured)
     app.UseForwardedHeaders(trustedProxies.Options());
 }
 
-// Method, path, status and duration — and nothing the owner or an agent wrote.
-app.UseSerilogRequestLogging();
+// Method, path, status, duration and who asked — and nothing the owner or an
+// agent wrote.
+//
+// **Outside the exception handler, and that is the whole of its correctness.**
+// Inside it, every Refusal an act throws passes through here on its way out,
+// where it is an unhandled exception against a response that is still 500 — so
+// an ordinary conflict was logged at error, as a 500 the caller was never told
+// about, with a stack trace and with the title the owner typed in it. Two
+// promises this file makes, broken by the order of two lines.
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms to {Caller}";
+
+    // Read when the line is written, which is after the forwarded headers above
+    // have had their say — so behind a named proxy this is the caller's address
+    // and not the proxy's. An address is a fact about a connection; it is not
+    // something the owner wrote, and it is the one thing an operator looking at
+    // a run of refusals actually needs.
+    options.EnrichDiagnosticContext = (diagnostic, http) => diagnostic.Set(
+        "Caller", http.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+});
+
+// After the request logging, so that what it records is the status the caller
+// was given rather than the exception on its way here.
+app.UseExceptionHandler();
+
 app.UsePersonalaffeVersion();
 
 app.UseRouting();
@@ -284,6 +360,12 @@ app.UseAuthentication();
 app.UseMiddleware<BrowserWriteGuard>();
 
 app.UseAuthorization();
+
+// And a write meets the backup, if one is holding this instance still: reads
+// pass, writes are told to come back in a moment (MaintenanceGuard). After
+// authorization, so that what is refused is a caller who could otherwise have
+// changed something.
+app.UseMiddleware<MaintenanceGuard>();
 
 // Everything the instance serves as an API is under one prefix, and everything
 // else is the web application's (docs/codebase.md). An endpoint outside this

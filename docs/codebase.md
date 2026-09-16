@@ -186,7 +186,12 @@ so that the next primitive is generated the same way these were.
 personalaffe/
 ├─ .github/workflows/          the gate: ci on every push and pull request
 ├─ deploy/                     Dockerfile, Compose (production and development), .env.example
-├─ scripts/smoke.sh            does this foundation hang together? six checks against a running instance
+├─ scripts/
+│  ├─ smoke.sh                 does this hang together? nine checks against a running instance
+│  ├─ restore.sh               a backup put back: stop, restore, start
+│  ├─ rehearse-a-restore.sh    the whole circle, against the image, and what CI's `restore` job runs
+│  ├─ rehearse-an-upgrade.sh   an earlier build, upgraded and rolled back; CI's `upgrade` job
+│  └─ an-instance.sh           what both rehearsals say to an instance, and the life they put in one
 ├─ docs/
 │  ├─ adr/                     the decisions
 │  ├─ api/openapi.json         the HTTP contract, captured and checked in
@@ -241,12 +246,20 @@ with, so that raising the cost later does not lock out the owner who exists.
 `Files/` is the one thing in this layer that is not the database: the local file
 store, and the only class in the product that opens a file the owner stored.
 
-**The one thing that is not HTTP** is `Hosting/OwnerRecovery.cs`: the verb an
-operator runs on the machine when the password, the authenticator and the
-recovery codes are all gone. It is not an endpoint and cannot become one — its
-authorization is that somebody is standing at the host, which is the same
-authorization `pg_dump` has. It goes through the same act the browser's password
-change goes through, so the two cannot drift
+**Two things are not HTTP**, and they are the image's two verbs.
+`Hosting/OwnerRecovery.cs` is the one an operator runs on the machine when the
+password, the authenticator and the recovery codes are all gone; it goes through
+the same act the browser's password change goes through, so the two cannot
+drift. `Hosting/Backup.cs` is the one that takes the database and the file
+volume as of one moment — it holds the instance still through
+`MaintenancePause`, takes the lock the Trash sweep takes so that no purge can
+run between the two halves, and writes one tar whose manifest is last so that an
+interrupted one is not mistaken for a finished one.
+
+**Neither is an endpoint and neither can become one.** Their authorization is
+that somebody is standing at the host, which is the same authorization `pg_dump`
+has; an agent's token is not an authorization to reset the owner's password or
+to take a copy of everything they have ever written
 ([`docs/operations.md`](./operations.md)).
 
 **`Personalaffe.Api` is HTTP and the composition root.** `Http/` maps the
@@ -573,6 +586,13 @@ each other. A database carrying migrations this binary does not know about stops
 the start rather than being served against — there is no downgrade path, and the
 way back from a bad upgrade is the backup taken before it.
 
+All three of those are walked rather than asserted. `MigrationTests` applies
+them to an empty database, to a populated one, and against a history row a
+newer build would have written; `scripts/rehearse-an-upgrade.sh` does the same
+three things to the real image, upgrading a build one migration behind this one
+with a second container starting beside it, and then rolling it back
+([`docs/operations.md`](./operations.md), Upgrading).
+
 A migration is added with the pinned tool and no running instance anywhere:
 
 ```sh
@@ -592,6 +612,16 @@ rules of Domain and the acts of Application against substituted ports, the
 layering test, and the parts of Infrastructure that need nothing installed
 either — the password hasher is a function, and a function is a unit test.
 
+Two of its files test documents rather than code, because a document nobody can
+run is one an operator cannot trust. `LayeringTests` reads the four project
+files. `TheVariablesAreDocumentedTests` reads `docs/operations.md`,
+`deploy/docker-compose.yml` and `deploy/.env.example` and compares the three
+against every `const string …Variable` the settings types declare — so a
+variable that is added, renamed or removed fails the unit suite until the table
+an operator reads has heard about it. It is the one reason the unit tests
+reference `Personalaffe.Api` at all: one of the eleven is read by
+`Http/TrustedProxies` rather than by a settings record.
+
 **`Personalaffe.IntegrationTests`** also owns **the proving ground**: a `things`
 table with a tree, a history and the deletion columns, created by the test
 fixture and living nowhere in `src/`. PERSONAL-E3's conventions landed before
@@ -606,6 +636,15 @@ because the parts no substitute can vouch for — that the migrations apply to a
 empty database, that a second start finds nothing to do, that readiness fails
 when the database is gone, that the served contract is the checked-in one — are
 precisely the ones worth testing.
+
+**One of its suites starts the instance as `Production`, and it is the only one
+that does.** `WebApplicationFactory` starts everything as `Development`, the
+image runs as `Production`, and the framework decides a few things by that name
+— which is how an empty `400` where the contract promises a document survived
+seven epics under five suites that asserted the opposite.
+`TheEnvironmentDecidesNothingTests` is what holds the pinning that ended it, and
+[`docs/operations.md`](./operations.md#what-the-environment-does-not-decide) is
+the list of what the name still decides.
 
 The frontend carries its own tests inside `src/web/src/`, and the CLI its own
 inside `src/cli/`, each run by the CI job that builds it. **The one exception is
@@ -670,8 +709,8 @@ its id, and `incoming/`, which holds only uploads still arriving.
 
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request and
 on demand. It is the only thing standing between a mistake and the trunk, and it
-runs the same commands a contributor runs — seven jobs, six of them beside each
-other and the seventh after all of them:
+runs the same commands a contributor runs — nine jobs: six beside each other,
+the image once they are all green, and two more on top of the image:
 
 | Job | What it runs | The same thing locally |
 | --- | --- | --- |
@@ -682,6 +721,8 @@ other and the seventh after all of them:
 | OpenAPI contract | starts the instance against a real Postgres, captures the served document, `git diff --exit-code` | `dotnet test tests/Personalaffe.IntegrationTests --filter ContractTests` |
 | Browser checks | builds the application into the host's `wwwroot`, starts the instance, drives it in Chromium | `npm run browser`, against an instance you have up (README) |
 | Image and smoke test | builds `deploy/Dockerfile`, starts `deploy/docker-compose.yml`, waits for readiness, checks both halves | `docker build -f deploy/Dockerfile …` then `docker compose … up -d` |
+| Backup and restore | puts a life into an instance, backs it up, destroys both volumes, puts the backup back, reads every bit of it out again | `scripts/rehearse-a-restore.sh` |
+| Upgrade and rollback | puts a life into an earlier build, upgrades it while a second container starts beside it, reads it out, then walks the way back from a failed upgrade | `scripts/rehearse-an-upgrade.sh` |
 
 **No job stands in for a toolchain.** There is no skip condition and no
 always-succeeding placeholder: every one of them builds or runs the thing it is
@@ -817,7 +858,9 @@ same commit, because `ContractTests` compares the two. A new refusal code is a
 row in the table in `docs/api.md` and a case in `Problems`, which throws rather
 than guesses when a code has no status. New tests are more tests in the projects
 CI already runs; another job is only for a subject none of the existing ones
-covers, and `browser` is the one that has ever qualified.
+covers, and three have ever qualified — `browser`, which needs an engine that
+lays things out, `restore`, which needs a whole installation destroyed and put
+back, and `upgrade`, which needs two builds of this product at once.
 
 ## What is deliberately not here
 

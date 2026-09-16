@@ -197,6 +197,7 @@ A script branches on the code; nothing has to be parsed.
 | 7 | `401` and `403` — the door stayed shut. |
 | 9 | Version skew: this `pea` does not talk to that instance. |
 | 10 | The instance could not be reached at all: DNS, connection refused, timeout, TLS. |
+| 11 | `503 paused` — the instance is being backed up and is not taking writes for a moment. The request was fine; send the same one again after the `Retry-After` it came with. |
 
 `deleted` is a 404 and therefore exit 3, like every other 404. The distinction a
 script needs — that the thing can still be brought back — is in the problem

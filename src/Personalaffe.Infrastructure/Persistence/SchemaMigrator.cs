@@ -102,4 +102,17 @@ public sealed class SchemaMigrator(PersonalaffeDbContext context, ILogger<Schema
 
         return unknown.Count == 0 && pending.Length == 0;
     }
+
+    /// <summary>
+    /// The migrations this build knows about, oldest first — as opposed to the
+    /// ones the database in front of it carries.
+    /// </summary>
+    public IReadOnlyList<string> Known => [.. context.Database.GetMigrations()];
+
+    /// <summary>
+    /// The migrations this database carries, oldest first — which is what a
+    /// schema is, said in the only way two builds can compare.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> SchemaAsync(CancellationToken cancellationToken) =>
+        [.. await context.Database.GetAppliedMigrationsAsync(cancellationToken)];
 }
