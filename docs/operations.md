@@ -554,9 +554,26 @@ Structured, to the console, and to nothing else: `docker compose logs -f
 personalaffe`. personalaffe does not depend on another running affe product to
 have a log.
 
-The request log carries method, path, status and duration and **nothing the
-owner or an agent wrote** — this is a private workspace and its log is not a
-second copy of its contents.
+```
+[09:42:18 INF] HTTP POST /api/knowledge/pages responded 409 in 5.0712 ms to 203.0.113.9
+```
+
+Method, path, status, duration, and who asked — and **nothing the owner or an
+agent wrote**. This is a private workspace and its log is not a second copy of
+its contents: no title, no file name, no word of a note, and nothing out of a
+request body.
+
+**The status is the one the caller was given.** A refusal — a conflict, a stale
+write, something not found, something not permitted — is an ordinary line at
+information, because it is the product deciding something rather than the
+instance failing at something. What is logged at error is a fault nobody
+decided, and it is logged once, with its exception; the caller gets a title and
+a status and nothing out of it.
+
+**The address is the caller's** once `PERSONALAFFE_TRUSTED_PROXY` names the
+proxy, and the proxy's until it does — the same address the throttle on failed
+sign-ins counts, so what an operator reads in the log and what the throttle acts
+on cannot be two different things.
 
 ## Upgrading
 

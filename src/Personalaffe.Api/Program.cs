@@ -258,8 +258,6 @@ builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
-
 // Before anything reads a scheme or an address: the log line wants the caller's
 // and so does the throttle on failed sign-ins, and the cookie's strictness
 // follows the scheme. Only when an operator has named the proxy; an unnamed one
@@ -269,8 +267,33 @@ if (trustedProxies.Configured)
     app.UseForwardedHeaders(trustedProxies.Options());
 }
 
-// Method, path, status and duration — and nothing the owner or an agent wrote.
-app.UseSerilogRequestLogging();
+// Method, path, status, duration and who asked — and nothing the owner or an
+// agent wrote.
+//
+// **Outside the exception handler, and that is the whole of its correctness.**
+// Inside it, every Refusal an act throws passes through here on its way out,
+// where it is an unhandled exception against a response that is still 500 — so
+// an ordinary conflict was logged at error, as a 500 the caller was never told
+// about, with a stack trace and with the title the owner typed in it. Two
+// promises this file makes, broken by the order of two lines.
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms to {Caller}";
+
+    // Read when the line is written, which is after the forwarded headers above
+    // have had their say — so behind a named proxy this is the caller's address
+    // and not the proxy's. An address is a fact about a connection; it is not
+    // something the owner wrote, and it is the one thing an operator looking at
+    // a run of refusals actually needs.
+    options.EnrichDiagnosticContext = (diagnostic, http) => diagnostic.Set(
+        "Caller", http.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+});
+
+// After the request logging, so that what it records is the status the caller
+// was given rather than the exception on its way here.
+app.UseExceptionHandler();
+
 app.UsePersonalaffeVersion();
 
 app.UseRouting();

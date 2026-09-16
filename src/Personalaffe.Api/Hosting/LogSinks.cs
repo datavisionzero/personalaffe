@@ -10,10 +10,19 @@ namespace Personalaffe.Api.Hosting;
 /// have a log at all (<c>docs/codebase.md</c>).
 /// </summary>
 /// <remarks>
+/// <para>
 /// Nothing about a request body is logged. The request log carries method,
-/// path, status and duration and nothing the owner or an agent wrote, because
-/// this is a private workspace and its log is not a second copy of its
-/// contents.
+/// path, status, duration and the caller's address, and nothing the owner or an
+/// agent wrote, because this is a private workspace and its log is not a second
+/// copy of its contents.
+/// </para>
+/// <para>
+/// That is a promise about composition and not only about this file: it held
+/// only once the request logging was moved outside the exception handler in
+/// <c>Program.cs</c>, because until then every refusal an act threw passed
+/// through it as an exception — message, stack and whatever the owner had
+/// called the thing (<c>TheLogTests</c>).
+/// </para>
 /// </remarks>
 public static class LogSinks
 {
