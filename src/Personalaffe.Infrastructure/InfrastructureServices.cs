@@ -58,6 +58,13 @@ public static class InfrastructureServices
         // to date from those rows (Configurations/SearchIndex.cs).
         services.AddScoped<ISearch, Search>();
 
+        // The home page: which tiles are on it, and the few rows behind each.
+        // Two ports rather than one, because they answer to different people —
+        // the settings are the owner's, the rows are whatever the caller may
+        // read (docs/mvp-plan.md, PERSONAL-E9).
+        services.AddScoped<IDashboardTiles, DashboardTiles>();
+        services.AddScoped<IDashboard, Dashboard>();
+
         // The Trash's contributors. Registering one is the whole of appearing in
         // GET /api/trash, in restore, in permanent removal and in the hourly
         // purge (docs/codebase.md).

@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using Personalaffe.Api.Hosting;
 using Personalaffe.Api.Http;
 using Personalaffe.Application.Acts;
+using Personalaffe.Application.Acts.Dashboard;
 using Personalaffe.Application.Acts.Files;
 using Personalaffe.Application.Acts.Knowledge;
 using Personalaffe.Application.Acts.Scratchpad;
@@ -200,6 +201,8 @@ builder.Services.AddScoped<ReadATask>();
 builder.Services.AddScoped<ChangeATask>();
 builder.Services.AddScoped<DiscardATask>();
 builder.Services.AddScoped<SearchTheWorkspace>();
+builder.Services.AddScoped<ReadTheDashboard>();
+builder.Services.AddScoped<ShowOrHideATile>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();
