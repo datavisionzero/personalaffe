@@ -99,5 +99,12 @@ public sealed class PersonalTaskConfiguration : IEntityTypeConfiguration<Persona
 
         builder.HasIndex(task => new { task.ListId, task.Position })
             .HasDatabaseName("ix_tasks_list_id_position");
+
+        // The title is what the task is called and the description is what it
+        // says (SearchIndex). The list's name is not searched: a list is found
+        // by the tasks in it, and a name in a sidebar is not content.
+        builder.IsSearchable(
+            "tasks",
+            $"{SearchIndex.Called("title")} || {SearchIndex.Says("description")}");
     }
 }

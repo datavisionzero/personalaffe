@@ -60,5 +60,10 @@ public sealed class ScratchpadEntryConfiguration : IEntityTypeConfiguration<Scra
 
         builder.HasIndex(entry => new { entry.Pinned, entry.UpdatedAt })
             .HasDatabaseName("ix_scratchpad_entries_pinned_updated_at");
+
+        // An entry has no title, so it has no `A` half: there is nothing it
+        // is called, only what it says (SearchIndex). That is also why a
+        // found entry is drawn by its first line — the store makes one.
+        builder.IsSearchable("scratchpad_entries", SearchIndex.Says("text"));
     }
 }

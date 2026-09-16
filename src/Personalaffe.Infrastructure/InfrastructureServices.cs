@@ -53,6 +53,11 @@ public static class InfrastructureServices
         services.AddScoped<IPages, Pages>();
         services.AddScoped<ITasks, Persistence.Tasks>();
 
+        // One search over the four tables the stores above write into. It owns
+        // no content of its own: what it reads is the columns Postgres keeps up
+        // to date from those rows (Configurations/SearchIndex.cs).
+        services.AddScoped<ISearch, Search>();
+
         // The Trash's contributors. Registering one is the whole of appearing in
         // GET /api/trash, in restore, in permanent removal and in the hourly
         // purge (docs/codebase.md).

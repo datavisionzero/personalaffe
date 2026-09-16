@@ -10,6 +10,7 @@ using Personalaffe.Application.Acts;
 using Personalaffe.Application.Acts.Files;
 using Personalaffe.Application.Acts.Knowledge;
 using Personalaffe.Application.Acts.Scratchpad;
+using Personalaffe.Application.Acts.Search;
 using Personalaffe.Application.Acts.Tasks;
 using Personalaffe.Application.Ports;
 using Personalaffe.Domain;
@@ -198,6 +199,7 @@ builder.Services.AddScoped<CaptureATask>();
 builder.Services.AddScoped<ReadATask>();
 builder.Services.AddScoped<ChangeATask>();
 builder.Services.AddScoped<DiscardATask>();
+builder.Services.AddScoped<SearchTheWorkspace>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();
