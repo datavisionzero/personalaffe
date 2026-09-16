@@ -13,6 +13,7 @@ using Personalaffe.Application.Acts.Knowledge;
 using Personalaffe.Application.Acts.Scratchpad;
 using Personalaffe.Application.Acts.Search;
 using Personalaffe.Application.Acts.Tasks;
+using Personalaffe.Application.Acts.Weather;
 using Personalaffe.Application.Ports;
 using Personalaffe.Domain;
 using Personalaffe.Infrastructure;
@@ -117,6 +118,13 @@ try
     trustedProxies = TrustedProxies.FromVariable(builder.Configuration[TrustedProxies.Variable]);
     builder.Services.AddSingleton(trustedProxies);
 
+    // Whether this instance asks anybody outside it about the weather, and how
+    // often (docs/operations.md). Off is a real setting: an instance that is
+    // not supposed to talk to anybody but its owner opens no socket at all.
+    builder.Services.AddSingleton(WeatherSettings.FromVariables(
+        builder.Configuration[WeatherSettings.Variable],
+        builder.Configuration[WeatherSettings.FreshnessVariable]));
+
     // Where this instance is reached, when the operator has said. Optional, and
     // what it buys is a stricter check on browser writes (CsrfProtection).
     builder.Services.AddSingleton(PublicUrlSettings.FromVariables(
@@ -203,6 +211,9 @@ builder.Services.AddScoped<DiscardATask>();
 builder.Services.AddScoped<SearchTheWorkspace>();
 builder.Services.AddScoped<ReadTheDashboard>();
 builder.Services.AddScoped<ShowOrHideATile>();
+builder.Services.AddScoped<ReadTheWeather>();
+builder.Services.AddScoped<SetTheWeatherPlace>();
+builder.Services.AddScoped<LookUpAPlace>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();
