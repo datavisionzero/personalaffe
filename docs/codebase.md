@@ -241,12 +241,20 @@ with, so that raising the cost later does not lock out the owner who exists.
 `Files/` is the one thing in this layer that is not the database: the local file
 store, and the only class in the product that opens a file the owner stored.
 
-**The one thing that is not HTTP** is `Hosting/OwnerRecovery.cs`: the verb an
-operator runs on the machine when the password, the authenticator and the
-recovery codes are all gone. It is not an endpoint and cannot become one — its
-authorization is that somebody is standing at the host, which is the same
-authorization `pg_dump` has. It goes through the same act the browser's password
-change goes through, so the two cannot drift
+**Two things are not HTTP**, and they are the image's two verbs.
+`Hosting/OwnerRecovery.cs` is the one an operator runs on the machine when the
+password, the authenticator and the recovery codes are all gone; it goes through
+the same act the browser's password change goes through, so the two cannot
+drift. `Hosting/Backup.cs` is the one that takes the database and the file
+volume as of one moment — it holds the instance still through
+`MaintenancePause`, takes the lock the Trash sweep takes so that no purge can
+run between the two halves, and writes one tar whose manifest is last so that an
+interrupted one is not mistaken for a finished one.
+
+**Neither is an endpoint and neither can become one.** Their authorization is
+that somebody is standing at the host, which is the same authorization `pg_dump`
+has; an agent's token is not an authorization to reset the owner's password or
+to take a copy of everything they have ever written
 ([`docs/operations.md`](./operations.md)).
 
 **`Personalaffe.Api` is HTTP and the composition root.** `Http/` maps the

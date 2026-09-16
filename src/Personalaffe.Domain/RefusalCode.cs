@@ -71,6 +71,15 @@ public enum RefusalCode
     /// </summary>
     OutOfSpace,
 
+    /// <summary>
+    /// The instance is being held still while a backup takes the database and
+    /// the file volume as of one moment (<see cref="MaintenancePause"/>). It is
+    /// the one refusal that is not about the request: the same request a moment
+    /// later is accepted, which is why it is not
+    /// <see cref="Conflict"/> and not <see cref="Forbidden"/>.
+    /// </summary>
+    Paused,
+
     /// <summary>Something went wrong on the server, and the caller is told no more than that.</summary>
     Internal,
 }

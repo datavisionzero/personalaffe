@@ -24,12 +24,12 @@ using Serilog;
 // away costs a line on standard error, never a request.
 Serilog.Debugging.SelfLog.Enable(Console.Error);
 
-// This binary serves the instance and has exactly one verb. A word handed to it
-// is somebody looking for one — `personalaffe backup`, `personalaffe reset` —
+// This binary serves the instance and has exactly two verbs. A word handed to it
+// is somebody looking for one — `personalaffe reset`, `personalaffe migrate` —
 // and the host would otherwise ignore it, start a second server beside the one
 // already running and die on a port that is taken. What that person is looking
-// for is `pea`, the database, or the one verb below, so the answer says which,
-// here, rather than twenty lines of stack trace later.
+// for is `pea`, the database, or one of the two verbs below, so the answer says
+// which, here, rather than twenty lines of stack trace later.
 //
 // A `--switch` is not a verb: that is the configuration the host itself reads,
 // and it is left alone.
@@ -51,15 +51,29 @@ if (Array.Find(args, argument => !argument.StartsWith('-')) is { } verb)
             Console.Error);
     }
 
+    // One backup, both stores, and the pause that makes them agree
+    // (docs/operations.md). It is here for the same reason recovery is: its
+    // authorization is that somebody is standing at the machine, and it needs
+    // the volume this container has mounted and the connection string it
+    // already reads.
+    if (verb == Backup.Verb)
+    {
+        return await Backup.RunAsync(
+            args,
+            new ConfigurationBuilder().AddEnvironmentVariables().Build(),
+            Console.Error,
+            Console.OpenStandardOutput);
+    }
+
     Console.Error.WriteLine($"""
-        personalaffe: `{verb}` is not a command. This image serves the instance and takes one verb.
+        personalaffe: `{verb}` is not a command. This image serves the instance and takes two verbs.
 
         The way back in when the owner is locked out, on this machine (docs/operations.md):
             personalaffe {OwnerRecovery.Verb} --password-file -
+        Both stores, taken as of one moment, with this instance held still (docs/operations.md):
+            personalaffe {Backup.Verb} --to -  > personalaffe.tar
         The workspace is reached with the CLI, over the API, from anywhere:
             pea version                     (docs/cli.md)
-        The database is reached beside this container, not through it:
-            docker compose exec db pg_dump -U personalaffe personalaffe > backup.sql
         """);
     return 2;
 }
@@ -307,6 +321,12 @@ app.UseAuthentication();
 app.UseMiddleware<BrowserWriteGuard>();
 
 app.UseAuthorization();
+
+// And a write meets the backup, if one is holding this instance still: reads
+// pass, writes are told to come back in a moment (MaintenanceGuard). After
+// authorization, so that what is refused is a caller who could otherwise have
+// changed something.
+app.UseMiddleware<MaintenanceGuard>();
 
 // Everything the instance serves as an API is under one prefix, and everything
 // else is the web application's (docs/codebase.md). An endpoint outside this

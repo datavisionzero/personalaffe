@@ -120,6 +120,7 @@ instance's log.
 | `conflict` | 409 | Something else already occupies that name or place. |
 | `too-large` | 413 | What was sent is over a limit this instance sets on one thing. Carries `limit_bytes`. |
 | `out-of-space` | 507 | This instance has no room left. Carries `limit_bytes` and `used_bytes`. |
+| `paused` | 503 | The instance is being held still while a backup takes its database and its files as of one moment. Carries `Retry-After`. |
 | `internal` | 500 | Something went wrong on the server. |
 
 The set is [`RefusalCode`](../src/Personalaffe.Domain/RefusalCode.cs) and it
@@ -133,6 +134,17 @@ the thing back.
 `too-large` and `out-of-space` are two codes and not one for the same reason:
 both are an upload the instance would not take, and the caller's move is to send
 something smaller in one case and to delete something in the other.
+
+**`paused` is the one refusal that is not about the request.** Everything else
+in the table says something is wrong with what was sent or with who sent it; this
+says the moment is wrong. The instance is being backed up, and its database and
+its files are being taken as of one moment
+([`docs/operations.md`](./operations.md)), so for as long as that takes it
+answers reads and refuses writes. **The same request a few seconds later is
+accepted, unchanged.** `Retry-After` says how long before it is worth asking
+again — a few seconds, and not the length of the pause's own deadline — and
+retrying is the whole of what a client has to do. Nothing was changed, so there
+is nothing to undo and no state to reconcile.
 
 ### Exit codes
 

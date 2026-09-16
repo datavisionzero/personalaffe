@@ -35,6 +35,11 @@ const (
 	// Unreachable is DNS, connection refused, timeout, TLS: the instance could
 	// not be reached at all.
 	Unreachable = 10
+	// Paused is the instance being held still while a backup takes its database
+	// and its files as of one moment. It is the one answer whose move is to do
+	// nothing and send the same request again: the request was fine, the moment
+	// was not. Retry-After says how long.
+	Paused = 11
 )
 
 // FromResponse derives the code from a status and the problem document that
@@ -43,6 +48,11 @@ func FromResponse(status int, p *problem.Problem) int {
 	switch {
 	case status >= 200 && status < 300:
 		return OK
+	// On the code and not on the status: a 503 from the instance being backed
+	// up is worth waiting out, and a 503 from a proxy with nothing behind it is
+	// not, and the two are told apart by what the document says it is.
+	case p != nil && p.Code() == "paused":
+		return Paused
 	case status == 401 || status == 403:
 		return Denied
 	case status == 404:

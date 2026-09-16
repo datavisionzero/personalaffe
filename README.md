@@ -371,9 +371,13 @@ Everything here is PERSONAL-E1 to PERSONAL-E9, and nothing more.
   socket to anywhere.
 - **There is no release.** No image is published anywhere, and CI deliberately
   has no credential to publish one with. Release artifacts are PERSONAL-E10's.
-- **Backups are two volumes and no procedure.** A file is a row in one and bytes
-  in the other, and neither on its own is the file. Taking them consistently
-  together, and proving a restore, is PERSONAL-E10's.
+- **A backup is one command and has not been restored yet.**
+  `personalaffe backup --to -` holds the instance still — reads keep working —
+  and writes one tar carrying the database, the owner's files and a manifest of
+  both ([`docs/operations.md`](docs/operations.md)). **Putting one back is
+  PERSONAL-E10's remaining work**, and a backup nobody has restored is not yet
+  known to be a backup, so anything you would mind losing still belongs
+  somewhere else as well.
 
 Where each of those plugs in is written down in
 [`docs/codebase.md`](docs/codebase.md), under *What the next epics plug into*.

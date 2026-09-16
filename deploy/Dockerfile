@@ -65,13 +65,25 @@ RUN rm -f /app/appsettings.Development.json
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
 
-# Npgsql probes for GSSAPI when it opens a connection, whatever the connection
-# string says about authentication. Without the library the probe writes two
-# lines with the word `Error` straight to stderr on every start of a run that is
-# going fine, and the next person reading the log during a real outage has to
-# rule it out first. Three megabytes to keep the log honest; nothing here asks
-# for Kerberos. Ahead of the COPY, so a source change does not re-run apk.
-RUN apk add --no-cache krb5-libs
+# Two packages, and both are here for a reason worth the megabytes.
+#
+# krb5-libs: Npgsql probes for GSSAPI when it opens a connection, whatever the
+# connection string says about authentication. Without the library the probe
+# writes two lines with the word `Error` straight to stderr on every start of a
+# run that is going fine, and the next person reading the log during a real
+# outage has to rule it out first. Three megabytes to keep the log honest;
+# nothing here asks for Kerberos.
+#
+# postgresql18-client: what `personalaffe backup` shells out to. The thing that
+# dumps a PostgreSQL is a PostgreSQL, and this product does not know how to
+# write a dump and must never learn. Its major version is pinned rather than
+# floating, because pg_dump refuses to dump a server newer than itself — and the
+# verb asks both for their version before it holds anything still, so a database
+# this image has grown too old for is one sentence rather than a backup that
+# half-happened (Hosting/Backup.cs, Persistence/PgDump.cs).
+#
+# Ahead of the COPY, so a source change does not re-run apk.
+RUN apk add --no-cache krb5-libs postgresql18-client
 
 COPY --from=build /app ./
 COPY --from=web /web/dist ./wwwroot

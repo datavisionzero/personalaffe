@@ -525,8 +525,8 @@ its own is the file. A database restored without its volume is a listing of
 files that cannot be downloaded; a volume restored without its database is bytes
 under names nobody can read, since a file's address is its id and the name the
 owner gave it is in the database. Taking them consistently together is
-PERSONAL-E10's. `incoming/` need not be backed up; nothing points at what is in
-it and the tidy-up empties it within the hour.
+[Backing it up](#backing-it-up), below. `incoming/` is not in a backup: nothing
+points at what is in it and the tidy-up empties it within the hour.
 
 ```sh
 docker compose -f deploy/docker-compose.yml restart      # harmless
@@ -575,6 +575,104 @@ proxy, and the proxy's until it does — the same address the throttle on failed
 sign-ins counts, so what an operator reads in the log and what the throttle acts
 on cannot be two different things.
 
+## Backing it up
+
+```sh
+docker compose -f deploy/docker-compose.yml exec -T personalaffe \
+  personalaffe backup --to - > personalaffe-$(date -u +%Y%m%d-%H%M%S).tar
+```
+
+One command, one file, both stores. Everything else on this page is about
+keeping an instance running; this is the part that is about the day it stops.
+
+**Take it somewhere else.** A backup on the machine the instance runs on
+survives a mistake and not a disk, and it is the only copy of what the owner has
+written. Because it comes out on standard output it can go straight wherever you
+already put things — `| ssh`, `| rclone rcat`, `| gpg -e` — with no directory to
+create on the container's behalf, no ownership to get right, and nothing that
+`docker compose down -v` can take away with the volumes.
+
+### What is in it
+
+| | |
+| --- | --- |
+| `database.sql` | Everything in the database: the owner and their security material, agent access and its permissions, application switches, tile preferences, the weather place, every page and its revisions, tasks, Scratchpad entries, file metadata — and the Trash, with its deadlines still where they were. |
+| `files/…` | The owner's files, as files, under the same names the database points at. |
+| `manifest.json` | What this backup is, and it is written **last**. |
+
+The manifest carries the instance's version, the moment it was taken, what took
+the dump, the migrations the schema carried, and a length and a SHA-256 for
+every part — the dump and each file. That is enough to tell two backups apart,
+to check one without the instance it came from, and for a restore to refuse the
+wrong one.
+
+**It is last on purpose.** An archive that stops early has no manifest, and an
+archive with no manifest is not a backup — which is how an interrupted one is
+told from a finished one by something other than its size.
+
+### The pause, and what it costs
+
+The two stores have to be taken as of one moment, so for as long as it runs the
+instance is **held still**: reads keep working and writes are refused with
+`503 paused`, a sentence saying what is happening, and a `Retry-After` saying
+how long. Both clients say something a person understands; `pea` exits 11.
+
+```
+This instance is being backed up, and writes are held for the moment so that its
+database and its files are taken as of one moment. Try again in a few seconds;
+nothing has been changed and nothing has been lost. (paused)
+```
+
+`Retry-After` is how long before it is worth asking again — a few seconds — and
+not how long the pause may last. The deadline behind the pause is a ceiling
+measured in minutes that a backup of a personal workspace goes nowhere near, and
+a client told to wait five minutes for half a second of stillness has been given
+a worse answer than none.
+
+**How long is "a moment"** is the size of the workspace: the dump, then the
+files, at disk speed. On a fresh instance it is under a second; on a few
+gigabytes of files it is however long those take to read. It is not a window you
+have to schedule around at night — but it is a window, so it is worth knowing
+that the owner writing a page during it will be told to press save again.
+
+**Two things cannot happen during it.** A second backup is refused rather than
+taking half of a different moment. And the hourly sweep does not run: the backup
+takes the lock the sweep takes, so a purge that would have destroyed content
+between the dump and the files cannot start, and one that had already started
+finishes before the backup begins. Neither is timed and neither is hoped for.
+
+**It ends whether or not anything ends it.** The pause is a deadline in the
+database and not a flag in a process: a backup killed between two of its steps
+leaves a row saying "still until 10:05", and at 10:05 the instance is writable
+again with nobody there to say so. There is no row to find and edit by hand, and
+no verb to undo it.
+
+**The container's health check is unaffected**, deliberately: an instance being
+backed up is serving, and a Compose that restarted it would interrupt the one
+operation that must not be interrupted.
+
+### What it needs, and what it refuses
+
+The dump is taken by `pg_dump`, which is in the image, because the thing that
+dumps a PostgreSQL is a PostgreSQL. Its major version is pinned to the one this
+Compose file runs. **A database newer than that is refused before anything is
+held still**, with the line that says so — the backup does not start, no writes
+are refused, and the way through is the database container's own `pg_dump`:
+
+```sh
+docker compose -f deploy/docker-compose.yml exec -T db \
+  pg_dump -U personalaffe --no-owner --no-privileges personalaffe > database.sql
+```
+
+That is half a backup and must be paired with the volume by hand; it is here for
+the operator who has upgraded PostgreSQL ahead of this image, not as an
+alternative to the verb.
+
+It also refuses, and holds nothing still, when the database does not carry the
+schema this build knows — a backup that could not be described is not one worth
+taking — and when the storage root is not where
+`PERSONALAFFE_STORAGE_ROOT` says.
+
 ## Upgrading
 
 ```sh
@@ -593,12 +691,14 @@ Two containers starting at once do not migrate against each other — the
 migration takes a Postgres advisory lock, and the second waits and then finds
 nothing to do.
 
-## The one verb this image has
+## The two verbs this image has
 
-`personalaffe recover-owner` above, and nothing else. Migrations apply
-themselves and backups are `pg_dump` beside the container; a word this binary
-does not know stops it with a line saying where to look, rather than starting a
-second server on a port that is taken.
+`personalaffe recover-owner` and `personalaffe backup`, both above, and nothing
+else. They are here for the same reason: **their authorization is that somebody
+is standing at the machine**, which is the authorization `pg_dump` has and no
+token, permission or header reaches. Migrations apply themselves, so there is no
+verb for them; a word this binary does not know stops it with a line saying
+where to look, rather than starting a second server on a port that is taken.
 
 ## The CLI is not in the image
 
@@ -611,5 +711,7 @@ PERSONALAFFE_URL=http://127.0.0.1:8080 pea version
 ```
 
 The operational verbs `pea` deliberately does not have — migrations, backups —
-belong to the binary that has the connection string, and to `pg_dump` beside it.
+belong to the binary that has the connection string. An agent's token is not an
+authorization to take a copy of everything the owner has ever written, and a
+backup that could be started over HTTP would be exactly that.
 [`docs/cli.md`](./cli.md) is the rest.

@@ -23,6 +23,10 @@ func TestEveryAnswerHasACodeAScriptCanBranchOn(t *testing.T) {
 		{412, `{"type":"/problems/stale"}`, exit.Stale},
 		{422, `{"type":"/problems/transition"}`, exit.Refused},
 		{500, `{"type":"/problems/internal"}`, exit.Unexpected},
+		{503, `{"type":"/problems/paused"}`, exit.Paused},
+		// A 503 that is not the instance saying it is being backed up — a proxy
+		// with nothing behind it — is not something to wait out.
+		{503, "", exit.Unexpected},
 		{418, "", exit.Unexpected},
 	}
 
@@ -46,9 +50,10 @@ func TestTheCodesAreDistinctSoAScriptCanTellThemApart(t *testing.T) {
 		exit.Denied:      "Denied",
 		exit.Skew:        "Skew",
 		exit.Unreachable: "Unreachable",
+		exit.Paused:      "Paused",
 	}
 
-	if len(codes) != 10 {
+	if len(codes) != 11 {
 		t.Fatalf("two codes share a number: %v", codes)
 	}
 

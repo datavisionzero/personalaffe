@@ -35,6 +35,9 @@ public static class Problems
         RefusalCode.Stale => StatusCodes.Status412PreconditionFailed,
         RefusalCode.TooLarge => StatusCodes.Status413PayloadTooLarge,
         RefusalCode.OutOfSpace => StatusCodes.Status507InsufficientStorage,
+        // 503 and not 409: what is wrong is the moment rather than the request,
+        // and it travels with a Retry-After that says how long the moment lasts.
+        RefusalCode.Paused => StatusCodes.Status503ServiceUnavailable,
         RefusalCode.Internal => StatusCodes.Status500InternalServerError,
         _ => throw new ArgumentOutOfRangeException(nameof(code), code, "A refusal code without a status."),
     };
@@ -53,6 +56,7 @@ public static class Problems
         RefusalCode.Conflict => "Something else already occupies that name or place",
         RefusalCode.TooLarge => "That is larger than this instance will store",
         RefusalCode.OutOfSpace => "This instance has no room left",
+        RefusalCode.Paused => "This instance is being backed up and is not taking writes",
         RefusalCode.Internal => "Something went wrong on the server",
         _ => throw new ArgumentOutOfRangeException(nameof(code), code, "A refusal code without a title."),
     };
