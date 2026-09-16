@@ -187,7 +187,7 @@ personalaffe/
 ├─ .github/workflows/          the gate: ci on every push and pull request
 ├─ deploy/                     Dockerfile, Compose (production and development), .env.example
 ├─ scripts/
-│  ├─ smoke.sh                 does this hang together? eight checks against a running instance
+│  ├─ smoke.sh                 does this hang together? nine checks against a running instance
 │  ├─ restore.sh               a backup put back: stop, restore, start
 │  └─ rehearse-a-restore.sh    the whole circle, against the image, and what CI's `restore` job runs
 ├─ docs/
@@ -627,6 +627,15 @@ because the parts no substitute can vouch for — that the migrations apply to a
 empty database, that a second start finds nothing to do, that readiness fails
 when the database is gone, that the served contract is the checked-in one — are
 precisely the ones worth testing.
+
+**One of its suites starts the instance as `Production`, and it is the only one
+that does.** `WebApplicationFactory` starts everything as `Development`, the
+image runs as `Production`, and the framework decides a few things by that name
+— which is how an empty `400` where the contract promises a document survived
+seven epics under five suites that asserted the opposite.
+`TheEnvironmentDecidesNothingTests` is what holds the pinning that ended it, and
+[`docs/operations.md`](./operations.md#what-the-environment-does-not-decide) is
+the list of what the name still decides.
 
 The frontend carries its own tests inside `src/web/src/`, and the CLI its own
 inside `src/cli/`, each run by the CI job that builds it. **The one exception is

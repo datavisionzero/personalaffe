@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Does this foundation actually hang together?
 #
-# Eight checks against a running instance, and they are the ones nothing else
+# Nine checks against a running instance, and they are the ones nothing else
 # proves from the outside: that the API answers, that the door in front of it is
-# shut, that the web application is served from the same origin, that the line
+# shut, that a refusal is the document the contract promises rather than a bare
+# status, that the web application is served from the same origin, that the line
 # between them holds, that the contract the instance serves is the one that is
 # checked in, and that both clients can still be generated from it — with `pea`,
 # built here from that document, asking the instance the same question the
@@ -71,6 +72,38 @@ curl --fail --silent --max-time 10 "$instance/api/setup" --output "$work/setup.j
 grep -Eq '^\{"required":(true|false)\}$' "$work/setup.json" \
   || fail "/api/setup answered more than whether setup is needed: $(cat "$work/setup.json")"
 printf '    %s\n' "$(cat "$work/setup.json")"
+
+# --------------------------------------------------------- every refusal ----
+step "A body the reader cannot make sense of is a document, not an empty 400"
+# Against this instance rather than against a suite, because this is the one
+# check whose answer depended on ASPNETCORE_ENVIRONMENT: a build that leaves
+# `ThrowOnBadRequest` to the framework answers Development with a document and
+# everything else with a status and no body at all (PERSONAL-70,
+# docs/operations.md). Setup is the endpoint to ask because it takes a body
+# outside the door — and both of these are refused while the reader is still
+# parsing, so neither can claim an instance that has no owner.
+malformed() {
+  curl --silent --max-time 10 --output "$work/unreadable.json" \
+    --write-out '%{http_code} %{content_type}' \
+    --header 'Content-Type: application/json' --data "$1" "$instance/api/setup"
+}
+
+answer="$(malformed '{not json')"
+case "$answer" in
+  "400 application/problem+json"*) ;;
+  *) fail "a malformed body answered $answer, and every refusal is one document" ;;
+esac
+grep -q '"/problems/validation"' "$work/unreadable.json" \
+  || fail "a malformed body was refused without saying which refusal it was: $(cat "$work/unreadable.json")"
+
+answer="$(malformed '{"email":"smoke@example.com","passwrd":"not-the-field"}')"
+case "$answer" in
+  "400 application/problem+json"*) ;;
+  *) fail "a field the object does not define answered $answer" ;;
+esac
+grep -q '"/problems/unknown-field"' "$work/unreadable.json" \
+  || fail "a field the object does not define was not unknown-field: $(cat "$work/unreadable.json")"
+printf '    validation and unknown-field, both as problem+json\n'
 
 # ------------------------------------------------------ the web application ----
 step "The web application is served from the same origin as the API"

@@ -284,6 +284,31 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddExceptionHandler<Problems.Handler>();
 builder.Services.AddProblemDetails();
 
+// And it is one document whatever ASPNETCORE_ENVIRONMENT says, which is the
+// whole reason this line exists (docs/operations.md, "What the environment does
+// not decide"). Left unset, the framework turns this on in Development and off
+// everywhere else — and off means a body the reader cannot bind never reaches
+// Problems.Handler at all: minimal APIs write an empty 400 themselves, so
+// `unknown-field` and `validation` became a status with no document in the only
+// configuration anybody installs. The suite could not see it, because a suite
+// started by WebApplicationFactory runs in Development.
+//
+// A contract that depends on which environment an instance was started in is
+// not a contract. TheEnvironmentDecidesNothingTests starts one as Production
+// and asks it.
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
+
+// The same reasoning, one layer down. The host validates the service graph and
+// catches a scoped service captured by a singleton in Development only; pinned
+// on, a graph this instance cannot build is a refused start rather than a
+// request that fails in production and nowhere else. Both cost a fraction of
+// one start-up and a pointer comparison per resolution.
+builder.Host.UseDefaultServiceProvider(options =>
+{
+    options.ValidateOnBuild = true;
+    options.ValidateScopes = true;
+});
+
 var app = builder.Build();
 
 // Before anything reads a scheme or an address: the log line wants the caller's

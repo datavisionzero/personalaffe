@@ -104,6 +104,12 @@ they are about. A client that does not know an extension member ignores it.
 exception type, no frame of a stack. What the operator needs is in the
 instance's log.
 
+**And "every" means every build.** A body the framework itself cannot bind is a
+refusal like any other, and which document it gets is pinned rather than left to
+`ASPNETCORE_ENVIRONMENT` — see
+[What the environment does not decide](./operations.md#what-the-environment-does-not-decide)
+for what that is about and where it is checked.
+
 ### The codes
 
 | Code | Status | What it means |

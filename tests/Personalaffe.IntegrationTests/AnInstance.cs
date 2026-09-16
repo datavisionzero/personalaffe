@@ -24,10 +24,25 @@ namespace Personalaffe.IntegrationTests;
 internal sealed class AnInstance(
     string connectionString,
     IReadOnlyDictionary<string, string?>? configuration = null,
-    Action<IServiceCollection>? registrations = null) : WebApplicationFactory<Program>
+    Action<IServiceCollection>? registrations = null,
+    string? environment = null) : WebApplicationFactory<Program>
 {
     public static async Task<AnInstance> StartedAsync(PostgresFixture postgres) =>
         new(await postgres.CreateDatabaseAsync());
+
+    /// <summary>The name the image's environment has, which is the default one.</summary>
+    /// <remarks>
+    /// <see cref="WebApplicationFactory{TEntryPoint}"/> starts everything as
+    /// Development, and the framework decides some of what an instance does by
+    /// that name. A test about the behaviour the image has rather than the
+    /// behaviour a developer has asks for this one
+    /// (<c>docs/operations.md</c>, "What the environment does not decide").
+    /// </remarks>
+    public const string Image = "Production";
+
+    /// <summary>An instance started the way the image starts it.</summary>
+    public static async Task<AnInstance> StartedAsAsync(PostgresFixture postgres, string environment) =>
+        new(await postgres.CreateDatabaseAsync(), configuration: null, registrations: null, environment);
 
     /// <summary>
     /// An instance whose Trash is exactly the contributors given, and none of
@@ -109,7 +124,7 @@ internal sealed class AnInstance(
         new(connectionString, settings);
 
     /// <summary>The same database, started again with what the configuration says now.</summary>
-    public AnInstance StartedAgain() => new(connectionString, configuration);
+    public AnInstance StartedAgain() => new(connectionString, configuration, registrations: null, environment);
 
     public string ConnectionString => connectionString;
 
@@ -155,6 +170,14 @@ internal sealed class AnInstance(
 
             settings.AddInMemoryCollection(values);
         });
+
+        // After the configuration above and before anything is built: the name
+        // is host configuration like the connection string is, and the host
+        // resolves it while it is reading that.
+        if (environment is not null)
+        {
+            builder.UseEnvironment(environment);
+        }
 
         if (registrations is not null)
         {

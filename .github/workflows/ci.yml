@@ -353,6 +353,32 @@ jobs:
           test "$setup" = '{"required":true}' || { echo "/api/setup answered $setup"; exit 1; }
           echo "the door is shut, and the instance is unclaimed"
 
+          # A body the reader cannot make sense of is a document too, and this is
+          # the one refusal that has to be asked of the image rather than of the
+          # suite. `RouteHandlerOptions.ThrowOnBadRequest` defaults to on in
+          # Development and off everywhere else, and off is an empty 400 with no
+          # document at all — which is what every build before PERSONAL-70
+          # shipped, under five suites that could not see it because a test host
+          # runs as Development (docs/operations.md). It is pinned now; this is
+          # what would notice it coming back.
+          for body in '{not json' '{"email":"ci@example.com","passwrd":"not-the-field"}'; do
+            unreadable=$(curl --silent --output /tmp/unreadable.json \
+              --write-out '%{http_code} %{content_type}' \
+              --header 'Content-Type: application/json' --data "$body" http://127.0.0.1:8080/api/setup)
+            case "$unreadable" in
+              "400 application/problem+json"*) ;;
+              *) echo "a body the reader cannot bind answered $unreadable"; cat /tmp/unreadable.json; exit 1;;
+            esac
+          done
+          grep -q '"/problems/unknown-field"' /tmp/unreadable.json \
+            || { echo "a field the object does not define was not unknown-field"; cat /tmp/unreadable.json; exit 1; }
+
+          # And it is still unclaimed: both of those were refused while the
+          # reader was still parsing, so neither could have set an owner.
+          test "$(curl --fail --silent http://127.0.0.1:8080/api/setup)" = '{"required":true}' \
+            || { echo "a refused body claimed the instance"; exit 1; }
+          echo "every refusal is one document, on the image"
+
       # The useful half of a failure. `up -d` says nothing about why a container
       # is unhealthy; its log does.
       - name: What the instance said, if any of that went wrong

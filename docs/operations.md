@@ -144,15 +144,18 @@ credentials, change security settings, empty the Trash or reset the instance.
 scripts/smoke.sh https://workspace.example.com
 ```
 
-Eight checks against the address an owner actually uses, and every one of them
+Nine checks against the address an owner actually uses, and every one of them
 is an operation that answers before anything has authenticated: that the API
 answers and says what it is, that liveness and readiness both answer, that the
-door in front of everything else is shut, that the web application is served
-from the same origin, that an unknown address under `/api` is still an API error
-and not the page, that the contract the instance serves is the one that is
-checked in, and that `pea` — built there and then from that document — reports
-the same version the browser reads. It writes nothing into the repository and
-needs no credential.
+door in front of everything else is shut, that a body the reader cannot make
+sense of is refused as the document the contract promises rather than as a bare
+status, that the web application is served from the same origin, that an unknown
+address under `/api` is still an API error and not the page, that the contract
+the instance serves is the one that is checked in, and that `pea` — built there
+and then from that document — reports the same version the browser reads. It
+writes nothing into the repository and needs no credential; the two malformed
+bodies it sends are refused while the reader is still parsing them, so neither
+can claim an instance that has no owner.
 
 ## When the owner is locked out
 
@@ -252,6 +255,71 @@ this table does not list, or the other way round, fails
 comparison against `deploy/.env.example` and against the environment the Compose
 file passes through. A document nobody can run is not a document an operator can
 trust.
+
+## What the environment does not decide
+
+There is a twelfth variable, and it is not in the table above because setting it
+does nothing an operator can observe: `ASPNETCORE_ENVIRONMENT`. The image never
+sets it, so it is `Production`.
+
+**That is not free, and it was not always true.** ASP.NET Core decides a handful
+of things by that name, and one of them was wrong in every build this product
+had shipped before PERSONAL-70. `RouteHandlerOptions.ThrowOnBadRequest` defaults
+to on under `Development` and off everywhere else, and off means a request body
+the reader cannot bind is answered by the framework itself — an empty `400`,
+before the one place that writes a problem document is ever reached.
+[`docs/api.md`](./api.md) opens with "every refusal is one document"; two of them
+were a bare status. No test could see it, because a test host runs as
+`Development`, so five suites asserted a contract that held only in the
+configuration nobody installs.
+
+Both defaults that key off the name are pinned in `Program.cs`:
+
+| What the framework decides by the name | Left to it | Here |
+| --- | --- | --- |
+| `RouteHandlerOptions.ThrowOnBadRequest` | on under `Development`, off elsewhere | **on**, so a body that cannot be bound is `unknown-field` or `validation`, as the document [`docs/api.md`](./api.md) describes |
+| `ServiceProviderOptions.ValidateOnBuild` and `ValidateScopes` | on under `Development`, off elsewhere | **on**, so a service graph this instance cannot build refuses the start, and a scoped service captured by a singleton is a refusal rather than a database connection that lives as long as the process |
+
+`TheEnvironmentDecidesNothingTests` starts an instance as `Production` and asks
+it — the only suite in this repository that does, and it says out loud which
+environment it got, because a lever that silently stopped working would leave a
+file of tests that pass by testing `Development` twice. `scripts/smoke.sh` and
+the image job in CI ask the same of a running instance, in two HTTP calls.
+
+Four things are still decided by the name, and none of them reaches a running
+container:
+
+- **`appsettings.Development.json`** is read under that name only. The image
+  does not contain the file: `deploy/Dockerfile.dockerignore` keeps it out of
+  the build context and `deploy/Dockerfile` deletes it again after publishing,
+  because it carries a local connection string.
+- **User secrets** — `UserSecretsId` in `Personalaffe.Api.csproj` — are read
+  under that name only, out of the developer's home directory. There is no such
+  store in a container.
+- **The developer exception page** is put in front of everything under that
+  name. It never sees anything: `UseExceptionHandler` sits inside it and answers
+  every exception with a problem document, which is what
+  `A_bug_is_still_a_bug_and_a_refusal_is_still_a_refusal` holds.
+- **The static web assets manifest** is loaded under that name only, which is
+  how files a referenced project or package contributes to `wwwroot` are found
+  before a publish. Nothing contributes any: the web application is built by its
+  own toolchain into `wwwroot` — by `npm run build` locally, by the first stage
+  of `deploy/Dockerfile` in the image — and what serves it is the same
+  `UseStaticFiles` either way.
+
+And two differences that are not about the name at all, but about where a test
+runs. Both are known, and both are covered somewhere the subject is real:
+
+- **The suites reach the instance in-process**, through the test host rather
+  than through Kestrel over a socket. What a request line or a header does
+  before it reaches routing is Kestrel's, is the same in both, and is nothing
+  this product configures — and the image job in CI drives the real container
+  over a real port.
+- **`pg_dump` and `pg_restore` are in the image and not in the suites.** The
+  backup and restore verbs shell out to them, so the integration tests hold
+  every refusal and the whole file half without a PostgreSQL client anywhere,
+  and `scripts/rehearse-a-restore.sh` runs the real tools against the real image
+  on every push. See [Backing it up](#backing-it-up).
 
 ## The Trash empties itself
 
