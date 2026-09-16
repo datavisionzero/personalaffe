@@ -7,6 +7,7 @@ import type { TheApplications } from "@/shell/useApplications";
 import type { Me } from "@/session/useSession";
 import { cn } from "@/lib/utils";
 import { ApplicationSwitches } from "./ApplicationSwitches";
+import { HomeSettings } from "./HomeSettings";
 
 /**
  * Everything about the instance rather than about its content: which
@@ -25,6 +26,7 @@ import { ApplicationSwitches } from "./ApplicationSwitches";
 export function Settings({ me, applications }: { me: Me; applications: TheApplications }) {
   const areas = [
     { path: "/settings/applications", label: "Applications" },
+    { path: "/settings/home", label: "Home page" },
     { path: "/settings/security", label: "Security" },
     { path: "/settings/agents", label: "Agent access" },
   ];
@@ -58,6 +60,7 @@ export function Settings({ me, applications }: { me: Me; applications: TheApplic
           path="applications"
           element={<ApplicationSwitches me={me} applications={applications} />}
         />
+        <Route path="home" element={<HomeSettings owner={me.kind === "owner"} />} />
         <Route
           path="security"
           element={me.kind === "owner" ? <Security /> : <Denied what="Security" />}

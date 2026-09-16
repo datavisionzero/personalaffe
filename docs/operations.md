@@ -120,6 +120,8 @@ failed is in the instance's log at warning, where the operator is.
 | `PERSONALAFFE_MAX_STORAGE_MIB` | `5120` | Whole mebibytes, 1 to 1048576. How much the Files application may store in all, what is in the Trash included. Must not be smaller than the per-file limit. |
 | `PERSONALAFFE_TRASH_RETENTION` | `30` | Whole days, 1 to 3650. How long deleted knowledge pages, tasks, lists, files and folders stay recoverable. See below. |
 | `PERSONALAFFE_SCRATCHPAD_RETENTION` | `7` | Whole days, 1 to 3650. How long an unpinned Scratchpad entry lasts after it was last changed. See below. |
+| `PERSONALAFFE_WEATHER` | `on` | `on` or `off`. Whether this instance asks anybody outside it about the weather. Off, and nothing in this product opens a socket to anywhere. See below. |
+| `PERSONALAFFE_WEATHER_FRESHNESS` | `15` | Whole minutes, 1 to 1440. How long a reading is held before the provider is asked again. |
 | `PERSONALAFFE_TRUSTED_PROXY` | unset | Which peers may speak for the caller. See below. |
 | `PERSONALAFFE_PUBLIC_URL` | unset | Where this instance is reached, like `https://workspace.example.com`. Optional: what it buys is a stricter check on writes made from a browser, which without it are checked against the host alone. It is never used to build a link. |
 | `PERSONALAFFE_LOG_LEVEL` | `Information` | `Verbose`, `Debug`, `Information`, `Warning`, `Error` or `Fatal`. |
@@ -197,6 +199,41 @@ mattered.
 that ignored them would be one an owner could walk past by deleting and
 uploading in turn, and then find they could not restore what they had deleted.
 Emptying the Trash is what gives that room back straight away.
+
+## The one request that leaves this instance
+
+The weather tile is the only thing in personalaffe that talks to anything but
+its own database and its own disk. It asks
+[Open-Meteo](https://open-meteo.com), which needs no account, no API key and no
+secret in this file — which is why it is in the MVP at all
+([ADR 0009](adr/0009-the-index-is-a-column-and-the-weather-waits-on-nobody.md)).
+
+**What is sent is two coordinates.** The point the owner chose, rounded to four
+decimal places, and nothing about who is asking: not the owner's address, not a
+session, not the label they gave the place. The label is looked up once, in
+Settings, and stored; a tile never asks a geocoder.
+
+**`PERSONALAFFE_WEATHER=off` switches it off entirely**, and then nothing in
+this product opens a socket to anywhere. An instance on a machine that is
+supposed to talk to nobody but its owner is a reasonable thing to run, and a
+tile is not a reason to take that away. The tile stays on the home page and says
+that this instance does not ask.
+
+**A provider that is slow, down or gone is not an incident.** A refused
+connection, a 500, a timeout or a body that is not what was expected is "no
+reading": the tile says it does not know, the rest of the home page is
+untouched, and the line in the log is at information rather than warning —
+somebody else's bad afternoon is not this instance's health, and an operator
+reading a log during a real outage should not have to rule it out first.
+
+**It cannot hold the home page up.** The weather has an address of its own,
+`GET /api/weather`, and is never part of the answer to `GET /api/dashboard`.
+Readings are held for `PERSONALAFFE_WEATHER_FRESHNESS`, so a browser left open
+troubles the provider four times an hour by default rather than once every
+fifteen seconds.
+
+**Attribution is not optional.** What a free provider is paid in is the credit
+that travels with every answer; both clients show it beside the number.
 
 ## The Scratchpad empties itself too
 

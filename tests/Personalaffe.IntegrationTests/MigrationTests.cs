@@ -54,7 +54,48 @@ public sealed class MigrationTests(PostgresFixture postgres)
 
         var columns = await ColumnsOfAsync(context, "scratchpad_entries");
 
-        Assert.Equal(["created_at", "id", "pinned", "text", "updated_at"], columns);
+        Assert.Equal(["created_at", "id", "pinned", "search_vector", "text", "updated_at"], columns);
+    }
+
+    [Theory]
+    [InlineData("pages")]
+    [InlineData("tasks")]
+    [InlineData("scratchpad_entries")]
+    [InlineData("files")]
+    public async Task Every_table_one_search_reads_keeps_its_own_index_up_to_date(string table)
+    {
+        // Stored and generated, so that Postgres computes it from the row and
+        // nothing in this product ever writes it (`Configurations/SearchIndex.cs`).
+        // A column that were merely `tsvector` would need a trigger or a second
+        // write, and the first row somebody restored or migrated in behind the
+        // application's back would be a row one search cannot find.
+        await using var context = AnInstance.ContextFor(await postgres.CreateDatabaseAsync());
+        await AnInstance.MigratorFor(context).ApplyAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            "ALWAYS",
+            await ScalarAsync(
+                context,
+                """
+                select is_generated from information_schema.columns
+                where table_name = @table and column_name = 'search_vector'
+                """,
+                table));
+
+        // GIN, because this index is read on every keystroke of a field that
+        // answers while somebody types.
+        Assert.Equal(
+            "gin",
+            await ScalarAsync(
+                context,
+                """
+                select a.amname from pg_class i
+                join pg_index x on x.indexrelid = i.oid
+                join pg_class t on t.oid = x.indrelid
+                join pg_am a on a.oid = i.relam
+                where t.relname = @table and i.relname = 'ix_' || @table || '_search'
+                """,
+                table));
     }
 
     [Fact]
@@ -125,6 +166,19 @@ public sealed class MigrationTests(PostgresFixture postgres)
         Assert.Contains(
             "Migration failed; the instance will not start.",
             instance.Warnings.Select(warning => warning.Split('\n')[0]));
+    }
+
+    /// <summary>One value out of the catalogue, for a question about one table.</summary>
+    private static async Task<string?> ScalarAsync(
+        PersonalaffeDbContext context, string sql, string table)
+    {
+        await using var connection = new NpgsqlConnection(context.Database.GetConnectionString());
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("table", table);
+
+        return await command.ExecuteScalarAsync(TestContext.Current.CancellationToken) as string;
     }
 
     /// <summary>

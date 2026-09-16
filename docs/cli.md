@@ -6,10 +6,12 @@ reaches no database, no file volume and no other affe product, and it knows an
 instance only through the client generated from
 [`docs/api/openapi.json`](./api/openapi.json).
 
-**All four applications are here.** Two verbs are the foundation's, three are
-the credential's, two are the workspace's, seven are the Scratchpad's
-(PERSONAL-E5), six are Files' (PERSONAL-E6), nine are Knowledge's
-(PERSONAL-E7) and ten are Tasks' (PERSONAL-E8).
+**All four applications are here, and so is the question that reaches all of
+them.** Two verbs are the foundation's, three are the credential's, two are the
+workspace's, seven are the Scratchpad's (PERSONAL-E5), six are Files'
+(PERSONAL-E6), nine are Knowledge's (PERSONAL-E7), ten are Tasks' (PERSONAL-E8)
+and three are the workspace's own — one search, the home page, and the weather
+(PERSONAL-E9).
 Everything else on this page — the ladders, the input rules, the exit codes — is
 the shape every later verb is written to, and it is here because it was settled
 in PERSONAL-5, before there was a second verb to settle it differently.
@@ -55,6 +57,9 @@ pea tasks mv          # where it sits: --after ID or --top
 pea tasks rm          # into the Trash
 pea trash list        # what was deleted and is still recoverable
 pea trash restore     # put one thing back
+pea search            # find something in all four at once
+pea dashboard         # what is useful or pending, as the home page has it
+pea weather           # what it is doing where the owner said
 ```
 
 ## What it promises
@@ -718,6 +723,93 @@ is the one place that is always free.
 There is no verb here that deletes a whole list: deleting one is not something
 to do by accident from a console, and the browser is where the owner does it.
 
+### `pea search WORDS...`
+
+```sh
+pea search arch dec
+pea search budget 2026 --application files
+```
+
+```
+knowledge	0199f0c4-…	Architecture decisions	Where the storage decision lives and
+files	0199f0c4-…	architecture.pdf	
+```
+
+One question over knowledge pages, tasks, Scratchpad text and file names. What
+is inside a file is never looked at ([`docs/api.md`](./api.md), The search).
+
+**The words are arguments and not one quoted string**, because that is how
+somebody types a search. Every one of them is matched as a beginning and all of
+them have to be found, so `arch dec` finds "Architecture decisions" and does not
+find a page that only says "architecture". There is no query language: a stray
+quote or ampersand does nothing at all.
+
+One line per finding, tab separated: application, id, title, and the snippet
+where there is one. A snippet is a person's own text, so it is folded onto one
+line here — a newline in a column would be a row `cut` cannot read. The column
+is still there and empty for a file name, which has no body to quote.
+
+`--application` narrows it to one; a word that is not one of the four is exit 2
+without a request. `--limit` bounds it, 1 to 100, 20 by default, and `pea` says
+on stderr when there was more. An application this credential cannot read, or
+one the owner has switched off, contributes nothing and is not an error — the
+same as `pea trash list`.
+
+### `pea dashboard`
+
+```sh
+pea dashboard
+```
+
+```
+# tasks (2)
+0199f0c7-…	2026-09-14	Einkauf	Milch holen
+0199f0c7-…	—	Einkauf	Irgendwann
+
+# knowledge (0)
+```
+
+What is useful or pending: the tiles the owner keeps on their home page, and
+what is in the ones this credential can read. At most five rows each — it is an
+entry point, not a report.
+
+**A tile that is not being drawn has no section at all; one that is drawn and
+holds nothing has an empty one.** Those are the two different answers the API
+gives (`null` against `[]`), and this keeps them apart rather than flattening
+them. A task with no due date shows `—`.
+
+The weather is a separate request and a separate verb, and `pea` says so on
+stderr when the tile is on the page.
+
+### `pea weather`
+
+```sh
+pea weather
+```
+
+```
+place        Wuppertal
+temperature  16.1°C
+sky          Overcast
+wind         2.2 km/h
+today        14.2°C to 20.3°C
+read_at      2026-09-16T07:15:00Z
+```
+
+The one thing in this product that comes from outside it. It is a separate
+request from `pea dashboard` on purpose: a home page must never wait on a server
+somewhere else ([`docs/api.md`](./api.md), The weather).
+
+`read_at` is when the instance asked, not when the observation was made. The
+attribution goes to stderr with the other sentences — it is what a free provider
+is paid in, so show it wherever the number is shown.
+
+**Three ways there is nothing to say, and none of them is a failure**: the owner
+has not said where, the operator has told this instance not to ask anybody, or
+the provider did not answer. Each is exit 0 with a sentence on stderr saying
+which. A non-zero exit would be this instance claiming somebody else's outage as
+its own.
+
 ### `pea trash list`
 
 ```sh
@@ -762,7 +854,8 @@ on stderr — nothing here moves the owner's content quietly.
 
 `pea trash purge` does not exist, and neither does emptying the Trash, removing
 a piece of lasting content for good, issuing a credential, changing a security
-setting, or switching an application off. Those are the owner's, and `pea` holds
+setting, switching an application off, showing or hiding a dashboard tile, or
+saying where the weather is for. Those are the owner's, and `pea` holds
 agent access. An agent that could permanently remove one Trash entry could
 bypass the Trash in two steps instead of one, and the Trash exists precisely so
 that an agent acting on the owner's behalf cannot destroy the owner's *lasting*

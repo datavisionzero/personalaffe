@@ -6,6 +6,7 @@ using Personalaffe.Application.Ports;
 using Personalaffe.Infrastructure.Files;
 using Personalaffe.Infrastructure.Persistence;
 using Personalaffe.Infrastructure.Security;
+using Personalaffe.Infrastructure.Weather;
 
 namespace Personalaffe.Infrastructure;
 
@@ -53,6 +54,22 @@ public static class InfrastructureServices
         services.AddScoped<IPages, Pages>();
         services.AddScoped<ITasks, Persistence.Tasks>();
 
+        // One search over the four tables the stores above write into. It owns
+        // no content of its own: what it reads is the columns Postgres keeps up
+        // to date from those rows (Configurations/SearchIndex.cs).
+        services.AddScoped<ISearch, Search>();
+
+        // The home page: which tiles are on it, and the few rows behind each.
+        // Two ports rather than one, because they answer to different people —
+        // the settings are the owner's, the rows are whatever the caller may
+        // read (docs/mvp-plan.md, PERSONAL-E9).
+        services.AddScoped<IDashboardTiles, DashboardTiles>();
+        services.AddScoped<IDashboard, Dashboard>();
+
+        // Where the owner wants the weather for. One row beside the tiles,
+        // because it is a setting and not content.
+        services.AddScoped<IWeatherPlace, WeatherPlaces>();
+
         // The Trash's contributors. Registering one is the whole of appearing in
         // GET /api/trash, in restore, in permanent removal and in the hourly
         // purge (docs/codebase.md).
@@ -66,6 +83,11 @@ public static class InfrastructureServices
 
         // Argon2id, and the only place that knows it is (docs/codebase.md).
         services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();
+
+        // The one thing in this product that asks something outside it a
+        // question (docs/adr/0009). One instance, because it holds the reading
+        // it last got and the socket it got it over; the container disposes it.
+        services.AddSingleton<IWeather, OpenMeteo>();
 
         return services;
     }

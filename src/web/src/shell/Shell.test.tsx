@@ -7,17 +7,23 @@ import {
   anAgent,
   renderAt,
   theApplications,
+  theDashboard,
   theOwner,
+  theWeather,
 } from "@/shared/anInstance";
 import { Shell } from "./Shell";
 
 const emptyTrash = { "GET /api/trash": { body: { items: [], has_more: false } } };
 
+// The home page is the dashboard since PERSONAL-E9, so every test that walks
+// through it has to answer the one question it asks.
+const emptyHome = { "GET /api/dashboard": theDashboard(), "GET /api/weather": theWeather() };
+
 describe("the frame", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("offers the applications this workspace has switched on", async () => {
-    anInstance({ "GET /api/applications": theApplications(), ...emptyTrash });
+    anInstance({ "GET /api/applications": theApplications(), ...emptyTrash, ...emptyHome });
 
     renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
 
@@ -32,6 +38,7 @@ describe("the frame", () => {
     anInstance({
       "GET /api/applications": theApplications({ tasks: { enabled: false } }),
       ...emptyTrash,
+      ...emptyHome,
     });
 
     renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
@@ -56,6 +63,7 @@ describe("the frame", () => {
         files: { permission: "none" },
       }),
       ...emptyTrash,
+      ...emptyHome,
     });
 
     renderAt(
@@ -70,7 +78,7 @@ describe("the frame", () => {
   });
 
   it("walks to an application and back home", async () => {
-    anInstance({ "GET /api/applications": theApplications(), ...emptyTrash });
+    anInstance({ "GET /api/applications": theApplications(), ...emptyTrash, ...emptyHome });
 
     renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
 
@@ -81,7 +89,9 @@ describe("the frame", () => {
     expect(await screen.findByRole("heading", { name: "Tasks" })).toBeInTheDocument();
 
     await userEvent.click(within(navigation).getByRole("link", { name: "Home" }));
-    expect(await screen.findByRole("heading", { name: "Your workspace" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "What is useful or pending" }),
+    ).toBeInTheDocument();
   });
 
   describe("a direct link into an application", () => {
@@ -90,6 +100,7 @@ describe("the frame", () => {
         "GET /api/applications": theApplications(),
         "GET /api/scratchpad/entries": { body: { items: [], has_more: false } },
         ...emptyTrash,
+        ...emptyHome,
       });
 
       renderAt("/scratchpad", <Shell me={theOwner} onSignedOut={() => undefined} />);
@@ -163,7 +174,7 @@ describe("the frame", () => {
     });
 
     it("answers an address nothing took inside the frame", async () => {
-      anInstance({ "GET /api/applications": theApplications(), ...emptyTrash });
+      anInstance({ "GET /api/applications": theApplications(), ...emptyTrash, ...emptyHome });
 
       renderAt("/calendar", <Shell me={theOwner} onSignedOut={() => undefined} />);
 
@@ -174,7 +185,7 @@ describe("the frame", () => {
 
   describe("the keyboard", () => {
     it("opens the palette with its key and walks where a row leads", async () => {
-      anInstance({ "GET /api/applications": theApplications(), ...emptyTrash });
+      anInstance({ "GET /api/applications": theApplications(), ...emptyTrash, ...emptyHome });
 
       renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
       await screen.findByRole("navigation", { name: "The workspace" });
@@ -190,7 +201,7 @@ describe("the frame", () => {
     });
 
     it("shows every key it binds, and does not answer a bare key while typing", async () => {
-      anInstance({ "GET /api/applications": theApplications(), ...emptyTrash });
+      anInstance({ "GET /api/applications": theApplications(), ...emptyTrash, ...emptyHome });
 
       renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
       await screen.findByRole("navigation", { name: "The workspace" });
@@ -211,6 +222,73 @@ describe("the frame", () => {
       await userEvent.type(field, "h?");
 
       expect(field).toHaveValue("h?");
+    });
+  });
+
+  describe("the palette searches the workspace", () => {
+    const aPage = {
+      application: "knowledge",
+      id: "0199f0c4-0000-7000-8000-000000000001",
+      title: "Architecture decisions",
+      snippet: "Where the storage decision lives",
+      within: null,
+      updated_at: "2026-09-14T08:30:00.000000Z",
+      rank: 0.61,
+    };
+
+    it("puts what the instance found above the commands, and walks to it", async () => {
+      anInstance({
+        "GET /api/applications": theApplications(),
+        "GET /api/search": { body: { query: "arch", items: [aPage], has_more: false } },
+        // The row walks into Knowledge, so the screen behind it has to have an
+        // answer of its own shape.
+        "GET /api/knowledge/pages": { body: { pages: [] } },
+        "GET /api/knowledge/pages/0199f0c4-0000-7000-8000-000000000001": {
+          status: 404,
+          body: { type: "/problems/not-found", title: "not-found", status: 404 },
+        },
+        ...emptyTrash,
+        ...emptyHome,
+      });
+
+      renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
+      await screen.findByRole("navigation", { name: "The workspace" });
+
+      await userEvent.keyboard("{Meta>}k{/Meta}");
+
+      const field = await screen.findByRole("combobox", { name: "Go anywhere, or type a command" });
+      await userEvent.type(field, "arch");
+
+      const row = await screen.findByText("Architecture decisions");
+
+      // The commands are still underneath: a palette that stopped offering
+      // "Settings" the moment somebody typed "se" gets worse the more it is
+      // used.
+      expect(screen.getByText(/Search for/)).toBeInTheDocument();
+
+      await userEvent.click(row);
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    });
+
+    it("asks nothing at all for a word the instance would not look for", async () => {
+      const instance = anInstance({
+        "GET /api/applications": theApplications(),
+        ...emptyTrash,
+        ...emptyHome,
+      });
+
+      renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
+      await screen.findByRole("navigation", { name: "The workspace" });
+
+      await userEvent.keyboard("{Meta>}k{/Meta}");
+
+      const field = await screen.findByRole("combobox", { name: "Go anywhere, or type a command" });
+      await userEvent.type(field, "a");
+
+      await waitFor(() =>
+        expect(instance.asked.filter((one) => one.path === "/api/search")).toHaveLength(0),
+      );
     });
   });
 

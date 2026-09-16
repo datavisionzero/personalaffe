@@ -1,6 +1,6 @@
 # personalaffe — MVP Implementation Plan
 
-Status: agreed product and architecture direction. **PERSONAL-E1 to PERSONAL-E8
+Status: agreed product and architecture direction. **PERSONAL-E1 to PERSONAL-E9
 are delivered** — the application, API, CLI and delivery foundation; the door in
 front of them, with one owner, an optional second factor, agent access with a
 permission per application and a recovery that needs the machine rather than a
@@ -18,22 +18,25 @@ third, Knowledge — Markdown in a tree, an address a rename cannot break, a
 history that only ever grows, and an export that is a zip somebody can read
 without ever having heard of this product; and the fourth, Tasks — named lists,
 a due date that is a day rather than a moment, and an order in which moving one
-task changes one row ([`docs/codebase.md`](codebase.md),
+task changes one row; and what the four of them add up to: one search over all
+of them, kept up to date by a column Postgres computes rather than by anything
+this product runs, a home page of five tiles the owner can hide one at a time,
+and a weather tile at an address of its own so that a server somewhere else can
+never hold the home page up ([`docs/codebase.md`](codebase.md),
 [ADR 0002](adr/0002-one-owner-with-a-browser-and-agents-with-tokens.md),
 [ADR 0003](adr/0003-content-is-guarded-by-what-it-was-read-at-and-deleted-by-being-set-aside.md),
 [ADR 0004](adr/0004-one-frame-four-switches-and-a-screen-that-asks-again.md),
 [ADR 0005](adr/0005-the-scratchpad-keeps-nothing-and-its-clock-runs-from-the-last-change.md),
 [ADR 0006](adr/0006-a-file-is-its-id-and-its-bytes-go-down-before-its-row.md),
 [ADR 0007](adr/0007-a-page-is-its-id-and-its-history-only-grows.md),
-[ADR 0008](adr/0008-a-due-date-is-a-day-and-an-order-is-a-number-between-two-others.md)).
+[ADR 0008](adr/0008-a-due-date-is-a-day-and-an-order-is-a-number-between-two-others.md),
+[ADR 0009](adr/0009-the-index-is-a-column-and-the-weather-waits-on-nobody.md)).
 
-**Every content application VISION.md names now exists.** What PERSONAL-E9 and
-PERSONAL-E10 have left is not content: the home page is still not a dashboard,
-nothing is searchable, there is no weather, and no release has been published.
-And no backup of any of it has been through a restore anybody has proved
-(PERSONAL-E10) — the Knowledge export is not one, since it carries no Trash, no
-revisions and no agent access — so anything you would mind losing still belongs
-somewhere else as well.
+**Every feature VISION.md names for the MVP now exists.** What PERSONAL-E10 has
+left is not a feature: no release has been published, and no backup of any of
+this has been through a restore anybody has proved — the Knowledge export is not
+one, since it carries no Trash, no revisions and no agent access — so anything
+you would mind losing still belongs somewhere else as well.
 
 The plan implements the four core applications in VISION.md. IDEAS.md remains non-binding and outside the MVP. CONTEXT.md defines domain vocabulary. Epic descriptions are maintained in the PERSONAL project in planaffe; this document is the repository copy of their initial plan.
 
@@ -300,7 +303,7 @@ No recurring tasks, assignments, sprints, project planning, dependency graphs, o
 
 ### PERSONAL-E9: MVP: Bring the workspace together with dashboard, global search, and weather
 
-Prerequisites: PERSONAL-E4, PERSONAL-E5, PERSONAL-E6, PERSONAL-E7, PERSONAL-E8.
+Prerequisites: PERSONAL-E4, PERSONAL-E5, PERSONAL-E6, PERSONAL-E7, PERSONAL-E8. **Delivered.**
 
 #### Outcome
 
@@ -326,7 +329,7 @@ The home page shows what is useful or pending, and one search finds permitted co
 
 #### Constraints and later details
 
-Choose ranking, pagination, default tiles, freshness targets, and weather provider here. If no proportionate weather integration is found, record the evidence and return that scope decision to the owner under VISION.md's existing condition. No free-form dashboard builder, custom data ingestion, finance ticker, or notification center in the MVP.
+Choose ranking, pagination, default tiles, freshness targets, and weather provider here. If no proportionate weather integration is found, record the evidence and return that scope decision to the owner under VISION.md's existing condition. *Settled: ranking is `ts_rank` over a `simple` vector weighted A for what a thing is called and B for what it says; there is no cursor, only a limit with `has_more`; all five tiles are shown by default; a reading is held for fifteen minutes; and the provider is Open-Meteo, which needs no account, no key and no secret — so the condition is met and the scope decision does not return to the owner ([ADR 0009](adr/0009-the-index-is-a-column-and-the-weather-waits-on-nobody.md)).* No free-form dashboard builder, custom data ingestion, finance ticker, or notification center in the MVP.
 
 ### PERSONAL-E10: MVP: Prove secure operation, backup, upgrades, and release readiness
 

@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Personalaffe.Domain;
+using Personalaffe.Domain.Dashboard;
 using Personalaffe.Domain.Files;
 using Personalaffe.Domain.Knowledge;
 using Personalaffe.Domain.Scratchpad;
 using Personalaffe.Domain.Tasks;
+using Personalaffe.Domain.Weather;
 
 namespace Personalaffe.Infrastructure.Persistence;
 
@@ -15,9 +17,10 @@ namespace Personalaffe.Infrastructure.Persistence;
 /// startup. What it declares is what something already stores rows in: the
 /// owner and what gets them in, from PERSONAL-E2, the application switch from
 /// PERSONAL-E4, the Scratchpad from PERSONAL-E5, the Files application from
-/// PERSONAL-E6, Knowledge from PERSONAL-E7 and Tasks from PERSONAL-E8 — which
-/// is all four of them. Every table here is one something stores rows in; a
-/// table invented before that would be a shape nobody has had to live with.
+/// PERSONAL-E6, Knowledge from PERSONAL-E7, Tasks from PERSONAL-E8 — which is
+/// all four of them — and the home page's tiles and its weather place from PERSONAL-E9. Every table
+/// here is one something stores rows in; a table invented before that would be
+/// a shape nobody has had to live with.
 /// </remarks>
 public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext> options) : DbContext(options)
 {
@@ -53,6 +56,20 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// that creates the table.
     /// </summary>
     public DbSet<ApplicationState> Applications => Set<ApplicationState>();
+
+    /// <summary>
+    /// Which compact views the owner has on their home page
+    /// (<see cref="TileState"/>). One row per tile, seeded by the migration
+    /// that creates the table.
+    /// </summary>
+    public DbSet<TileState> DashboardTiles => Set<TileState>();
+
+    /// <summary>
+    /// Where the owner wants the weather for (<see cref="Domain.Weather.WeatherPlace"/>).
+    /// One row, held to one by the check constraint the configuration declares,
+    /// and nowhere until the owner says.
+    /// </summary>
+    public DbSet<WeatherPlace> WeatherPlace => Set<WeatherPlace>();
 
     /// <summary>
     /// The temporary plain text the owner keeps for cross-device use

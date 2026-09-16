@@ -37,7 +37,18 @@ test.describe("Knowledge", () => {
     await expect(page.getByText("Saved.")).toBeVisible();
 
     // Renamed, and the same address still opens it: the id is the identity.
-    await page.getByLabel("Title").fill(`${title} (umbenannt)`);
+    //
+    // The save reads the page again, which takes this field away and puts a
+    // fresh one back. Waiting for it to carry the saved title is waiting for
+    // that to have happened rather than racing it — a fill that lands on the
+    // node being replaced is a rename nobody made, and a Save button that
+    // stays disabled for a minute afterwards.
+    const renamed = page.getByLabel("Title");
+
+    await expect(renamed).toHaveValue(title);
+    await renamed.fill(`${title} (umbenannt)`);
+    await expect(renamed).toHaveValue(`${title} (umbenannt)`);
+
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Saved.")).toBeVisible();
 

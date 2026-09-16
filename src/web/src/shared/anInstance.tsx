@@ -165,3 +165,65 @@ export function theApplications(
     },
   };
 }
+
+/**
+ * What `GET /api/dashboard` answers: every tile shown and offered, and nothing
+ * in any of them, unless the test says otherwise.
+ *
+ * Its shape is the contract's, so a section that changed from `null` to `[]` —
+ * which is the one distinction the home page is built on — fails a test by not
+ * compiling rather than by drawing something odd.
+ */
+export function theDashboard(
+  overrides: {
+    tiles?: Record<string, { shown?: boolean; offered?: boolean }>;
+    tasks?: unknown[] | null;
+    knowledge?: unknown[] | null;
+    scratchpad?: unknown[] | null;
+    files?: unknown[] | null;
+  } = {},
+): Answer {
+  return {
+    body: {
+      tiles: ["tasks", "knowledge", "scratchpad", "files", "weather"].map((tile) => ({
+        tile,
+        shown: overrides.tiles?.[tile]?.shown ?? true,
+        offered: overrides.tiles?.[tile]?.offered ?? true,
+        updated_at: "2026-01-01T00:00:00.000000Z",
+      })),
+      tasks: overrides.tasks === undefined ? [] : overrides.tasks,
+      knowledge: overrides.knowledge === undefined ? [] : overrides.knowledge,
+      scratchpad: overrides.scratchpad === undefined ? [] : overrides.scratchpad,
+      files: overrides.files === undefined ? [] : overrides.files,
+    },
+  };
+}
+
+/** What `GET /api/weather` answers when the owner has said where. */
+export function theWeather(overrides: Record<string, unknown> = {}): Answer {
+  return {
+    body: {
+      place: "Wuppertal",
+      latitude: 51.2563,
+      longitude: 7.1482,
+      units: "metric",
+      temperature_unit: "°C",
+      wind_unit: "km/h",
+      available: true,
+      reading: {
+        temperature: 16.1,
+        feels_like: 16.5,
+        high: 20.3,
+        low: 14.2,
+        wind: 2.2,
+        code: 3,
+        description: "Overcast",
+        day: true,
+        read_at: new Date().toISOString(),
+      },
+      attribution: "Weather data by a test",
+      updated_at: "2026-09-15T18:02:11.000000Z",
+      ...overrides,
+    },
+  };
+}

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using NpgsqlTypes;
 using Personalaffe.Infrastructure.Persistence;
 
 #nullable disable
@@ -208,6 +209,60 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                     b.ToTable("browser_session", (string)null);
                 });
 
+            modelBuilder.Entity("Personalaffe.Domain.Dashboard.TileState", b =>
+                {
+                    b.Property<string>("Tile")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("tile");
+
+                    b.Property<bool>("Shown")
+                        .HasColumnType("boolean")
+                        .HasColumnName("shown");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Tile")
+                        .HasName("pk_dashboard_tile");
+
+                    b.ToTable("dashboard_tile", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Tile = "tasks",
+                            Shown = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Tile = "knowledge",
+                            Shown = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Tile = "scratchpad",
+                            Shown = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Tile = "files",
+                            Shown = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Tile = "weather",
+                            Shown = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        });
+                });
+
             modelBuilder.Entity("Personalaffe.Domain.Files.Folder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -281,6 +336,12 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasColumnName("search_vector")
+                        .HasComputedColumnSql("setweight(to_tsvector('simple', regexp_replace(coalesce(name, ''), '[^[:alnum:]]+', ' ', 'g')), 'A')", true);
+
                     b.Property<long>("Size")
                         .HasColumnType("bigint")
                         .HasColumnName("size");
@@ -298,6 +359,11 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("FolderId")
                         .HasDatabaseName("ix_files_folder_id");
+
+                    b.HasIndex("SearchVector")
+                        .HasDatabaseName("ix_files_search");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "gin");
 
                     b.ToTable("files", (string)null);
                 });
@@ -326,6 +392,12 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("parent_id");
 
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasColumnName("search_vector")
+                        .HasComputedColumnSql("setweight(to_tsvector('simple', regexp_replace(coalesce(title, ''), '[^[:alnum:]]+', ' ', 'g')), 'A') || setweight(to_tsvector('simple', coalesce(markdown, '')), 'B')", true);
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -345,6 +417,11 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ParentId")
                         .HasDatabaseName("ix_pages_parent_id");
+
+                    b.HasIndex("SearchVector")
+                        .HasDatabaseName("ix_pages_search");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "gin");
 
                     b.ToTable("pages", (string)null);
                 });
@@ -506,6 +583,12 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("pinned");
 
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasColumnName("search_vector")
+                        .HasComputedColumnSql("setweight(to_tsvector('simple', coalesce(text, '')), 'B')", true);
+
                     b.Property<string>("Text")
                         .IsRequired()
                         .HasColumnType("text")
@@ -521,6 +604,11 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedAt")
                         .HasDatabaseName("ix_scratchpad_entries_created_at");
+
+                    b.HasIndex("SearchVector")
+                        .HasDatabaseName("ix_scratchpad_entries_search");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "gin");
 
                     b.HasIndex("Pinned", "UpdatedAt")
                         .HasDatabaseName("ix_scratchpad_entries_pinned_updated_at");
@@ -564,6 +652,12 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("position");
 
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasColumnName("search_vector")
+                        .HasComputedColumnSql("setweight(to_tsvector('simple', regexp_replace(coalesce(title, ''), '[^[:alnum:]]+', ' ', 'g')), 'A') || setweight(to_tsvector('simple', coalesce(description, '')), 'B')", true);
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -580,6 +674,11 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DeletedAt")
                         .HasFilter("deleted_at is not null");
+
+                    b.HasIndex("SearchVector")
+                        .HasDatabaseName("ix_tasks_search");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "gin");
 
                     b.HasIndex("ListId", "Position")
                         .HasDatabaseName("ix_tasks_list_id_position");
@@ -620,6 +719,85 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         .HasFilter("deleted_at is not null");
 
                     b.ToTable("task_lists", (string)null);
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Weather.WeatherPlace", b =>
+                {
+                    b.Property<bool>("Singleton")
+                        .HasColumnType("boolean")
+                        .HasColumnName("singleton");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Units")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("units");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Singleton")
+                        .HasName("pk_weather_place");
+
+                    b.ToTable("weather_place", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_weather_place_singleton", "singleton");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Singleton = true,
+                            Units = "metric",
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        });
+                });
+
+            modelBuilder.Entity("Personalaffe.Infrastructure.Persistence.FoundRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<float>("Rank")
+                        .HasColumnType("real")
+                        .HasColumnName("rank");
+
+                    b.Property<string>("Snippet")
+                        .HasColumnType("text")
+                        .HasColumnName("snippet");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("Within")
+                        .HasColumnType("uuid")
+                        .HasColumnName("within");
+
+                    b.ToTable((string)null);
+
+                    b.ToView(null, (string)null);
                 });
 
             modelBuilder.Entity("Personalaffe.Domain.BrowserSession", b =>

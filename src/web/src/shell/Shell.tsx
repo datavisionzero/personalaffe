@@ -9,6 +9,7 @@ import { Home } from "@/home/Home";
 import { Files } from "@/files/Files";
 import { Knowledge } from "@/knowledge/Knowledge";
 import { Scratchpad } from "@/scratchpad/Scratchpad";
+import { Search } from "@/search/Search";
 import type { Me } from "@/session/useSession";
 import { Settings } from "@/settings/Settings";
 import { Tasks } from "@/tasks/Tasks";
@@ -131,6 +132,7 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
         <Routes>
           <Route path="/" element={<Home me={me} applications={applicationsAsked} />} />
           <Route path="/trash" element={<Trash />} />
+          <Route path="/search" element={<Search />} />
           <Route
             path="/settings/*"
             element={<Settings me={me} applications={applicationsAsked} />}

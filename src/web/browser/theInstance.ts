@@ -33,7 +33,9 @@ export async function signedIn(page: Page) {
     await page.getByRole("button", { name: "Sign in" }).click();
   }
 
-  await expect(page.getByRole("heading", { name: "Your workspace" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "What is useful or pending" }),
+  ).toBeVisible();
 }
 
 /**

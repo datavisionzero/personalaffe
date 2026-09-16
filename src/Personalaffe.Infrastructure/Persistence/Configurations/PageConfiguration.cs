@@ -58,5 +58,11 @@ public sealed class PageConfiguration : IEntityTypeConfiguration<Page>
         builder.IsRecoverable();
 
         builder.HasIndex(page => page.ParentId).HasDatabaseName("ix_pages_parent_id");
+
+        // A page is its title and its Markdown, and the title is what it
+        // is called (SearchIndex).
+        builder.IsSearchable(
+            "pages",
+            $"{SearchIndex.Called("title")} || {SearchIndex.Says("markdown")}");
     }
 }

@@ -57,5 +57,10 @@ public sealed class StoredFileConfiguration : IEntityTypeConfiguration<StoredFil
         builder.IsRecoverable();
 
         builder.HasIndex(file => file.FolderId).HasDatabaseName("ix_files_folder_id");
+
+        // The name and nothing else. VISION.md draws the line here: what is
+        // in a file is never indexed, which is what keeps one search over a
+        // workspace from becoming a document search over a disk.
+        builder.IsSearchable("files", SearchIndex.Called("name"));
     }
 }

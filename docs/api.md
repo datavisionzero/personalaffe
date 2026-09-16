@@ -518,6 +518,152 @@ one back on would be the same surprise from the other side.
 application is refused `403 forbidden` whether it is switched on or off, so the
 refusal says nothing about how the owner has configured their workspace.
 
+## The search
+
+One question over the four applications, at `GET /api/search?q=…`. Knowledge
+pages, tasks, Scratchpad text and file names (VISION §6.1) — and never what is
+inside a file, which is the line between one search over a workspace and a
+document search over a disk.
+
+```json
+{ "query": "arch dec",
+  "items": [
+    { "application": "knowledge",
+      "id": "0199f0c4-…",
+      "title": "Architecture decisions",
+      "snippet": "Where the storage decision lives and",
+      "within": null,
+      "updated_at": "2026-09-14T08:30:00.123456Z",
+      "rank": 0.6079271 } ],
+  "has_more": false }
+```
+
+**Every word is a beginning, and all of them have to be found.** `arch dec`
+finds "Architecture decisions"; it does not find a page that says only
+"architecture". Somebody searching their own workspace is remembering rather
+than querying, and a field that answers while they are still typing has to
+narrow as they type. Single letters are dropped, at most eight words are used,
+and at most 200 characters are accepted.
+
+**There is no query language.** No `AND`, no quoted phrase, no `-word`. A stray
+`"` or `&` does nothing at all: the text is broken into letters and digits
+before it reaches a statement, which is also why nothing a caller types can be
+an operator.
+
+**`application` narrows it and nothing refuses.** This is an aggregate view like
+the Trash: an application this caller cannot read, or one the owner has switched
+off, contributes nothing and produces no refusal. What is in the Trash is not
+found either — a search is an ordinary read.
+
+**`snippet` is text and never markup.** Nothing marks the matched words up, so
+nothing between here and a browser has to decide whether a snippet is safe to
+render; a client that wants them marked has the words it asked with. It is
+`null` where there was no body to quote — a file name, or a match in a title on
+a page with nothing in it.
+
+**`within` is what the thing sits in**: a page's parent, a task's list, a file's
+folder. It is what lets a client open the screen the thing is on rather than
+the thing alone. `null` for a Scratchpad entry, which sits in nothing.
+
+**`rank` orders the whole list, and what a thing is called outranks what it
+mentions.** The index carries the weights and Postgres reads them; nothing in
+this product reorders anything afterwards, and no application is preferred for
+being one.
+
+**`limit` is 1 to 100, 20 by default**, with `has_more` beside it. There is no
+cursor, for the reason the Trash gives: it is one person's workspace and a
+search that needs a second page needs a better word.
+
+## The dashboard
+
+What is useful or pending right now, at `GET /api/dashboard` — one request,
+because it is one screen (VISION §6.1).
+
+```json
+{ "tiles": [
+    { "tile": "tasks", "shown": true, "offered": true,
+      "updated_at": "2026-01-01T00:00:00.000000Z" } ],
+  "tasks": [
+    { "id": "0199f0c7-…", "title": "Milch holen", "list_id": "0199f0c6-…",
+      "list": "Einkauf", "due_on": "2026-09-14",
+      "updated_at": "2026-09-14T08:30:00.123456Z" } ],
+  "knowledge": [],
+  "scratchpad": null,
+  "files": null }
+```
+
+**Five tiles in a fixed order**: `tasks`, `knowledge`, `scratchpad`, `files`,
+`weather`. VISION §6.1 asks for a predefined dashboard whose tiles can be shown
+or hidden individually and says free arrangement comes later, so this is a
+closed set and not a layout somebody builds.
+
+**`shown` is the owner's preference and `offered` is whether it can be drawn at
+all** — its application switched on, and readable by this caller. They are two
+answers because hiding has to outlive a switched-off application: switching
+Tasks back on brings the tile back as it was rather than as the default.
+
+**A section is absent where its tile is not drawn, and empty where it is drawn
+and holds nothing.** `null` against `[]` — different answers, and a screen draws
+them differently: nothing at all, against "you have no open tasks".
+
+**Each drawn tile carries at most five rows**, which is what "an entry point,
+not a reporting system" means in a number. Open tasks come soonest due first and
+the undated after them; pages, entries and files come most recently changed
+first. What is in the Trash is not on the home page, and neither is anything in
+an application this caller cannot read — a tile nobody may see is never asked
+for rather than asked for and thrown away.
+
+`PUT /api/dashboard/tiles/{tile}` takes `{ "shown": false }` and the tile's
+`updated_at` in `If-Match`. **The owner alone**: an agent has no home page.
+A tile that is not offered can still be shown and hidden.
+
+## The weather
+
+The one thing in this product that comes from outside it, at
+`GET /api/weather`. It has its own address and is deliberately **not** part of
+the dashboard: a home page that could not finish drawing until a provider on the
+other side of the internet had answered or timed out is exactly what the weather
+must never cost.
+
+```json
+{ "place": "Wuppertal",
+  "latitude": 51.2563,
+  "longitude": 7.1482,
+  "units": "metric",
+  "temperature_unit": "°C",
+  "wind_unit": "km/h",
+  "available": true,
+  "reading": {
+    "temperature": 16.1, "feels_like": 16.5, "high": 20.3, "low": 14.2,
+    "wind": 2.2, "code": 3, "description": "Overcast", "day": true,
+    "read_at": "2026-09-16T07:15:00.000000Z" },
+  "attribution": "Weather data by Open-Meteo.com",
+  "updated_at": "2026-09-15T18:02:11.000000Z" }
+```
+
+**Nothing here refuses because of the weather.** No place set, this instance not
+asking anybody, or a provider that did not answer: all three are `reading: null`
+beside fields that say which, and none of them is an error. A 503 would be this
+instance claiming somebody else's outage as its own.
+
+**`read_at` is when this instance asked**, not when the observation was made,
+so a client can say how old the number it is showing is. Readings are held for
+as long as the operator's freshness allows
+([`docs/operations.md`](./operations.md)), so a home page refreshing every
+fifteen seconds troubles a free provider four times an hour.
+
+**`attribution` is what a free provider is paid in.** Show it beside the number.
+
+**`available` is the operator's switch.** `PERSONALAFFE_WEATHER=off` and nothing
+in this product opens a socket to anywhere.
+
+`PUT /api/weather/place` takes `{ "name": "…", "latitude": …, "longitude": …,
+"units": "metric" }` with `If-Match`, and all of them empty clears it. **The
+owner alone**, because it decides what this instance tells an outside service
+about the person who owns it — and so is `GET /api/weather/places?q=Wuppertal`,
+which is the geocoder that turns a name into the two numbers, asked once in
+Settings and never again by a tile.
+
 ## The Trash
 
 One list over the four applications, at `GET /api/trash`. There is no table
@@ -1157,6 +1303,40 @@ it is one row.
 ### `DELETE /api/tasks/{id}`
 
 Into the Trash, with `If-Match`. `204`. It comes back at the end of its list.
+
+### `GET /api/search`
+
+`q` is what to look for; `application` narrows it to one; `limit` bounds it, 1
+to 100, 20 by default. Best match first. Only the applications the caller may
+read **and the owner has switched on** are asked, and nothing in the Trash is
+found.
+
+### `GET /api/dashboard`
+
+The tiles and what is in the ones being drawn. At most five rows each. No
+parameters: it is one screen.
+
+### `PUT /api/dashboard/tiles/{tile}`
+
+`{ "shown": false }`, with `If-Match`. **The owner alone.** Answers the tile in
+its new state with its new `ETag`.
+
+### `GET /api/weather`
+
+What it is doing where the owner said, with the place's `ETag`. Never refuses
+because of the weather.
+
+### `PUT /api/weather/place`
+
+`{ "name": "…", "latitude": …, "longitude": …, "units": "metric" }`, with
+`If-Match`; all empty clears it. **The owner alone.** Answers the weather there,
+so setting a place and seeing it is one request.
+
+### `GET /api/weather/places`
+
+`q` is a place name; answers what a geocoder thinks it names, best first.
+**The owner alone.** Empty where the provider did not answer or this instance is
+not asking anybody.
 
 ### `GET /api/trash`
 
