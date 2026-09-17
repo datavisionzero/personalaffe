@@ -943,8 +943,10 @@ where to look, rather than starting a second server on a port that is taken.
 ## The CLI is not in the image
 
 `pea` is a client of the public API and runs wherever you are: a laptop, a CI
-runner, an agent's container. It ships as its own binary and needs nothing from
-this stack but an address.
+runner, an agent's container. It ships as its own binary — one per platform
+under each release, with a checksum beside it
+([`docs/install.md`](install.md)) — and needs nothing from this stack but an
+address.
 
 ```sh
 PERSONALAFFE_URL=http://127.0.0.1:8080 pea version

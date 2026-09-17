@@ -87,9 +87,11 @@ notes as Markdown in a tree, with a history behind every page and an export
 anybody can read; and it keeps personal commitments in named lists, in an order
 the owner sets. One search finds across the four, one home page says what is
 pending, and a tile says what it is doing outside. All of it is reached in a
-browser and from `pea`. What is left of `docs/mvp-plan.md` is not a feature at
-all: the operational acceptance and the first release of PERSONAL-E10 — and no
-backup has yet been through a restore anybody has proved.
+browser and from `pea`. And PERSONAL-E10 put the things around it that are not
+features: an installation somebody else can follow, one backup carrying both
+stores as of one moment, a restore and an upgrade that have been walked rather
+than described, a pass over the security surface, and the artifacts a release is
+cut from. `docs/mvp-plan.md` is ten epics of ten.
 
 ## Where this comes from
 
@@ -325,8 +327,10 @@ their migration; `Files/LocalFileBytes`; and `Http/FileEndpoints` with
 instance answers the five outside the door, the owner's own, which applications
 it has, its Scratchpad, its Files, its Knowledge, its Tasks, a Trash that three
 of the four fill and the Scratchpad deliberately never puts anything in, one
-search over all four, a home page of tiles, and the weather. What is still to
-come is the release (PERSONAL-E10), which is not a module at all.
+search over all four, a home page of tiles, and the weather. PERSONAL-E10 added
+no module at all: what it added is the backup and restore verbs beside the
+recovery one, the headers in front of every answer, and the workflow that cuts a
+release.
 
 PERSONAL-E9 added `Domain/Search/` and `Domain/Dashboard/` and `Domain/Weather/`;
 `Application/Ports/ISearch`, `IDashboard`, `IDashboardTiles`, `IWeatherPlace`,
@@ -783,10 +787,12 @@ it. Its checks are `src/web/browser/`, its configuration is
 `src/web/playwright.config.ts`, and `npm run browser` is how it is run against
 an instance somebody already has up.
 
-## What the next epics plug into
+## What each epic plugged into
 
 The foundation was built to be extended in specific places, and this is the list
-so that no epic has to find them again.
+of where each epic went — kept, now that all ten have landed, because it is
+still the shortest description of how this product is put together, and because
+the day somebody adds a fifth application it is the list they need.
 
 **PERSONAL-E2, authentication — landed.** The door is
 `Http/Authentication.cs`, in front of the `/api` group and nowhere else: the
@@ -877,11 +883,19 @@ and the dashboard reads the tables the modules already write. What a fifth
 application would have to do to join both is exactly those two things
 ([ADR 0009](./adr/0009-the-index-is-a-column-and-the-weather-waits-on-nobody.md)).
 
-**PERSONAL-E10, operations.** Nothing in the foundation stands in its way and
-nothing anticipates it. The two volumes a consistent backup has to cover are
-named in [`docs/operations.md`](./operations.md). The Knowledge export is **not**
-a backup and must not be described as one: it carries no Trash, no revisions and
-no agent access.
+**PERSONAL-E10, operations — landed.** No module and no endpoint: what it added
+is beside the product rather than in it. `Hosting/Backup.cs` and
+`Hosting/Restore.cs` are two more verbs of the image's binary, beside
+`Hosting/OwnerRecovery.cs`, and they are verbs rather than endpoints for the
+same reason recovery is — their authorization is that somebody is standing at
+the machine. `Http/MaintenanceGuard` is what a write meets while a backup holds
+the instance still, and `Http/BrowserSecurity` gained `SecurityHeaders`, in
+front of everything. `scripts/` holds the two rehearsals CI runs on every push,
+`.github/workflows/release.yml` cuts a release from a tag, and
+[`docs/install.md`](./install.md) is what somebody with no checkout follows
+([ADR 0010](./adr/0010-the-pause-makes-two-stores-agree-and-the-way-back-is-the-backup.md)).
+The Knowledge export is **not** a backup and must not be described as one: it
+carries no Trash, no revisions and no agent access.
 
 **Every epic.** A new endpoint is a change to `docs/api/openapi.json` in the
 same commit, because `ContractTests` compares the two. A new refusal code is a

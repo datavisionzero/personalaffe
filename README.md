@@ -64,10 +64,22 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > weather tile** for a place you set once, at an address of its own so that a
 > server on the other side of the internet can never hold your home page up.
 >
-> **What is left is not a feature.** There is no release, and no backup of this
-> has been through a restore anybody has proved — both PERSONAL-E10, and the
-> Knowledge export is not one — so **anything you would mind losing still
-> belongs somewhere else as well.**
+> PERSONAL-E10 is what stands between all of that and somebody actually keeping
+> their life in it. **An installation anybody can follow** from no checkout at
+> all, behind their own proxy, with every variable named. **One backup**
+> carrying the database and the owner's files as of one moment, taken while the
+> instance is held still for under a second — and a restore that has been done
+> rather than described, with every bit of it read back out through the API.
+> **An upgrade that has been walked**, and the way back from one that went
+> wrong, which is that backup and not a migration in reverse. **A pass over the
+> security surface** now that all of it exists: the headers every answer
+> carries, a route table walked rather than remembered, and
+> [`SECURITY.md`](SECURITY.md) saying where to send what you find. And **the
+> artifacts a release is made of**, cut from a tag.
+>
+> **Everything VISION.md asks of the MVP is here.** What is left is a decision
+> rather than work: no tag has been cut, so nothing is published yet
+> ([`docs/install.md`](docs/install.md) is what an operator follows when one is).
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
@@ -357,7 +369,8 @@ credential.
 
 ## Known limits
 
-Everything here is PERSONAL-E1 to PERSONAL-E9, and nothing more.
+Everything here is PERSONAL-E1 to PERSONAL-E10 — the whole of the MVP — and
+nothing more.
 
 - **All four applications work, and none of what is left is content.** What the
   database carries is an owner, their sessions, their recovery codes, the agents
