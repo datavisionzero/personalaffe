@@ -16,7 +16,16 @@
 # knows, and the instance is empty — or you have said the second flag, which
 # means: replace what is here.
 #
-# Needs: docker compose, and deploy/.env as an installation already has it.
+# Needs: docker compose, and the `.env` an installation already has beside its
+# Compose file.
+#
+# **It runs from a checkout and from an installation that is not one.** Whoever
+# installed personalaffe the documented way has a directory with
+# `docker-compose.yml` and `.env` in it and no repository anywhere
+# (docs/install.md), and this is attached to every release so that they have it
+# when they need it — which is the day something is wrong, and not before.
+# `PERSONALAFFE_COMPOSE` names the Compose file where neither layout is what you
+# have.
 
 set -euo pipefail
 
@@ -24,7 +33,24 @@ archive="${1:-}"
 anyway="${2:-}"
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-compose=(docker compose -f "$root/deploy/docker-compose.yml")
+
+if [ -n "${PERSONALAFFE_COMPOSE:-}" ]; then
+  file="$PERSONALAFFE_COMPOSE"
+elif [ -f "$root/deploy/docker-compose.yml" ]; then
+  file="$root/deploy/docker-compose.yml"
+else
+  file="./docker-compose.yml"
+fi
+
+if [ ! -f "$file" ]; then
+  printf 'restore: no Compose file at %s. Run this beside the one your instance uses,
+' "$file" >&2
+  printf '         or name it: PERSONALAFFE_COMPOSE=/path/to/docker-compose.yml
+' >&2
+  exit 2
+fi
+
+compose=(docker compose -f "$file")
 
 if [ -z "$archive" ] || [ ! -f "$archive" ]; then
   cat >&2 <<USAGE

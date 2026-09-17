@@ -16,6 +16,7 @@ If you have a checkout and want to run it from source instead, that is the
 | **`pea`** | The console client, for macOS and Linux on both architectures, as `pea_<version>_<os>_<arch>.tar.gz` with the licence beside the binary. |
 | **`SHA256SUMS`** | One checksum per archive. |
 | **`docker-compose.yml`** and **`.env.example`** | What an installation is made of, attached so that installing needs no checkout. |
+| **`restore.sh`** | The way back: it puts a backup into the installation it is run beside. |
 | **`LICENSE`** | MIT. |
 
 Releases are at
@@ -131,10 +132,25 @@ it says which side moves and stops with exit 9 rather than guessing —
 [`docs/cli.md`](cli.md) has the configuration ladders, the input rules and the
 exit codes.
 
+## Backing it up
+
+The backup is one command, run against the container, and it holds the instance
+still for the moment it takes — reads keep working, writes are told to come back
+in a few seconds:
+
+```sh
+docker compose exec -T personalaffe personalaffe backup --to - > "personalaffe-$(date +%F).tar"
+```
+
+One archive, carrying the database, the owner's files and a manifest of both.
+Anything carrying only one of the two is not a backup of this product. Where the
+archive then goes, and how long it is kept, is yours — and
+**a backup nobody has restored is not yet known to be a backup**.
+
 ## Upgrading
 
 ```sh
-personalaffe backup --to - > personalaffe-$(date +%F).tar   # first, always
+docker compose exec -T personalaffe personalaffe backup --to - > "personalaffe-$(date +%F).tar"
 # then set PERSONALAFFE_IMAGE to the new version in .env
 docker compose pull
 docker compose up -d --wait
@@ -142,9 +158,23 @@ docker compose up -d --wait
 
 Migrations apply themselves on start and **only ever forward**. There is no
 downgrade: the way back from an upgrade is the backup taken before it, put back
-with [`scripts/restore.sh`](../scripts/restore.sh) and the earlier image named.
+with `restore.sh` — which is attached to the release for this — and the earlier
+image named:
+
+```sh
+curl -LO "https://github.com/datavisionzero/personalaffe/releases/download/v$version/restore.sh"
+chmod +x restore.sh
+
+# beside your docker-compose.yml and .env, with the earlier version in .env
+./restore.sh personalaffe-2026-09-17.tar --over-a-populated-instance
+```
+
+It stops the instance, puts the archive back in a one-off container beside it,
+and starts it again — and it changes nothing at all unless the archive is
+complete, every checksum matches and its schema is one that build knows.
+**A restore signs every browser out**, including yours.
 [`docs/operations.md`](operations.md#backing-it-up) has the backup, what is in
-it, what the pause costs, and the restore.
+it, what the pause costs, and the restore in full.
 
 An instance started against a schema a newer build wrote refuses to serve and
 says what it does not know, rather than guessing at it.

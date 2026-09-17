@@ -310,6 +310,12 @@ jobs:
         run: |
           set -euo pipefail
           cp deploy/docker-compose.yml deploy/.env.example LICENSE dist/
+
+          # The way back, beside the thing that goes wrong: an operator who
+          # installed this the documented way has no checkout to find it in, and
+          # the day they need it is not the day to be told to clone a repository
+          # (docs/install.md).
+          cp scripts/restore.sh dist/
           ls -l dist/
 
       - name: Write what shipped
