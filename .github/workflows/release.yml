@@ -271,8 +271,16 @@ jobs:
           docker build -f deploy/Dockerfile -t personalaffe:from-the-future \
             --build-arg VERSION=99.0.0 . > /dev/null
 
-          docker compose -f deploy/docker-compose.yml down
-          echo "PERSONALAFFE_IMAGE=personalaffe:from-the-future" >> deploy/.env
+          docker compose -f deploy/docker-compose.yml down -v
+
+          # Written rather than appended: two assignments of one variable in an
+          # env file is a thing to be sure about, and there is nothing to be
+          # sure about in a file with one of each.
+          {
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+            echo "PERSONALAFFE_IMAGE=personalaffe:from-the-future"
+          } > deploy/.env
+
           docker compose -f deploy/docker-compose.yml up -d --wait
 
           set +e
@@ -316,7 +324,13 @@ jobs:
           # the day they need it is not the day to be told to clone a repository
           # (docs/install.md).
           cp scripts/restore.sh dist/
-          ls -l dist/
+
+          # And a checksum for every one of them, not only for the archives: a
+          # script somebody downloads and runs against their own instance is the
+          # asset most worth being able to check.
+          cd dist && sha256sum docker-compose.yml .env.example restore.sh LICENSE >> SHA256SUMS
+          cat SHA256SUMS
+          ls -l
 
       - name: Write what shipped
         run: |
