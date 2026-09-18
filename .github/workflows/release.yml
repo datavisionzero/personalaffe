@@ -317,7 +317,14 @@ jobs:
       - name: What goes under the tag
         run: |
           set -euo pipefail
-          cp deploy/docker-compose.yml deploy/.env.example LICENSE dist/
+          cp deploy/docker-compose.yml LICENSE dist/
+
+          # **Without the dot.** A release asset whose name begins with one is
+          # renamed by GitHub as it is uploaded — `.env.example` arrives as
+          # `default.env.example` — and a shell glob would not have picked it up
+          # to be uploaded at all. Both were found by the first candidate, which
+          # is what candidates are for (docs/install.md).
+          cp deploy/.env.example dist/env.example
 
           # The way back, beside the thing that goes wrong: an operator who
           # installed this the documented way has no checkout to find it in, and
@@ -328,7 +335,7 @@ jobs:
           # And a checksum for every one of them, not only for the archives: a
           # script somebody downloads and runs against their own instance is the
           # asset most worth being able to check.
-          cd dist && sha256sum docker-compose.yml .env.example restore.sh LICENSE >> SHA256SUMS
+          cd dist && sha256sum docker-compose.yml env.example restore.sh LICENSE >> SHA256SUMS
           cat SHA256SUMS
           ls -l
 
@@ -392,8 +399,17 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Everything in `dist/`, found rather than globbed: a shell glob does
+          # not match a name that begins with a dot, and the first candidate
+          # published without the example environment because of it.
+          assets=()
+          while IFS= read -r asset; do assets+=("$asset"); done < <(find dist -maxdepth 1 -type f | sort)
+
+          printf 'attaching:\n'
+          printf '  %s\n' "${assets[@]}"
+
           gh release create "$GITHUB_REF_NAME" \
             --title "personalaffe $VERSION" \
             --notes-file notes.md \
             ${{ needs.what.outputs.prerelease == 'true' && '--prerelease' || '--latest' }} \
-            dist/*
+            "${assets[@]}"

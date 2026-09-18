@@ -15,7 +15,7 @@ If you have a checkout and want to run it from source instead, that is the
 | **The image** | `ghcr.io/datavisionzero/personalaffe:<version>`, for `linux/amd64` and `linux/arm64`. It carries the API and the web application; one container serves both. |
 | **`pea`** | The console client, for macOS and Linux on both architectures, as `pea_<version>_<os>_<arch>.tar.gz` with the licence beside the binary. |
 | **`SHA256SUMS`** | One checksum per archive. |
-| **`docker-compose.yml`** and **`.env.example`** | What an installation is made of, attached so that installing needs no checkout. |
+| **`docker-compose.yml`** and **`env.example`** | What an installation is made of, attached so that installing needs no checkout. |
 | **`restore.sh`** | The way back: it puts a backup into the installation it is run beside. |
 | **`LICENSE`** | MIT. |
 
@@ -38,9 +38,9 @@ purpose, and not what `:latest` points at.
 version=0.1.0                     # the release you are installing
 
 curl -LO "https://github.com/datavisionzero/personalaffe/releases/download/v$version/docker-compose.yml"
-curl -LO "https://github.com/datavisionzero/personalaffe/releases/download/v$version/.env.example"
+curl -LO "https://github.com/datavisionzero/personalaffe/releases/download/v$version/env.example"
 
-cp .env.example .env
+cp env.example .env
 ```
 
 `.env` is the whole of what an operator sets, and it lists every variable with

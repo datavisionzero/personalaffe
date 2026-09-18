@@ -49,11 +49,16 @@ from a console.
 ### What it asks of whoever runs it
 
 - A host with Docker, and a reverse proxy in front of it holding the
-  certificate. [`docs/install.md`](docs/install.md) is the whole installation;
-  [`docs/operations.md`](docs/operations.md) has the variables, the volumes, the
-  backups and the way back from an upgrade.
-- `POSTGRES_PASSWORD` in `deploy/.env`, and `PERSONALAFFE_IMAGE` naming this
-  release. Everything else has a default that works.
+  certificate.
+  [docs/install.md](https://github.com/datavisionzero/personalaffe/blob/main/docs/install.md)
+  is the whole installation;
+  [docs/operations.md](https://github.com/datavisionzero/personalaffe/blob/main/docs/operations.md)
+  has the variables, the volumes, the backups and the way back from an upgrade.
+  (The links are whole addresses rather than repository paths, because these
+  notes are read under a release as often as they are read here.)
+- `POSTGRES_PASSWORD` in the `.env` beside the Compose file, and
+  `PERSONALAFFE_IMAGE` naming this release. Everything else has a default that
+  works.
 - Set `PERSONALAFFE_TRUSTED_PROXY` **before the instance is claimed**, so that
   the throttle on failed sign-ins counts the caller rather than the proxy.
 
