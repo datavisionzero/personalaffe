@@ -77,9 +77,11 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > [`SECURITY.md`](SECURITY.md) saying where to send what you find. And **the
 > artifacts a release is made of**, cut from a tag.
 >
-> **Everything VISION.md asks of the MVP is here.** What is left is a decision
-> rather than work: no tag has been cut, so nothing is published yet
-> ([`docs/install.md`](docs/install.md) is what an operator follows when one is).
+> **Everything VISION.md asks of the MVP is here, and 0.1.0 is published**:
+> `ghcr.io/datavisionzero/personalaffe:0.1.0`, with `pea` for macOS and Linux
+> beside it and a checksum for each.
+> [`docs/install.md`](docs/install.md) is what an operator follows, and it
+> assumes no checkout at all.
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
@@ -403,16 +405,16 @@ nothing more.
   needs no account and no key; what is sent is two coordinates and nothing about
   who is asking. `PERSONALAFFE_WEATHER=off` and nothing in this product opens a
   socket to anywhere.
-- **Nothing is published until somebody cuts a tag.** The workflow that
-  publishes a release exists and is rehearsed
-  ([`release.yml`](.github/workflows/release.yml)): a tag builds the image for
+- **What is published is published by a tag, and by nothing else.**
+  [`release.yml`](.github/workflows/release.yml) builds the image for
   `linux/amd64` and `linux/arm64`, builds `pea` for macOS and Linux on both
-  architectures, checksums every archive, proves that the published image and
-  the published binary agree about the version, and puts the lot under the tag
-  with the notes out of [`CHANGELOG.md`](CHANGELOG.md). **Cutting that tag is
-  the owner's decision**, and until one is cut there is nothing to download —
-  [`docs/install.md`](docs/install.md) is what an operator follows when there is.
-  The gate still publishes nothing and still holds no credential.
+  architectures, checksums every asset, proves that the published image and the
+  published binary agree about the version, and puts the lot under the tag with
+  the notes out of [`CHANGELOG.md`](CHANGELOG.md) — which it refuses to cut a
+  release without. **0.1.0 is the first**, and
+  [`docs/install.md`](docs/install.md) is what an operator follows to install it.
+  The gate still publishes nothing and still holds no credential; the release
+  workflow holds the token its own run is handed and nothing else.
 - **A backup is one command, and putting it back is one script.**
   `personalaffe backup --to -` holds the instance still — reads keep working —
   and writes one tar carrying the database, the owner's files and a manifest of

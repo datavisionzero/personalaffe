@@ -24,11 +24,9 @@ Releases are at
 A version with a hyphen in it — `0.1.0-rc.1` — is a pre-release: published on
 purpose, and not what `:latest` points at.
 
-> **Until the first release is published there is nothing to download.** The
-> workflow that publishes one is [`release.yml`](../.github/workflows/release.yml)
-> and it runs on a tag; whether to cut that tag is the owner's decision. Until
-> then, an instance is built from a checkout — `docker build -f deploy/Dockerfile
-> -t personalaffe:local .` — and every other step on this page is the same.
+> **0.1.0 is the first release.** `:latest` points at the newest one that is not
+> a candidate; naming the version instead is what makes an upgrade something you
+> decided rather than something that happened.
 
 ## The instance
 

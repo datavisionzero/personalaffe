@@ -14,7 +14,7 @@ major is the number that asks them to read before upgrading at all.
 for `0.1.0` and ships that section: notes written twice are notes that disagree,
 and the second copy is the one nobody updates.
 
-## 0.1.0
+## 0.1.0 — 2026-09-18
 
 The first release of personalaffe: a private workspace belonging to one person,
 with four applications in it, reachable from a browser, from an HTTP API and

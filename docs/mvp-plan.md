@@ -43,8 +43,9 @@ artifacts a release is made of, cut from a tag
 [`docs/install.md`](install.md), [`SECURITY.md`](../SECURITY.md)).
 
 **Every feature VISION.md names for the MVP exists, and every promise around it
-has a test, a CI job or a walked rehearsal behind it.** What is left is not work:
-publishing the first release is a tag, and cutting it is the owner's decision.
+has a test, a CI job or a walked rehearsal behind it** — and **0.1.0 is
+published**: the image, `pea` for four platforms, and the files an installation
+is made of, under a tag the owner decided to cut (PERSONAL-71).
 
 One scope decision came back to the owner during the plan and was answered
 without them: VISION.md admits a weather tile only if a proportionate
