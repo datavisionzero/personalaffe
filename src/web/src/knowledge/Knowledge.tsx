@@ -6,7 +6,7 @@ import {
   NotebookTextIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
 import { api, guardedBy, versionOf, type Schemas } from "@/api/client";
@@ -95,10 +95,35 @@ export function Knowledge() {
   const title = draft?.title ?? it?.title ?? "";
   const markdown = draft?.markdown ?? it?.markdown ?? "";
 
+  // What this screen last read, kept across the moment it is reading it again.
+  // `it` is undefined then, and a change made in that moment still has to know
+  // what it is a change to (see `change`).
+  const read = useRef<Page>(undefined);
+
+  useEffect(() => {
+    if (it !== undefined) {
+      read.current = it;
+    }
+  }, [it]);
+
   function change(next: Partial<Draft>) {
+    // <b>The half nobody touched comes from the page, and the page is the last
+    // one this screen actually read.</b> A draft holds both halves because one
+    // write carries both — and while the page is being read again there is no
+    // `it` to take the other half from. The empty string that stood in for it
+    // was a rename saving an empty body over what had just been written, and
+    // dropping the change instead would be a rename nobody made: both are what
+    // a keystroke landing on the node being replaced used to cost
+    // (PERSONAL-66).
+    const base = it ?? read.current;
+
+    if (base === undefined) {
+      return;
+    }
+
     setDraft((before) => ({
-      title: next.title ?? before?.title ?? it?.title ?? "",
-      markdown: next.markdown ?? before?.markdown ?? it?.markdown ?? "",
+      title: next.title ?? before?.title ?? base.title,
+      markdown: next.markdown ?? before?.markdown ?? base.markdown,
     }));
   }
 

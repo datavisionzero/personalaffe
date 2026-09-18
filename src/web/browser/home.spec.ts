@@ -74,8 +74,15 @@ test.describe("the home page", () => {
     await expect(page.getByRole("region", { name: "Tasks" })).toBeHidden();
 
     await page.goto("/settings/home");
-    await page.getByRole("listitem").filter({ hasText: "Open tasks" })
-      .getByRole("button", { name: "Show Open tasks" }).click();
+
+    const back = page.getByRole("listitem").filter({ hasText: "Open tasks" });
+    await back.getByRole("button", { name: "Show Open tasks" }).click();
+
+    // That the instance has it before walking away from the screen that sent
+    // it. The settings screen reads itself again after a write and draws what
+    // came back, so "Hidden" gone is the write having landed — and a `goto`
+    // sent before it is a navigation that cancels the request it is waiting on.
+    await expect(back.getByText("Hidden")).toBeHidden();
 
     await page.goto("/");
     await expect(page.getByRole("region", { name: "Tasks" })).toBeVisible();
@@ -108,7 +115,10 @@ test.describe("one search over the workspace", () => {
 
     await field.fill(word);
 
-    const row = page.getByRole("option", { name: new RegExp(word, "i") }).first();
+    // The entry, and not "Search for …" — which is an option carrying the same
+    // word, is offered the moment there is something typed, and is the one a
+    // `.first()` picks while the findings are still on their way.
+    const row = page.getByRole("option", { name: /something about a/i });
     await expect(row).toBeVisible();
 
     await row.click();

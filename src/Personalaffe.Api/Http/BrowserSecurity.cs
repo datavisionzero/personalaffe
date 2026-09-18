@@ -253,3 +253,109 @@ public sealed class BrowserWriteGuard(RequestDelegate next)
         await next(context);
     }
 }
+
+/// <summary>
+/// The headers every answer carries, whatever asked for it and whatever it
+/// answered.
+/// </summary>
+/// <remarks>
+/// <para>
+/// One policy, set in one place, in front of everything: the application, the
+/// API, a download and every refusal. A header that is on some answers and not
+/// others is one an attacker picks the answer that is missing it — and the
+/// screen a browser is most likely to be tricked into rendering is the one an
+/// endpoint wrote in a hurry.
+/// </para>
+/// <para>
+/// <strong>What the policy has to allow is what this application actually
+/// does.</strong> Its script is its own bundle and nothing else; its styles are
+/// its own sheet <em>and</em> the stylesheets the Markdown editor writes into
+/// the document at runtime, which is why <c>style-src</c> carries
+/// <c>'unsafe-inline'</c> and <c>script-src</c> does not; its fonts are served
+/// from this instance; its images are its own, the <c>data:</c> icon in
+/// <c>index.html</c>, and whatever picture the owner put in a knowledge page,
+/// which may be anywhere — so <c>img-src</c> admits <c>https:</c> and nothing
+/// else. <c>connect-src 'self'</c> is the line that matters most: a page that
+/// somehow ran somebody else's script still cannot send what it read anywhere.
+/// </para>
+/// <para>
+/// <c>Strict-Transport-Security</c> follows the request's scheme for the same
+/// reason the cookie does (<see cref="BrowserCookie"/>): sent over plain HTTP
+/// it is ignored, and pinning a host that is still being reached at
+/// <c>http://127.0.0.1:8080/</c> is how a first installation locks its own
+/// owner out of it. It names this host only — an instance knows nothing about
+/// the other names under the operator's domain and makes no promises for them.
+/// </para>
+/// </remarks>
+public static class SecurityHeaders
+{
+    /// <summary>What a page may load, and where it may send what it has.</summary>
+    public const string ContentSecurityPolicy =
+        "default-src 'self'; "
+        + "base-uri 'self'; "
+        + "object-src 'none'; "
+        + "frame-ancestors 'none'; "
+        + "form-action 'self'; "
+        + "script-src 'self'; "
+        + "style-src 'self' 'unsafe-inline'; "
+        + "img-src 'self' data: https:; "
+        + "font-src 'self'; "
+        + "connect-src 'self'";
+
+    /// <summary>A year, this host, and no claim about any other.</summary>
+    public const string StrictTransportSecurity = "max-age=31536000";
+
+    /// <summary>
+    /// The devices and the interfaces this application never asks for. Named
+    /// rather than left to the default so that a dependency that starts asking
+    /// is refused by the instance rather than by the owner noticing a prompt.
+    /// </summary>
+    public const string PermissionsPolicy =
+        "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), "
+        + "fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), "
+        + "midi=(), payment=(), usb=(), xr-spatial-tracking=()";
+
+    public static IApplicationBuilder UsePersonalaffeSecurityHeaders(this IApplicationBuilder app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        return app.Use((context, next) =>
+        {
+            context.Response.OnStarting(() =>
+            {
+                var headers = context.Response.Headers;
+
+                headers["Content-Security-Policy"] = ContentSecurityPolicy;
+
+                // What the two say twice: `frame-ancestors` is the one modern
+                // browsers read, and the older header is what a browser that
+                // does not know it reads instead. Neither costs anything, and
+                // this product is never in anybody's frame.
+                headers["X-Frame-Options"] = "DENY";
+
+                // Set here as well as on a download, because the answer that
+                // must not be sniffed is any of them.
+                headers["X-Content-Type-Options"] = "nosniff";
+
+                // Nothing about a private workspace belongs in somebody else's
+                // log — not the page a picture was linked from, and not the
+                // address of this instance.
+                headers["Referrer-Policy"] = "no-referrer";
+
+                // A page this application opened cannot reach back into it.
+                headers["Cross-Origin-Opener-Policy"] = "same-origin";
+
+                headers["Permissions-Policy"] = PermissionsPolicy;
+
+                if (context.Request.IsHttps)
+                {
+                    headers["Strict-Transport-Security"] = StrictTransportSecurity;
+                }
+
+                return Task.CompletedTask;
+            });
+
+            return next(context);
+        });
+    }
+}

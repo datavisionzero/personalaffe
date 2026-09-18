@@ -1,0 +1,399 @@
+# What somebody else installs, cut from a tag: one image, the `pea` binaries
+# beside it, and a checksum for every one of them.
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# **This workflow publishes; `ci.yml` decides.** The gate is the trunk's, and a
+# tag is expected to name a commit that already went through it — the first job
+# refuses a tag that is not on `main`, so a release cannot be cut from a branch
+# nobody reviewed or from a commit that never built.
+#
+# A pre-release is a tag with a hyphen in it — `v0.1.0-rc.1`. It is published
+# like any other release, marked as a pre-release, and does not move `latest`:
+# that is what makes rehearsing this workflow end to end possible without
+# telling the world it has a new version.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+# The two things a release writes, and nothing else: the release itself with its
+# assets, and the image in this repository's package registry. No other
+# credential is held anywhere in this file — what publishes is the token GitHub
+# hands the run.
+permissions:
+  contents: write
+  packages: write
+
+# A release is not overtaken. Two tags pushed a minute apart are two releases,
+# and cancelling the first one halfway would leave a tag with half its artifacts
+# under it — which is why this group is the tag and nothing is cancelled.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # The image's own name, which is this repository's: ghcr.io/<owner>/<repo>.
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  # What this release is, decided once and read by everything below: the version
+  # the tag names, whether it is a pre-release, and the notes an operator is
+  # owed. All three are refusals rather than guesses — a release nobody wrote
+  # notes for is not published.
+  what:
+    name: What is being released
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.it.outputs.version }}
+      prerelease: ${{ steps.it.outputs.prerelease }}
+    steps:
+      # The whole history, because one of the checks below is whether this
+      # commit is on the trunk.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: The tag, the trunk and the notes
+        id: it
+        run: |
+          set -euo pipefail
+
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          case "$version" in
+            *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+          # On the trunk, or not at all. `main` is the only long-lived branch
+          # and the gate runs on it; a tag anywhere else is a release nothing
+          # checked.
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "$GITHUB_REF_NAME is not on main. A release is cut from the trunk."; exit 1; }
+
+          # The notes are written before the tag is pushed, in CHANGELOG.md, and
+          # this is what makes that true rather than intended.
+          scripts/the-notes.sh "$version" > /dev/null \
+            || { echo "CHANGELOG.md has no section for $version. Write the notes, then tag."; exit 1; }
+
+          echo "personalaffe $version, from $GITHUB_SHA, notes in hand."
+
+  # The binaries, one per platform, each with the tag compiled into it.
+  binaries:
+    name: pea
+    needs: what
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/cli
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: src/cli/go.mod
+          cache-dependency-path: src/cli/go.sum
+
+      # The client of the contract, which is not committed (docs/codebase.md).
+      - run: go generate ./...
+
+      # **The four platforms are a decision, not an assumption.** A personal
+      # workspace is reached from the machine its owner sits at and from
+      # whatever a script runs on: macOS on both architectures, and Linux on
+      # both. There is no Windows build because nobody has asked for one and
+      # WSL answers the question meanwhile — it is one line here the day
+      # somebody does.
+      #
+      # Static, stripped and trimmed: `pea` speaks HTTP and reads files, so it
+      # needs no libc of the machine that built it, and no path from a runner
+      # belongs in something people download.
+      - name: Build every one of them
+        env:
+          VERSION: ${{ needs.what.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          for platform in darwin/arm64 darwin/amd64 linux/amd64 linux/arm64; do
+            os="${platform%/*}"
+            arch="${platform#*/}"
+            out="dist/$os-$arch/pea"
+
+            mkdir -p "$(dirname "$out")"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build \
+              -trimpath \
+              -ldflags "-s -w -X github.com/datavisionzero/personalaffe/src/cli/internal/version.Version=$VERSION" \
+              -o "$out" ./cmd/pea
+
+            # The licence travels with the binary: somebody who downloaded one
+            # archive has everything the licence asks them to have.
+            cp ../../LICENSE "$(dirname "$out")/LICENSE"
+
+            tar -czf "dist/pea_${VERSION}_${os}_${arch}.tar.gz" -C "dist/$os-$arch" pea LICENSE
+            rm -rf "dist/$os-$arch"
+          done
+
+          cd dist && sha256sum ./*.tar.gz | sed 's| \./| |' > SHA256SUMS
+          cat SHA256SUMS
+
+      # **A released binary must not say `dev`.** The runner is linux/amd64, so
+      # one of the four can be run right here — and what it prints is the whole
+      # of this check.
+      - name: The one that runs here says what the tag says
+        env:
+          VERSION: ${{ needs.what.outputs.version }}
+        run: |
+          set -euo pipefail
+          tar -xzf "dist/pea_${VERSION}_linux_amd64.tar.gz" -C dist pea
+
+          said="$(dist/pea version --json | python3 -c 'import json,sys; print(json.load(sys.stdin)["pea"])')"
+          echo "the binary says $said"
+          test "$said" = "$VERSION" || { echo "it should say $VERSION"; exit 1; }
+
+          rm dist/pea
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: pea
+          path: src/cli/dist/
+          if-no-files-found: error
+
+  # The image, for the two architectures anybody runs a server on.
+  image:
+    name: Image
+    needs: what
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # **linux/amd64 and linux/arm64, and that is also a decision.** An
+      # instance runs on a small server somebody rents or on a box at home, and
+      # those two are what such machines are. arm64 is built under emulation
+      # here, which costs minutes on a release and nothing on any other day.
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # `latest` moves for a release and stands still for a pre-release: an
+      # operator who followed the documented `:latest` must not wake up on a
+      # release candidate.
+      - name: What it is tagged
+        id: tags
+        env:
+          VERSION: ${{ needs.what.outputs.version }}
+          PRERELEASE: ${{ needs.what.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          tags="$IMAGE:$VERSION"
+          [ "$PRERELEASE" = "true" ] || tags="$tags,$IMAGE:latest"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          echo "$tags"
+
+      - name: Build it and push it
+        id: push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            VERSION=${{ needs.what.outputs.version }}
+            REVISION=${{ github.sha }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha,scope=release
+          cache-to: type=gha,mode=max,scope=release
+
+      - name: What was published
+        run: docker buildx imagetools inspect "$IMAGE:${{ needs.what.outputs.version }}"
+
+  # The handshake, against the artifacts themselves rather than against the
+  # commit they were cut from: the published image, started the documented way,
+  # and the binary from the archive above talking to it.
+  handshake:
+    name: The two of them agree
+    needs: [what, binaries, image]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.what.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: pea
+          path: dist
+
+      - name: Start the image that was just published
+        run: |
+          set -euo pipefail
+          tar -xzf "dist/pea_${VERSION}_linux_amd64.tar.gz" -C dist pea
+          chmod +x dist/pea
+
+          echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" > deploy/.env
+          echo "PERSONALAFFE_IMAGE=$IMAGE:$VERSION" >> deploy/.env
+
+          docker compose -f deploy/docker-compose.yml up -d --wait
+
+      - name: The instance says the tag, and pea says the same of it
+        run: |
+          set -euo pipefail
+
+          served="$(curl --fail --silent http://127.0.0.1:8080/api/version \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+          echo "the instance says $served"
+          test "$served" = "$VERSION" || { echo "it should say $VERSION"; exit 1; }
+
+          PERSONALAFFE_URL=http://127.0.0.1:8080 dist/pea version
+
+      # And the other half of the handshake: what either of them does when they
+      # do not match. An instance a major ahead is built here rather than
+      # imagined, because "the CLI would refuse it" is not a thing anybody has
+      # seen until somebody has seen it.
+      - name: An instance from another major is refused, and the message says which side moves
+        run: |
+          set -euo pipefail
+
+          docker build -f deploy/Dockerfile -t personalaffe:from-the-future \
+            --build-arg VERSION=99.0.0 . > /dev/null
+
+          docker compose -f deploy/docker-compose.yml down -v
+
+          # Written rather than appended: two assignments of one variable in an
+          # env file is a thing to be sure about, and there is nothing to be
+          # sure about in a file with one of each.
+          {
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+            echo "PERSONALAFFE_IMAGE=personalaffe:from-the-future"
+          } > deploy/.env
+
+          docker compose -f deploy/docker-compose.yml up -d --wait
+
+          set +e
+          said="$(PERSONALAFFE_URL=http://127.0.0.1:8080 dist/pea version 2>&1)"
+          code=$?
+          set -e
+
+          echo "$said"
+          test "$code" -eq 9 || { echo "it should have refused with exit 9, and it exited $code"; exit 1; }
+          echo "$said" | grep -q "Install the pea that matches the instance" \
+            || { echo "the refusal does not say what to do about it"; exit 1; }
+
+      - if: always()
+        run: docker compose -f deploy/docker-compose.yml logs --tail 50
+
+  # The release itself: the notes an operator reads, and the files they download.
+  publish:
+    name: The release
+    needs: [what, binaries, image, handshake]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.what.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: pea
+          path: dist
+
+      # Two of the assets are not built here: the Compose file and the example
+      # environment are what an installation is made of, and an operator with no
+      # checkout has to be able to reach them without one (docs/install.md).
+      - name: What goes under the tag
+        run: |
+          set -euo pipefail
+          cp deploy/docker-compose.yml deploy/.env.example LICENSE dist/
+
+          # The way back, beside the thing that goes wrong: an operator who
+          # installed this the documented way has no checkout to find it in, and
+          # the day they need it is not the day to be told to clone a repository
+          # (docs/install.md).
+          cp scripts/restore.sh dist/
+
+          # And a checksum for every one of them, not only for the archives: a
+          # script somebody downloads and runs against their own instance is the
+          # asset most worth being able to check.
+          cd dist && sha256sum docker-compose.yml .env.example restore.sh LICENSE >> SHA256SUMS
+          cat SHA256SUMS
+          ls -l
+
+      - name: Write what shipped
+        run: |
+          set -euo pipefail
+
+          {
+            scripts/the-notes.sh "$VERSION"
+            cat <<NOTES
+
+          ## Installing it
+
+          \`\`\`sh
+          docker pull $IMAGE:$VERSION
+          \`\`\`
+
+          [docs/install.md](https://github.com/${{ github.repository }}/blob/${GITHUB_REF_NAME}/docs/install.md)
+          is the whole of it, and assumes no checkout: the Compose file and the
+          example environment are attached here, and
+          [docs/operations.md](https://github.com/${{ github.repository }}/blob/${GITHUB_REF_NAME}/docs/operations.md)
+          has the reverse proxy, the variables and the backups.
+
+          ## \`pea\`, on the machine you work from
+
+          Four platforms — macOS and Linux, on both architectures — and a
+          checksum for each in \`SHA256SUMS\`:
+
+          \`\`\`sh
+          curl -LO https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/pea_${VERSION}_darwin_arm64.tar.gz
+          curl -LO https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/SHA256SUMS
+          shasum -a 256 --check --ignore-missing SHA256SUMS
+          tar -xzf pea_${VERSION}_darwin_arm64.tar.gz && sudo mv pea /usr/local/bin/
+          \`\`\`
+
+          \`pea\` talks to an instance of its own minor version and older, and
+          says which side moves when it will not.
+
+          ## Upgrading
+
+          \`docker compose pull\` and \`docker compose up -d --wait\`. Migrations
+          apply themselves on start and only ever forward, so **take a backup
+          first** — it is the way back
+          ([docs/operations.md](https://github.com/${{ github.repository }}/blob/${GITHUB_REF_NAME}/docs/operations.md)).
+
+          ---
+
+          MIT licensed; \`LICENSE\` is attached and travels inside every archive.
+          The weather tile, where an instance has it switched on, is served by
+          [Open-Meteo](https://open-meteo.com) — *Weather data by Open-Meteo.com*,
+          [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — and the API
+          says so with every reading.
+          NOTES
+          } > notes.md
+
+          cat notes.md
+
+      - name: Publish it
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          gh release create "$GITHUB_REF_NAME" \
+            --title "personalaffe $VERSION" \
+            --notes-file notes.md \
+            ${{ needs.what.outputs.prerelease == 'true' && '--prerelease' || '--latest' }} \
+            dist/*

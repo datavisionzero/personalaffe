@@ -34,13 +34,20 @@ variable below.
 
 ### 2. The image
 
+A release publishes one, and naming the version is the whole step:
+
+```sh
+# in deploy/.env
+PERSONALAFFE_IMAGE=ghcr.io/datavisionzero/personalaffe:0.1.0
+```
+
+[`docs/install.md`](install.md) is that route from beginning to end, and it
+assumes no checkout at all. From a checkout, the image is built rather than
+pulled, which is what the Compose file's default means:
+
 ```sh
 docker build -f deploy/Dockerfile -t personalaffe:local .
 ```
-
-There is no published image yet, which is why the build is a step of its own;
-`PERSONALAFFE_IMAGE` in `deploy/.env` is what names a published one when there
-is.
 
 ### 3. Up, and waited for
 
@@ -144,12 +151,14 @@ credentials, change security settings, empty the Trash or reset the instance.
 scripts/smoke.sh https://workspace.example.com
 ```
 
-Nine checks against the address an owner actually uses, and every one of them
+Ten checks against the address an owner actually uses, and every one of them
 is an operation that answers before anything has authenticated: that the API
 answers and says what it is, that liveness and readiness both answer, that the
 door in front of everything else is shut, that a body the reader cannot make
 sense of is refused as the document the contract promises rather than as a bare
-status, that the web application is served from the same origin, that an unknown
+status, that every answer carries the headers that say what a browser may do
+with it — which is the check that catches a proxy in front of this instance
+stripping them — that the web application is served from the same origin, that an unknown
 address under `/api` is still an API error and not the page, that the contract
 the instance serves is the one that is checked in, and that `pea` — built there
 and then from that document — reports the same version the browser reads. It
@@ -934,8 +943,10 @@ where to look, rather than starting a second server on a port that is taken.
 ## The CLI is not in the image
 
 `pea` is a client of the public API and runs wherever you are: a laptop, a CI
-runner, an agent's container. It ships as its own binary and needs nothing from
-this stack but an address.
+runner, an agent's container. It ships as its own binary — one per platform
+under each release, with a checksum beside it
+([`docs/install.md`](install.md)) — and needs nothing from this stack but an
+address.
 
 ```sh
 PERSONALAFFE_URL=http://127.0.0.1:8080 pea version

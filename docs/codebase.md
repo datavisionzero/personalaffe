@@ -87,9 +87,11 @@ notes as Markdown in a tree, with a history behind every page and an export
 anybody can read; and it keeps personal commitments in named lists, in an order
 the owner sets. One search finds across the four, one home page says what is
 pending, and a tile says what it is doing outside. All of it is reached in a
-browser and from `pea`. What is left of `docs/mvp-plan.md` is not a feature at
-all: the operational acceptance and the first release of PERSONAL-E10 — and no
-backup has yet been through a restore anybody has proved.
+browser and from `pea`. And PERSONAL-E10 put the things around it that are not
+features: an installation somebody else can follow, one backup carrying both
+stores as of one moment, a restore and an upgrade that have been walked rather
+than described, a pass over the security surface, and the artifacts a release is
+cut from. `docs/mvp-plan.md` is ten epics of ten.
 
 ## Where this comes from
 
@@ -184,13 +186,14 @@ so that the next primitive is generated the same way these were.
 
 ```
 personalaffe/
-├─ .github/workflows/          the gate: ci on every push and pull request
+├─ .github/workflows/          the gate: ci on every push and pull request; release on a tag
 ├─ deploy/                     Dockerfile, Compose (production and development), .env.example
 ├─ scripts/
-│  ├─ smoke.sh                 does this hang together? nine checks against a running instance
+│  ├─ smoke.sh                 does this hang together? ten checks against a running instance
 │  ├─ restore.sh               a backup put back: stop, restore, start
 │  ├─ rehearse-a-restore.sh    the whole circle, against the image, and what CI's `restore` job runs
 │  ├─ rehearse-an-upgrade.sh   an earlier build, upgraded and rolled back; CI's `upgrade` job
+│  ├─ the-notes.sh             what shipped in one version, out of CHANGELOG.md; the release reads it
 │  └─ an-instance.sh           what both rehearsals say to an instance, and the life they put in one
 ├─ docs/
 │  ├─ adr/                     the decisions
@@ -198,6 +201,7 @@ personalaffe/
 │  ├─ codebase.md              this
 │  ├─ api.md                   the HTTP surface: conventions, errors, endpoints
 │  ├─ cli.md                   `pea`: configuration, input, exit codes, verbs
+│  ├─ install.md               installing what was published, from no checkout at all
 │  ├─ operations.md            running it: variables, volumes, upgrade, reset
 │  └─ mvp-plan.md              what is built, in what order
 ├─ src/
@@ -210,6 +214,8 @@ personalaffe/
 ├─ tests/
 │  ├─ Personalaffe.UnitTests/
 │  └─ Personalaffe.IntegrationTests/
+├─ CHANGELOG.md                what shipped in each version, written before the tag
+├─ SECURITY.md                 how to report something, what is in scope, and what holds the door
 └─ Personalaffe.slnx           plus global.json and the Directory.* properties
 ```
 
@@ -321,8 +327,10 @@ their migration; `Files/LocalFileBytes`; and `Http/FileEndpoints` with
 instance answers the five outside the door, the owner's own, which applications
 it has, its Scratchpad, its Files, its Knowledge, its Tasks, a Trash that three
 of the four fill and the Scratchpad deliberately never puts anything in, one
-search over all four, a home page of tiles, and the weather. What is still to
-come is the release (PERSONAL-E10), which is not a module at all.
+search over all four, a home page of tiles, and the weather. PERSONAL-E10 added
+no module at all: what it added is the backup and restore verbs beside the
+recovery one, the headers in front of every answer, and the workflow that cuts a
+release.
 
 PERSONAL-E9 added `Domain/Search/` and `Domain/Dashboard/` and `Domain/Weather/`;
 `Application/Ports/ISearch`, `IDashboard`, `IDashboardTiles`, `IWeatherPlace`,
@@ -731,7 +739,33 @@ quiet.
 
 Three things it deliberately does not do: it publishes no image, it deploys
 nothing, and it holds no credential — `permissions: contents: read` is the whole
-of what it is given. Publishing is the release epic's.
+of what it is given. Publishing is `release.yml`'s, below.
+
+### The release, which is the other workflow
+
+`.github/workflows/release.yml` runs on a tag and on nothing else, and it is the
+only thing in this repository that writes anywhere outside it: the release under
+the tag, and the image in this repository's package registry. What it is given
+is `contents: write` and `packages: write`, and the token GitHub hands the run —
+there is no other credential, here or anywhere.
+
+| Job | What it does |
+| --- | --- |
+| What is being released | The version out of the tag, the refusal of a tag that is not on `main`, and the notes out of `CHANGELOG.md` — no notes, no release |
+| `pea` | Four static binaries — `darwin/arm64`, `darwin/amd64`, `linux/amd64`, `linux/arm64` — each with the tag compiled in and the licence beside it, and one `SHA256SUMS` over the archives |
+| Image | `linux/amd64` and `linux/arm64`, pushed as `<version>` and, for a release that is not a pre-release, `latest` |
+| The two of them agree | The published image started the documented way, the binary from the archive talking to it, and an instance built a major ahead to prove the refusal is real |
+| The release | The notes, the archives, the checksums, the Compose file, the example environment and the licence, under the tag |
+
+**The four platforms and the two architectures are decisions**, written down
+where they are made: a workspace is reached from the machine its owner sits at
+and from whatever a script runs on, and an instance runs on a small server
+somebody rents or a box at home. There is no Windows binary because nobody has
+asked for one.
+
+A tag with a hyphen in it is a pre-release: published on purpose, marked as one,
+and `latest` does not move. That is what makes this workflow rehearsable without
+telling anybody they have a new version.
 
 Two details worth keeping when it grows. The generation steps are never cached
 away: `npm ci` runs the package's own `pre*` scripts and the Go job runs
@@ -753,10 +787,12 @@ it. Its checks are `src/web/browser/`, its configuration is
 `src/web/playwright.config.ts`, and `npm run browser` is how it is run against
 an instance somebody already has up.
 
-## What the next epics plug into
+## What each epic plugged into
 
 The foundation was built to be extended in specific places, and this is the list
-so that no epic has to find them again.
+of where each epic went — kept, now that all ten have landed, because it is
+still the shortest description of how this product is put together, and because
+the day somebody adds a fifth application it is the list they need.
 
 **PERSONAL-E2, authentication — landed.** The door is
 `Http/Authentication.cs`, in front of the `/api` group and nowhere else: the
@@ -847,11 +883,19 @@ and the dashboard reads the tables the modules already write. What a fifth
 application would have to do to join both is exactly those two things
 ([ADR 0009](./adr/0009-the-index-is-a-column-and-the-weather-waits-on-nobody.md)).
 
-**PERSONAL-E10, operations.** Nothing in the foundation stands in its way and
-nothing anticipates it. The two volumes a consistent backup has to cover are
-named in [`docs/operations.md`](./operations.md). The Knowledge export is **not**
-a backup and must not be described as one: it carries no Trash, no revisions and
-no agent access.
+**PERSONAL-E10, operations — landed.** No module and no endpoint: what it added
+is beside the product rather than in it. `Hosting/Backup.cs` and
+`Hosting/Restore.cs` are two more verbs of the image's binary, beside
+`Hosting/OwnerRecovery.cs`, and they are verbs rather than endpoints for the
+same reason recovery is — their authorization is that somebody is standing at
+the machine. `Http/MaintenanceGuard` is what a write meets while a backup holds
+the instance still, and `Http/BrowserSecurity` gained `SecurityHeaders`, in
+front of everything. `scripts/` holds the two rehearsals CI runs on every push,
+`.github/workflows/release.yml` cuts a release from a tag, and
+[`docs/install.md`](./install.md) is what somebody with no checkout follows
+([ADR 0010](./adr/0010-the-pause-makes-two-stores-agree-and-the-way-back-is-the-backup.md)).
+The Knowledge export is **not** a backup and must not be described as one: it
+carries no Trash, no revisions and no agent access.
 
 **Every epic.** A new endpoint is a change to `docs/api/openapi.json` in the
 same commit, because `ContractTests` compares the two. A new refusal code is a

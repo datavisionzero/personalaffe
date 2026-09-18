@@ -33,25 +33,28 @@ test.describe("Knowledge", () => {
     // as a timeout on the button rather than as what it is.
     await expect(field).toContainText("Das Wichtigste");
 
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Saved.")).toBeVisible();
-
-    // Renamed, and the same address still opens it: the id is the identity.
-    //
-    // The save reads the page again, which takes this field away and puts a
-    // fresh one back. Waiting for it to carry the saved title is waiting for
-    // that to have happened rather than racing it — a fill that lands on the
-    // node being replaced is a rename nobody made, and a Save button that
-    // stays disabled for a minute afterwards.
+    // Renamed in the same breath, because one write carries the title and the
+    // body: they are one row (`docs/api.md`, Knowledge). Renaming <em>after</em>
+    // a save would be typing into a screen that is reading itself again, which
+    // is a moment, not a workflow — and what it used to cost is PERSONAL-66's
+    // one-line guard in `change`.
     const renamed = page.getByLabel("Title");
 
     await expect(renamed).toHaveValue(title);
     await renamed.fill(`${title} (umbenannt)`);
+
+    // That the screen has taken both changes before it is asked to save them.
+    // A filled field is a value in the DOM; a Save that is alive is the screen
+    // having the draft — and a click that lands before it is a save of what was
+    // on the screen a moment earlier.
     await expect(renamed).toHaveValue(`${title} (umbenannt)`);
+    await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
 
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Saved.")).toBeVisible();
 
+    // The same address still opens it: the id is the identity, and a rename
+    // does not move it.
     await page.goto("/");
     await page.goto(address);
 
@@ -62,6 +65,29 @@ test.describe("Knowledge", () => {
     // text and not a value — which is the whole reason these checks exist in a
     // browser at all.
     await expect(page.getByRole("textbox", { name: "The page" })).toContainText("Das Wichtigste");
+
+    // And a second write, from a screen that was opened rather than saved on:
+    // the guard takes the version this read carried, so writing twice to one
+    // page is a workflow and not a conflict.
+    const opened = page.getByRole("textbox", { name: "The page" });
+
+    await opened.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type("\n\nUnd noch etwas.");
+
+    await expect(opened).toContainText("Und noch etwas.");
+    await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
+
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("Saved.")).toBeVisible();
+
+    await page.goto("/");
+    await page.goto(address);
+
+    const both = page.getByRole("textbox", { name: "The page" });
+
+    await expect(both).toContainText("Das Wichtigste");
+    await expect(both).toContainText("Und noch etwas.");
   });
 
   test("follows a page: link inside the frame rather than opening it", async ({ page }) => {

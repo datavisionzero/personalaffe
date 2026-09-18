@@ -829,6 +829,36 @@ a new installation often happens over `http://127.0.0.1:8080/`. A session over
 plain HTTP travels in the clear: put TLS in front of anything that is not a
 trial ([`docs/operations.md`](./operations.md)).
 
+### What every answer carries
+
+Beside `Personalaffe-Version`, every answer this instance gives — the page, a
+read, a download and every refusal — carries the headers that say what a browser
+may do with it:
+
+```
+Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none';
+  frame-ancestors 'none'; form-action 'self'; script-src 'self';
+  style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self';
+  connect-src 'self'
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Referrer-Policy: no-referrer
+Cross-Origin-Opener-Policy: same-origin
+Permissions-Policy: accelerometer=(), autoplay=(), camera=(), …
+```
+
+`Strict-Transport-Security: max-age=31536000` is there too, **over HTTPS only**
+and naming this host alone: over plain HTTP it would be ignored, and pinning an
+installation that is still being reached at `http://127.0.0.1:8080/` is how an
+owner is locked out of it an hour after installing it — the same reasoning the
+cookie's prefix follows.
+
+`style-src` admits `'unsafe-inline'` because the Markdown editor writes its own
+stylesheets into the document at runtime, and `img-src` admits `https:` because
+a knowledge page is the owner's Markdown and may point at a picture anywhere.
+`script-src` admits neither, and `connect-src` is this instance and nothing else
+([`SECURITY.md`](../SECURITY.md)).
+
 ### A browser write proves where it came from
 
 A request that is authenticated **by the cookie** and is not `GET`, `HEAD` or

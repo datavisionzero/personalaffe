@@ -64,14 +64,28 @@ Tasks and Files, reachable from a browser, from an HTTP API and from a console.
 > weather tile** for a place you set once, at an address of its own so that a
 > server on the other side of the internet can never hold your home page up.
 >
-> **What is left is not a feature.** There is no release, and no backup of this
-> has been through a restore anybody has proved — both PERSONAL-E10, and the
-> Knowledge export is not one — so **anything you would mind losing still
-> belongs somewhere else as well.**
+> PERSONAL-E10 is what stands between all of that and somebody actually keeping
+> their life in it. **An installation anybody can follow** from no checkout at
+> all, behind their own proxy, with every variable named. **One backup**
+> carrying the database and the owner's files as of one moment, taken while the
+> instance is held still for under a second — and a restore that has been done
+> rather than described, with every bit of it read back out through the API.
+> **An upgrade that has been walked**, and the way back from one that went
+> wrong, which is that backup and not a migration in reverse. **A pass over the
+> security surface** now that all of it exists: the headers every answer
+> carries, a route table walked rather than remembered, and
+> [`SECURITY.md`](SECURITY.md) saying where to send what you find. And **the
+> artifacts a release is made of**, cut from a tag.
+>
+> **Everything VISION.md asks of the MVP is here.** What is left is a decision
+> rather than work: no tag has been cut, so nothing is published yet
+> ([`docs/install.md`](docs/install.md) is what an operator follows when one is).
 
 [`docs/codebase.md`](docs/codebase.md) is where the code lives and which way
 its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
 conventions and its errors. Read them before adding a file or an endpoint.
+Installing what was published, rather than running what is here, is
+[`docs/install.md`](docs/install.md).
 
 ## Prerequisites
 
@@ -316,7 +330,7 @@ boundary, the two volumes and which commands destroy them.
 
 ## Checking that it hangs together
 
-With an instance running, one script asks the eight questions nothing else
+With an instance running, one script asks the ten questions nothing else
 answers from the outside — and it takes the address, so the one it is asked
 about can be the proxied one an owner actually uses:
 
@@ -344,7 +358,9 @@ scripts/rehearse-an-upgrade.sh            # builds two earlier builds out of the
 It checks that the API answers and says what it is, that liveness and readiness
 both answer, that the door in front of everything else is shut and says which
 refusal it is, that the instance says whether it has an owner and nothing else,
-that the web application is served from the same origin, that an unknown address
+that a body the reader cannot make sense of is a document rather than an empty
+status, that every answer carries the headers that say what a browser may do
+with it, that the web application is served from the same origin, that an unknown address
 under `/api` is still an API error and not the page, that the contract the
 instance serves is the one checked in, and that both clients generate from that
 document — with `pea`, built there and then, reporting the same version the
@@ -353,7 +369,8 @@ credential.
 
 ## Known limits
 
-Everything here is PERSONAL-E1 to PERSONAL-E9, and nothing more.
+Everything here is PERSONAL-E1 to PERSONAL-E10 — the whole of the MVP — and
+nothing more.
 
 - **All four applications work, and none of what is left is content.** What the
   database carries is an owner, their sessions, their recovery codes, the agents
@@ -386,8 +403,16 @@ Everything here is PERSONAL-E1 to PERSONAL-E9, and nothing more.
   needs no account and no key; what is sent is two coordinates and nothing about
   who is asking. `PERSONALAFFE_WEATHER=off` and nothing in this product opens a
   socket to anywhere.
-- **There is no release.** No image is published anywhere, and CI deliberately
-  has no credential to publish one with. Release artifacts are PERSONAL-E10's.
+- **Nothing is published until somebody cuts a tag.** The workflow that
+  publishes a release exists and is rehearsed
+  ([`release.yml`](.github/workflows/release.yml)): a tag builds the image for
+  `linux/amd64` and `linux/arm64`, builds `pea` for macOS and Linux on both
+  architectures, checksums every archive, proves that the published image and
+  the published binary agree about the version, and puts the lot under the tag
+  with the notes out of [`CHANGELOG.md`](CHANGELOG.md). **Cutting that tag is
+  the owner's decision**, and until one is cut there is nothing to download —
+  [`docs/install.md`](docs/install.md) is what an operator follows when there is.
+  The gate still publishes nothing and still holds no credential.
 - **A backup is one command, and putting it back is one script.**
   `personalaffe backup --to -` holds the instance still — reads keep working —
   and writes one tar carrying the database, the owner's files and a manifest of
@@ -425,7 +450,20 @@ on every push and every pull request: the two .NET test projects, the web
 workspace, the CLI, the contract against a real PostgreSQL, and the image with a
 smoke test that starts it through the Compose file and checks that one container
 serves both halves. It publishes nothing and holds no credential.
-[`docs/codebase.md`](docs/codebase.md) has the job-by-job table.
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) is the other
+one, and the only thing here that writes anywhere outside this repository. It
+runs on a tag, refuses one that is not on `main` or that
+[`CHANGELOG.md`](CHANGELOG.md) has no notes for, and publishes the image, the
+four `pea` binaries and their checksums under it.
+[`docs/codebase.md`](docs/codebase.md) has the job-by-job table for both.
+
+## Security
+
+[`SECURITY.md`](SECURITY.md) says how to report a vulnerability, what is in
+scope, what this product deliberately does not promise, and — claim by claim,
+with the test that proves each one — what the door in front of the workspace is
+made of.
 
 ## Licence
 

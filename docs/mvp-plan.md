@@ -1,7 +1,6 @@
 # personalaffe — MVP Implementation Plan
 
-Status: agreed product and architecture direction. **PERSONAL-E1 to PERSONAL-E9
-are delivered** — the application, API, CLI and delivery foundation; the door in
+Status: **delivered — ten epics of ten.** PERSONAL-E1 to PERSONAL-E9 are — the application, API, CLI and delivery foundation; the door in
 front of them, with one owner, an optional second factor, agent access with a
 permission per application and a recovery that needs the machine rather than a
 mail server; the safeguards over content: the guard on a write, deletion that
@@ -32,11 +31,28 @@ never hold the home page up ([`docs/codebase.md`](codebase.md),
 [ADR 0008](adr/0008-a-due-date-is-a-day-and-an-order-is-a-number-between-two-others.md),
 [ADR 0009](adr/0009-the-index-is-a-column-and-the-weather-waits-on-nobody.md)).
 
-**Every feature VISION.md names for the MVP now exists.** What PERSONAL-E10 has
-left is not a feature: no release has been published, and no backup of any of
-this has been through a restore anybody has proved — the Knowledge export is not
-one, since it carries no Trash, no revisions and no agent access — so anything
-you would mind losing still belongs somewhere else as well.
+And PERSONAL-E10 is everything a person needs before they put something they
+would mind losing into it: an installation somebody else can follow from no
+checkout at all, behind their own proxy; one backup carrying the database and
+the files as of one moment, and a restore that has been done rather than
+described; an upgrade that has been walked, and the way back from one that went
+wrong; a pass over the security surface now that all of it exists, with the
+headers every answer carries and the report address that goes with them; and the
+artifacts a release is made of, cut from a tag
+([ADR 0010](adr/0010-the-pause-makes-two-stores-agree-and-the-way-back-is-the-backup.md),
+[`docs/install.md`](install.md), [`SECURITY.md`](../SECURITY.md)).
+
+**Every feature VISION.md names for the MVP exists, and every promise around it
+has a test, a CI job or a walked rehearsal behind it.** What is left is not work:
+publishing the first release is a tag, and cutting it is the owner's decision.
+
+One scope decision came back to the owner during the plan and was answered
+without them: VISION.md admits a weather tile only if a proportionate
+integration exists. Open-Meteo needs no account, no key and no secret, so the
+condition is met and the tile is in the MVP
+([ADR 0009](adr/0009-the-index-is-a-column-and-the-weather-waits-on-nobody.md)).
+`PERSONALAFFE_WEATHER=off` is the other half of that answer: an instance that is
+not supposed to talk to anybody but its owner opens no socket at all.
 
 The plan implements the four core applications in VISION.md. IDEAS.md remains non-binding and outside the MVP. CONTEXT.md defines domain vocabulary. Epic descriptions are maintained in the PERSONAL project in planaffe; this document is the repository copy of their initial plan.
 
@@ -333,7 +349,7 @@ Choose ranking, pagination, default tiles, freshness targets, and weather provid
 
 ### PERSONAL-E10: MVP: Prove secure operation, backup, upgrades, and release readiness
 
-Prerequisites: PERSONAL-E1, PERSONAL-E2, PERSONAL-E3, PERSONAL-E4, PERSONAL-E5, PERSONAL-E6, PERSONAL-E7, PERSONAL-E8, PERSONAL-E9.
+Prerequisites: PERSONAL-E1, PERSONAL-E2, PERSONAL-E3, PERSONAL-E4, PERSONAL-E5, PERSONAL-E6, PERSONAL-E7, PERSONAL-E8, PERSONAL-E9. **Delivered.**
 
 #### Outcome
 
