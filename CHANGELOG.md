@@ -10,6 +10,10 @@ Versions are semantic. `pea` talks to an instance of its own minor version and
 older, so a minor is the number that asks somebody to upgrade their CLI, and a
 major is the number that asks them to read before upgrading at all.
 
+**A release candidate has no section of its own.** `0.1.0-rc.1` is a candidate
+for `0.1.0` and ships that section: notes written twice are notes that disagree,
+and the second copy is the one nobody updates.
+
 ## 0.1.0
 
 The first release of personalaffe: a private workspace belonging to one person,
