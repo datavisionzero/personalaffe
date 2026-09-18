@@ -160,7 +160,8 @@ status, that every answer carries the headers that say what a browser may do
 with it — which is the check that catches a proxy in front of this instance
 stripping them — that the web application is served from the same origin, that an unknown
 address under `/api` is still an API error and not the page, that the contract
-the instance serves is the one that is checked in, and that `pea` — built there
+the instance serves is the one that is checked in, down to everything but the
+version in it — which is the instance's own and is asked for by name, and that `pea` — built there
 and then from that document — reports the same version the browser reads. It
 writes nothing into the repository and needs no credential; the two malformed
 bodies it sends are refused while the reader is still parsing them, so neither

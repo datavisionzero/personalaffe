@@ -164,9 +164,19 @@ curl --fail --silent --max-time 10 "$instance/api/openapi/v1.json" --output "$wo
 python3 - "$work/served.json" "$root/docs/api/openapi.json" <<'PY' || fail "the served contract is not the checked-in one; recapture it with PERSONALAFFE_CAPTURE_CONTRACT=1"
 import json, sys
 served, checked_in = (json.load(open(path, encoding="utf-8")) for path in sys.argv[1:3])
+
+# `info.version` is the one field in this document that is not its shape: it is
+# what the instance calls itself, and the checked-in document was captured from a
+# build nobody released (`0.0.0-dev`). A released instance therefore differs
+# there and nowhere else — and comparing it would make this check fail against
+# every release, which is exactly the instance an operator runs it against.
+# What the instance is, is `GET /api/version`, asked in check one.
+for document in (served, checked_in):
+    document.get("info", {}).pop("version", None)
+
 sys.exit(0 if served == checked_in else 1)
 PY
-printf '    docs/api/openapi.json is what is being served\n'
+printf '    docs/api/openapi.json is what is being served, by a %s\n' "$served_version" 
 
 # ------------------------------------------------------------ the clients ----
 step "Both clients generate from that document, and pea asks the same question"
