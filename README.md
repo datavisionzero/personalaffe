@@ -410,8 +410,9 @@ nothing more.
   `linux/amd64` and `linux/arm64`, builds `pea` for macOS and Linux on both
   architectures, checksums every asset, proves that the published image and the
   published binary agree about the version, and puts the lot under the tag with
-  the notes out of [`CHANGELOG.md`](CHANGELOG.md) — which it refuses to cut a
-  release without. **0.1.0 is the first**, and
+  the notes an operator reads: how to install it, how to get `pea` and what an
+  upgrade asks of them, over GitHub's generated list of what changed.
+  **0.1.0 is the first**, and
   [`docs/install.md`](docs/install.md) is what an operator follows to install it.
   The gate still publishes nothing and still holds no credential; the release
   workflow holds the token its own run is handed and nothing else.
@@ -455,8 +456,7 @@ serves both halves. It publishes nothing and holds no credential.
 
 [`.github/workflows/release.yml`](.github/workflows/release.yml) is the other
 one, and the only thing here that writes anywhere outside this repository. It
-runs on a tag, refuses one that is not on `main` or that
-[`CHANGELOG.md`](CHANGELOG.md) has no notes for, and publishes the image, the
+runs on a tag, refuses one that is not on `main`, and publishes the image, the
 four `pea` binaries and their checksums under it.
 [`docs/codebase.md`](docs/codebase.md) has the job-by-job table for both.
 
