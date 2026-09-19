@@ -193,7 +193,6 @@ personalaffe/
 │  ├─ restore.sh               a backup put back: stop, restore, start
 │  ├─ rehearse-a-restore.sh    the whole circle, against the image, and what CI's `restore` job runs
 │  ├─ rehearse-an-upgrade.sh   an earlier build, upgraded and rolled back; CI's `upgrade` job
-│  ├─ the-notes.sh             what shipped in one version, out of CHANGELOG.md; the release reads it
 │  └─ an-instance.sh           what both rehearsals say to an instance, and the life they put in one
 ├─ docs/
 │  ├─ adr/                     the decisions
@@ -214,7 +213,6 @@ personalaffe/
 ├─ tests/
 │  ├─ Personalaffe.UnitTests/
 │  └─ Personalaffe.IntegrationTests/
-├─ CHANGELOG.md                what shipped in each version, written before the tag
 ├─ SECURITY.md                 how to report something, what is in scope, and what holds the door
 └─ Personalaffe.slnx           plus global.json and the Directory.* properties
 ```
@@ -763,7 +761,7 @@ there is no other credential, here or anywhere.
 
 | Job | What it does |
 | --- | --- |
-| What is being released | The version out of the tag, the refusal of a tag that is not on `main`, and the notes out of `CHANGELOG.md` — no notes, no release |
+| What is being released | The version out of the tag, whether it is a pre-release, and the refusal of a tag that is not on `main` |
 | `pea` | Four static binaries — `darwin/arm64`, `darwin/amd64`, `linux/amd64`, `linux/arm64` — each with the tag compiled in and the licence beside it, and one `SHA256SUMS` over the archives |
 | Image | `linux/amd64` and `linux/arm64`, pushed as `<version>` and, for a release that is not a pre-release, `latest` |
 | The two of them agree | The published image started the documented way, the binary from the archive talking to it, and an instance built a major ahead to prove the refusal is real |

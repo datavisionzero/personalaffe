@@ -111,10 +111,18 @@ the rollback it buys is an instance whose every download is a `404`.
 - **A tag with a hyphen in it is a pre-release** — published, marked as one, and
   `latest` does not move. That is what makes the release workflow rehearsable
   without telling anybody they have a new version.
-- **The notes are written before the tag.** The workflow reads `CHANGELOG.md`
-  before it builds anything and refuses a tag it has no section for, because a
+- **The notes are written before the tag.** The workflow read `CHANGELOG.md`
+  before it built anything and refused a tag it had no section for, because a
   release whose notes are written afterwards is a release nobody had to think
   about before cutting it.
+
+  **Reversed by PERSONAL-73.** The reasoning held; being the only product in the
+  family that worked this way did not. `planaffe`, `hostingaffe` and `logaffe`
+  all release without a changelog, over a fixed block of prose naming the image
+  and the binaries, with `--generate-notes` appending what is between one tag
+  and the one before it. personalaffe now does the same. What is lost is the
+  hand-written upgrade note; what is gained is one release practice across the
+  family, and no file with nowhere to put the work done between two releases.
 
 ## What CI rehearses, and what stays an operator's
 
