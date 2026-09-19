@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Personalaffe.Domain;
+using Personalaffe.Domain.Appearance;
 using Personalaffe.Domain.Dashboard;
 using Personalaffe.Domain.Files;
 using Personalaffe.Domain.Knowledge;
@@ -70,6 +71,14 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// and nowhere until the owner says.
     /// </summary>
     public DbSet<WeatherPlace> WeatherPlace => Set<WeatherPlace>();
+
+    /// <summary>
+    /// What this instance is called and what its mark looks like
+    /// (<see cref="InstanceAppearance"/>). One row, held to one by the check
+    /// constraint the configuration declares, and the product's own until the
+    /// owner says otherwise.
+    /// </summary>
+    public DbSet<InstanceAppearance> InstanceAppearance => Set<InstanceAppearance>();
 
     /// <summary>
     /// Whether this instance is being held still while a backup takes the

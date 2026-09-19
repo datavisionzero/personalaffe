@@ -45,6 +45,7 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/agents",
                 "/api/agents/{id}",
                 "/api/agents/{id}/token",
+                "/api/appearance",
                 "/api/applications",
                 "/api/applications/{application}",
                 "/api/dashboard",

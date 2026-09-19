@@ -6,6 +6,7 @@ import { vi } from "vitest";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Me } from "@/session/useSession";
+import { AppearanceProvider } from "@/shell/AppearanceProvider";
 
 /**
  * An instance standing in front of the generated client rather than in place of
@@ -103,17 +104,37 @@ export function refused(code: string, status: number, detail?: string): Answer {
 
 /**
  * A screen at an address, inside everything the frame puts above it: the theme,
- * the tooltips the owned primitives reach for, and a router whose history is
- * the test's rather than the browser's.
+ * what this instance is called, the tooltips the owned primitives reach for,
+ * and a router whose history is the test's rather than the browser's.
+ *
+ * The order is `main.tsx`'s. A test that answers nothing at `/api/appearance`
+ * gets the product's own name and mark, which is what a screen gets from an
+ * instance that did not answer either.
  */
 export function renderAt(path: string, element: ReactElement) {
   return render(
     <ThemeProvider storageKey="a-test.theme">
-      <TooltipProvider>
-        <MemoryRouter initialEntries={[path]}>{element}</MemoryRouter>
-      </TooltipProvider>
+      <AppearanceProvider>
+        <TooltipProvider>
+          <MemoryRouter initialEntries={[path]}>{element}</MemoryRouter>
+        </TooltipProvider>
+      </AppearanceProvider>
     </ThemeProvider>,
   );
+}
+
+/** What `GET /api/appearance` answers: unnamed, unless the test says otherwise. */
+export function theAppearance(
+  overrides: { title?: string | null; colour?: string; shape?: string; updated_at?: string } = {},
+): Answer {
+  return {
+    body: {
+      title: overrides.title === undefined ? null : overrides.title,
+      colour: overrides.colour ?? "violet",
+      shape: overrides.shape ?? "square",
+      updated_at: overrides.updated_at ?? "2026-01-01T00:00:00.000000Z",
+    },
+  };
 }
 
 /** The owner, as `GET /api/me` answers them. */

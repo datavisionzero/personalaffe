@@ -4741,6 +4741,119 @@
           }
         }
       }
+    },
+    "/api/appearance": {
+      "get": {
+        "tags": [
+          "personalaffe"
+        ],
+        "summary": "What this instance is called and what its mark looks like.",
+        "description": "Outside the door, because the sign-in screen and the browser tab are drawn before anybody has signed in. `title` is nothing on an instance nobody has named, which means the product name. It is plain text and is never Markdown or HTML.",
+        "operationId": "ReadAppearance",
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppearanceResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "personalaffe"
+        ],
+        "summary": "Name this instance and choose its mark. The owner's alone.",
+        "description": "All three, every time. An empty or whitespace title is stored as none and the instance goes back to the product name. Whoever can reach this instance can read what is set here.",
+        "operationId": "SetAppearance",
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "The version this write replaces: the `ETag` of the read it is based on, or the object's `updated_at` where the read was a list. A write holding an older one is refused as `stale`.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAppearanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppearanceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Precondition Failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4827,6 +4940,34 @@
           },
           "token": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AppearanceResponse": {
+        "required": [
+          "title",
+          "colour",
+          "shape",
+          "updated_at"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "colour": {
+            "$ref": "#/components/schemas/MarkColour"
+          },
+          "shape": {
+            "$ref": "#/components/schemas/MarkShape"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "additionalProperties": false
@@ -5531,6 +5672,25 @@
         },
         "additionalProperties": false
       },
+      "MarkColour": {
+        "enum": [
+          "violet",
+          "blue",
+          "teal",
+          "green",
+          "amber",
+          "red",
+          "pink"
+        ],
+        "type": "string"
+      },
+      "MarkShape": {
+        "enum": [
+          "square",
+          "circle"
+        ],
+        "type": "string"
+      },
       "MeResponse": {
         "required": [
           "kind",
@@ -6128,6 +6288,27 @@
           },
           "current": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetAppearanceRequest": {
+        "required": [
+          "title"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "colour": {
+            "$ref": "#/components/schemas/MarkColour"
+          },
+          "shape": {
+            "$ref": "#/components/schemas/MarkShape"
           }
         },
         "additionalProperties": false

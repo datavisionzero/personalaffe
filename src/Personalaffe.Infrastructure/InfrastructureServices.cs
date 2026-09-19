@@ -79,6 +79,7 @@ public static class InfrastructureServices
         // Where the owner wants the weather for. One row beside the tiles,
         // because it is a setting and not content.
         services.AddScoped<IWeatherPlace, WeatherPlaces>();
+        services.AddScoped<IInstanceAppearance, InstanceAppearances>();
 
         // The Trash's contributors. Registering one is the whole of appearing in
         // GET /api/trash, in restore, in permanent removal and in the hourly

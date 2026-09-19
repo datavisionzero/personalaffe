@@ -31,6 +31,44 @@ test.describe("on a phone", () => {
     await expect(page.getByRole("heading", { name: "Files" })).toBeVisible();
   });
 
+  test("carries the instance's own name into the drawer", async ({ page }) => {
+    // Set the way another device would (`docs/api.md`, The appearance), so what
+    // is checked here is the drawer and not the settings form.
+    const read = await page.request.get("/api/appearance");
+    const { updated_at: version } = (await read.json()) as { updated_at: string };
+
+    const named = await page.request.put("/api/appearance", {
+      headers: {
+        "If-Match": `"${version}"`,
+        "X-Personalaffe-CSRF": "1",
+        Origin: new URL(page.url()).origin,
+      },
+      data: { title: "Haus", colour: "green", shape: "circle" },
+    });
+    expect(named.ok(), await named.text()).toBeTruthy();
+
+    await page.reload();
+
+    await expect(page).toHaveTitle("Haus");
+
+    await page.getByRole("button", { name: /sidebar/i }).click();
+    await expect(page.getByRole("dialog").getByText("Haus")).toBeVisible();
+
+    // Put it back: the instance these run against keeps whatever the last check
+    // wrote.
+    const again = await page.request.get("/api/appearance");
+    const { updated_at: now } = (await again.json()) as { updated_at: string };
+
+    await page.request.put("/api/appearance", {
+      headers: {
+        "If-Match": `"${now}"`,
+        "X-Personalaffe-CSRF": "1",
+        Origin: new URL(page.url()).origin,
+      },
+      data: { title: null, colour: "violet", shape: "square" },
+    });
+  });
+
   test("takes a Scratchpad entry on a phone, and copies one back", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 

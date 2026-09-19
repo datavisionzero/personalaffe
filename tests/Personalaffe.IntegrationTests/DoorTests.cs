@@ -13,9 +13,10 @@ namespace Personalaffe.IntegrationTests;
 public sealed class DoorTests(PostgresFixture postgres)
 {
     /// <summary>
-    /// The whole of what an instance answers without a credential. A sixth
+    /// The whole of what an instance answers without a credential. A further
     /// address appearing here is a decision somebody has to have made on
-    /// purpose.
+    /// purpose — <c>/api/appearance</c> is the one PERSONAL-72 made, and what
+    /// it gives away is a word the owner wrote and one of seven colours.
     /// </summary>
     public static TheoryData<string> Outside =>
     [
@@ -23,12 +24,13 @@ public sealed class DoorTests(PostgresFixture postgres)
         "/api/health/live",
         "/api/health/ready",
         "/api/setup",
+        "/api/appearance",
         "/api/openapi/v1.json",
     ];
 
     [Theory]
     [MemberData(nameof(Outside))]
-    public async Task The_five_operations_outside_the_door_answer_without_one(string address)
+    public async Task The_operations_outside_the_door_answer_without_one(string address)
     {
         await using var instance = await AnInstance.StartedAsync(postgres);
         using var client = instance.CreateClient();

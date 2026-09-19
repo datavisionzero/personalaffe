@@ -21,12 +21,19 @@ namespace Personalaffe.Api.Http;
 public static class OpenApiDocument
 {
     /// <summary>
-    /// A CLR type ending in <c>Shape</c> is the contract's shape of the Domain
-    /// type of the same name, so the suffix is dropped from the schema id and
-    /// both generated clients see the name the document uses. Nothing carries
-    /// the suffix yet; the rule is here so that the first type to need it does
-    /// not have to also decide this.
+    /// A CLR record ending in <c>Shape</c> is the contract's shape of the
+    /// Domain type of the same name, so the suffix is dropped from the schema
+    /// id and both generated clients see the name the document uses.
     /// </summary>
+    /// <remarks>
+    /// <strong>An enum is never one of those.</strong> A contract shape is a
+    /// record this layer writes to carry a Domain type over the wire; an enum
+    /// named <c>SomethingShape</c> is a Domain word that happens to end in the
+    /// same five letters — <see cref="Domain.Appearance.MarkShape"/> is the
+    /// shape of a mark, not the contract's shape of a <c>Mark</c>, and there is
+    /// no such type for it to be the shape of. Stripping it would name the
+    /// schema after a type that does not exist.
+    /// </remarks>
     private const string ShapeSuffix = "Shape";
 
     public static IServiceCollection AddPersonalaffeOpenApi(this IServiceCollection services) =>
@@ -35,9 +42,11 @@ public static class OpenApiDocument
             options.CreateSchemaReferenceId = info =>
             {
                 var id = OpenApiOptions.CreateDefaultSchemaReferenceId(info);
-                return id is not null && id.EndsWith(ShapeSuffix, StringComparison.Ordinal)
-                    ? id[..^ShapeSuffix.Length]
-                    : id;
+                return id is not null
+                    && !info.Type.IsEnum
+                    && id.EndsWith(ShapeSuffix, StringComparison.Ordinal)
+                        ? id[..^ShapeSuffix.Length]
+                        : id;
             };
 
             options.AddSchemaTransformer((schema, context, _) =>

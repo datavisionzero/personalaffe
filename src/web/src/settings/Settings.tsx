@@ -7,14 +7,15 @@ import type { TheApplications } from "@/shell/useApplications";
 import type { Me } from "@/session/useSession";
 import { cn } from "@/lib/utils";
 import { ApplicationSwitches } from "./ApplicationSwitches";
+import { AppearanceSettings } from "./AppearanceSettings";
 import { HomeSettings } from "./HomeSettings";
 
 /**
  * Everything about the instance rather than about its content: which
- * applications it has, how the owner gets in, and what the owner has let in
- * beside them.
+ * applications it has, what it is called, how the owner gets in, and what the
+ * owner has let in beside them.
  *
- * Three routes rather than three tabs on one, so that a link to the agent
+ * A route each rather than tabs on one, so that a link to the agent
  * tokens is a link to the agent tokens. The list of them is the navigation of
  * this area and it stays put while they are walked between
  * (`docs/mvp-plan.md`, PERSONAL-E4: area-owned navigation).
@@ -27,6 +28,7 @@ export function Settings({ me, applications }: { me: Me; applications: TheApplic
   const areas = [
     { path: "/settings/applications", label: "Applications" },
     { path: "/settings/home", label: "Home page" },
+    { path: "/settings/appearance", label: "Appearance" },
     { path: "/settings/security", label: "Security" },
     { path: "/settings/agents", label: "Agent access" },
   ];
@@ -61,6 +63,7 @@ export function Settings({ me, applications }: { me: Me; applications: TheApplic
           element={<ApplicationSwitches me={me} applications={applications} />}
         />
         <Route path="home" element={<HomeSettings owner={me.kind === "owner"} />} />
+        <Route path="appearance" element={<AppearanceSettings owner={me.kind === "owner"} />} />
         <Route
           path="security"
           element={me.kind === "owner" ? <Security /> : <Denied what="Security" />}

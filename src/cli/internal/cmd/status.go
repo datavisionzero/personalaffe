@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/datavisionzero/personalaffe/src/cli/internal/client"
 	"github.com/datavisionzero/personalaffe/src/cli/internal/render"
 	"github.com/datavisionzero/personalaffe/src/cli/internal/version"
 )
@@ -41,9 +42,18 @@ func (g *globals) status(ctx context.Context) error {
 	_, from, tokenErr := in.ResolveToken(address)
 
 	served := ""
+	name := ""
 	var versionErr error
 	if _, c, clientErr := g.anonymous(); clientErr == nil {
 		served, versionErr = g.served(ctx, c)
+
+		// What the owner calls this instance, if they call it anything. It is
+		// outside the door like the version is, so this needs no credential —
+		// and it is the answer to the question this command exists for, which
+		// is which of these am I about to write to. A failure here is dropped
+		// rather than reported: a name is a convenience, and a status command
+		// that failed because of one would be useless exactly when it matters.
+		name, _ = g.named(ctx, c)
 	} else {
 		versionErr = clientErr
 	}
@@ -56,13 +66,22 @@ func (g *globals) status(ctx context.Context) error {
 
 		return render.JSON(g.out(), map[string]any{
 			"instance": address,
+			"name":     nilIfEmpty(name),
 			"version":  map[string]any{"pea": version.Version, "instance": nilIfEmpty(served)},
 			"token":    token,
 		})
 	}
 
 	out := g.out()
-	render.Field(out, 9, "instance", address)
+
+	// The name first and the address after it, because the address is what
+	// makes the name unambiguous and the name is what makes the address
+	// recognisable. An instance nobody has named says what it always said.
+	if name != "" {
+		render.Field(out, 9, "instance", fmt.Sprintf("%s (%s)", name, address))
+	} else {
+		render.Field(out, 9, "instance", address)
+	}
 
 	switch {
 	case versionErr != nil:
@@ -78,6 +97,24 @@ func (g *globals) status(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// named is what the owner calls this instance, which GET /api/appearance
+// answers without a credential. Empty where they have not named it, where this
+// build of the instance is older than the endpoint, or where the read failed.
+func (g *globals) named(ctx context.Context, c *client.Client) (string, error) {
+	resp, err := c.ReadAppearanceWithResponse(ctx)
+	if err != nil {
+		return "", client.Transport(err)
+	}
+	if err := client.Check(resp.HTTPResponse, resp.Body); err != nil {
+		return "", err
+	}
+	if resp.JSON200 == nil || resp.JSON200.Title == nil {
+		return "", nil
+	}
+
+	return *resp.JSON200.Title, nil
 }
 
 func nilIfEmpty(value string) any {

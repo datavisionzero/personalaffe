@@ -6,6 +6,7 @@ import {
   anInstance,
   anAgent,
   renderAt,
+  theAppearance,
   theApplications,
   theDashboard,
   theOwner,
@@ -32,6 +33,46 @@ describe("the frame", () => {
     for (const label of ["Home", "Scratchpad", "Knowledge", "Tasks", "Files", "Settings"]) {
       expect(await within(navigation).findByRole("link", { name: label })).toBeInTheDocument();
     }
+  });
+
+  it("says what this instance is called rather than what the product is", async () => {
+    anInstance({
+      "GET /api/applications": theApplications(),
+      "GET /api/appearance": theAppearance({ title: "Haus", colour: "teal", shape: "circle" }),
+      ...emptyTrash,
+      ...emptyHome,
+    });
+
+    renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
+
+    expect(await screen.findByText("Haus")).toBeInTheDocument();
+    expect(screen.queryByText("personalaffe")).not.toBeInTheDocument();
+
+    // And the mark beside it is the one the instance chose.
+    const mark = await screen.findByTestId("mark");
+    expect(mark).toHaveAttribute("data-mark-colour", "teal");
+    expect(mark).toHaveClass("rounded-full");
+    expect(mark).toHaveTextContent("HA");
+  });
+
+  it("says the product's own name where nobody has named the instance", async () => {
+    anInstance({
+      "GET /api/applications": theApplications(),
+      "GET /api/appearance": theAppearance(),
+      ...emptyTrash,
+      ...emptyHome,
+    });
+
+    renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
+
+    expect(await screen.findByText("personalaffe")).toBeInTheDocument();
+
+    // And the mark is the one the product has always drawn: a filled rounded
+    // square, with nothing written in it.
+    const mark = await screen.findByTestId("mark");
+    expect(mark).toHaveAttribute("data-mark-colour", "violet");
+    expect(mark).toHaveClass("rounded-sm");
+    expect(mark).toHaveTextContent("");
   });
 
   it("leaves a switched-off application out of the navigation", async () => {
