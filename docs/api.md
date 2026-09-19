@@ -682,6 +682,56 @@ about the person who owns it — and so is `GET /api/weather/places?q=Wuppertal`
 which is the geocoder that turns a name into the two numbers, asked once in
 Settings and never again by a tile.
 
+## The appearance
+
+What this instance is called and what its mark looks like, at
+`GET /api/appearance`. It is the one setting in this product whose whole purpose
+is recognition: somebody with three instances open, or with one open beside
+somebody else's, knows at a glance which one they are typing into.
+
+```json
+{ "title": "Haus",
+  "colour": "violet",
+  "shape": "square",
+  "updated_at": "2026-09-19T13:44:33.325357Z" }
+```
+
+**`title` is plain text and nothing else.** At most 40 characters, trimmed, one
+line. Nothing renders it as Markdown or as HTML and nothing assembles it into a
+`data:` URI, so a title containing `<script>` is a title containing `<script>`
+— in the sidebar, in the browser tab and in `pea status`. `null` is an instance
+nobody has named, which means the product name.
+
+**`colour` is one of seven words** — `violet`, `blue`, `teal`, `green`, `amber`,
+`red`, `pink` — and `shape` is one of two: `square`, a square with rounded
+corners, or `circle`. They are words and never CSS. What a colour looks like is
+the web application's token layer's business
+([`src/web/src/index.css`](../src/web/src/index.css)), which is the only place
+that has to make each of them hold up against a light theme and a dark one. A
+free hex could not promise that, because `--brand` is the link colour and the
+soft background behind text as well as the mark.
+
+**The letters in the mark are derived and not set.** With a title, the mark
+carries up to two letters taken from it; with none it is the plain filled shape
+the product has always drawn. There is nothing stored that a rename could
+contradict.
+
+**This read is outside the door**, and it is the sixth operation that is — the
+one added after PERSONAL-E2 closed that list. It has to be: the
+sign-in screen and the browser tab are exactly where "which instance is this" is
+worth answering, and both are drawn before anybody has signed in. The price is
+that whoever can reach the port can read the title and the colour, which the
+settings screen says in plain words on the screen where they are chosen. **What
+stays behind the door is who the owner is**: the appearance says nothing about
+them that they did not write into it.
+
+`PUT /api/appearance` takes all three and the `updated_at` in `If-Match`, and is
+**the owner's alone** — an agent reads it and may not write it, exactly like the
+home page. A title that is only whitespace is stored as none rather than
+refused, because an owner clearing the field means "go back to the product
+name". A colour or a shape that is not in the set is the ordinary validation
+refusal.
+
 ## The Trash
 
 One list over the four applications, at `GET /api/trash`. There is no table
@@ -944,13 +994,18 @@ now out.
 
 ## Operations
 
-Five outside the door, and the rest behind it.
+Six outside the door, and the rest behind it.
 
-The five are held to carrying **no owner data, no credential, and nothing about
+The six are held to carrying **no owner data, no credential, and nothing about
 the host**: an instance on the public internet with nobody signed in answers
 exactly these, and a test asserts their answers stay short and say nothing else.
-They are also the last five: everything the epics after this add is behind the
-door.
+
+Five of them are PERSONAL-E2's, and `GET /api/appearance` is the one added
+afterwards — deliberately, and against the rule that everything after
+PERSONAL-E2 is behind the door, because a browser tab and a sign-in screen are
+drawn before anybody has signed in. What it gives away is a word the owner wrote about their
+own installation and one of seven colours. A seventh is a decision somebody has
+to make on purpose, and two tests are what make it one.
 
 ### `GET /api/version`
 
@@ -1002,6 +1057,22 @@ It is also the whole of what it says. **Who** the owner is, when they were set
 up and what address they use are not in the answer — an instance on the public
 internet answers this to whoever asks, and `required: false` is the most it will
 ever tell them.
+
+### `GET /api/appearance`
+
+```json
+{ "title": "Haus", "colour": "violet", "shape": "square",
+  "updated_at": "2026-09-19T13:44:33.325357Z" }
+```
+
+What this instance is called and what its mark looks like
+([The appearance](#the-appearance)). Outside the door, because the sign-in
+screen and the browser tab are drawn before anybody has signed in. `title` is
+`null` on an instance nobody has named, and it is plain text wherever it is
+written out.
+
+It is the whole of what it says. **Who** the owner is, when they were set up and
+what address they use are not in the answer.
 
 ### `POST /api/setup`
 
@@ -1385,6 +1456,12 @@ so setting a place and seeing it is one request.
 `q` is a place name; answers what a geocoder thinks it names, best first.
 **The owner alone.** Empty where the provider did not answer or this instance is
 not asking anybody.
+
+### `PUT /api/appearance`
+
+`{ "title": "Haus", "colour": "violet", "shape": "square" }`, with `If-Match`.
+**The owner alone**, because the answer is public. An empty or whitespace
+`title` is stored as none and the instance goes back to the product name.
 
 ### `GET /api/trash`
 

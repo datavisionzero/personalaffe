@@ -5,8 +5,15 @@ import { BrowserRouter } from "react-router";
 import "./index.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { App } from "@/shell/App";
+import { AppearanceProvider } from "@/shell/AppearanceProvider";
 
 /**
+ * The appearance is above the router and above the door for the same reason the
+ * theme is above both: it is on the document rather than on a screen, and the
+ * screens before the door need it too. It is asked from outside the door, which
+ * is what lets the browser tab and the sign-in screen say which instance this
+ * is before anybody has signed in (`docs/api.md`, The appearance).
+ *
  * The router is a browser one and its base is the root: every address outside
  * `/api` is this application's, and the instance serves `index.html` for all of
  * them (`docs/codebase.md`). So `/knowledge/architecture` typed into a fresh
@@ -20,9 +27,11 @@ import { App } from "@/shell/App";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <AppearanceProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AppearanceProvider>
     </ThemeProvider>
   </StrictMode>,
 );

@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using Personalaffe.Api.Hosting;
 using Personalaffe.Api.Http;
 using Personalaffe.Application.Acts;
+using Personalaffe.Application.Acts.Appearance;
 using Personalaffe.Application.Acts.Dashboard;
 using Personalaffe.Application.Acts.Files;
 using Personalaffe.Application.Acts.Knowledge;
@@ -242,6 +243,8 @@ builder.Services.AddScoped<ShowOrHideATile>();
 builder.Services.AddScoped<ReadTheWeather>();
 builder.Services.AddScoped<SetTheWeatherPlace>();
 builder.Services.AddScoped<LookUpAPlace>();
+builder.Services.AddScoped<ReadTheAppearance>();
+builder.Services.AddScoped<SetTheAppearance>();
 
 // The door, in front of the `/api` group and nowhere else (docs/api.md).
 builder.Services.AddPersonalaffeAuthentication();
@@ -410,6 +413,7 @@ api.MapTasks();
 api.MapSearch();
 api.MapDashboard();
 api.MapWeather();
+api.MapAppearance();
 
 // An address under the prefix that no endpoint took is an API mistake and
 // answers as one. Without this it would fall through to the web application's

@@ -21,9 +21,16 @@ namespace Personalaffe.IntegrationTests;
 public sealed class TheDoorHoldsTests(PostgresFixture postgres)
 {
     /// <summary>
-    /// The five operations outside the door, and the whole of them. A sixth
-    /// entry here is a decision somebody has to have made on purpose.
+    /// The operations outside the door, and the whole of them. A further entry
+    /// here is a decision somebody has to have made on purpose.
     /// </summary>
+    /// <remarks>
+    /// The first five are PERSONAL-E2's. <c>GET /api/appearance</c> is the
+    /// sixth and the only one added since: the sign-in screen and the
+    /// browser tab are drawn before anybody has signed in, so what this
+    /// instance is called has to be readable there. Writing it is not outside
+    /// the door and is not even an agent's — it is the owner's alone.
+    /// </remarks>
     private static readonly HashSet<string> Outside =
     [
         "GET /api/version",
@@ -31,6 +38,7 @@ public sealed class TheDoorHoldsTests(PostgresFixture postgres)
         "GET /api/health/ready",
         "GET /api/setup",
         "POST /api/setup",
+        "GET /api/appearance",
     ];
 
     public static TheoryData<string, string> EveryOperation
@@ -69,7 +77,7 @@ public sealed class TheDoorHoldsTests(PostgresFixture postgres)
 
     [Theory]
     [MemberData(nameof(EveryOperation))]
-    public async Task Nothing_but_the_five_answers_without_a_credential(string method, string path)
+    public async Task Nothing_but_the_operations_outside_it_answers_without_a_credential(string method, string path)
     {
         await using var instance = await AnInstance.StartedAsync(postgres);
         await AnOwner.SetUpAsync(instance, TestContext.Current.CancellationToken);

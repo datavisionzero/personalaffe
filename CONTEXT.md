@@ -80,3 +80,21 @@ _Avoid_: Downtime, maintenance mode, read-only mode
 The point and the label the owner chose for the weather tile. It is not an
 address and it is never resolved by a tile.
 _Avoid_: Location service, city
+
+**Instance appearance**:
+What one installation is called and what its mark looks like: a title of the
+owner's own, a colour from a closed set and one of two shapes. It names this
+instance and never the product.
+_Avoid_: Branding, theme, skin
+
+**Instance title**:
+The owner's own name for their installation, shown wherever the product name
+would otherwise be. Plain text, never Markdown, and readable by whoever can
+reach the instance.
+_Avoid_: Workspace name, site name, tenant name
+
+**Instance mark**:
+The shape drawn beside the instance title, in the appearance's colour, carrying
+up to two letters derived from the title. It is drawn by this repository and is
+never an uploaded image.
+_Avoid_: Logo, avatar, favicon

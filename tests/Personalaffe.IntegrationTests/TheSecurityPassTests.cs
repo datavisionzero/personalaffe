@@ -46,7 +46,7 @@ public sealed class TheSecurityPassTests(PostgresFixture postgres)
     /// purpose.
     /// </summary>
     /// <remarks>
-    /// The five operations of <c>docs/api.md</c>, <em>Operations</em>, and four
+    /// The six operations of <c>docs/api.md</c>, <em>Operations</em>, and four
     /// endpoints that are not operations of the API: sign-in, which is how a
     /// caller gets a credential and which answers a refusal to anything but the
     /// right password; the contract, which a client compiles against before it
@@ -62,6 +62,7 @@ public sealed class TheSecurityPassTests(PostgresFixture postgres)
         "GET /api/health/ready",
         "GET /api/setup",
         "POST /api/setup",
+        "GET /api/appearance",
         "POST /api/session",
         "GET /api/openapi/{documentName}.json",
         "* /api/{*path:nonfile}",
@@ -102,7 +103,7 @@ public sealed class TheSecurityPassTests(PostgresFixture postgres)
             }
         }
 
-        // Named one by one, because "there are nine of them" is a check that
+        // Named one by one, because "there are ten of them" is a check that
         // passes when one is swapped for another.
         Assert.Equal(Outside.Order(StringComparer.Ordinal), open.Order(StringComparer.Ordinal));
     }

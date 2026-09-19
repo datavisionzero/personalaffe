@@ -251,7 +251,7 @@ exits 2.
 
 ```
 $ pea status
-instance   https://workspace.example.com
+instance   Haus (https://workspace.example.com)
 version    pea 1.4.0, instance 1.4.0
 token      from the keychain
 ```
@@ -260,6 +260,15 @@ The two questions worth asking before a write, with the rung that answered each.
 Nothing here stops at the first failure: `status` is the command somebody runs
 *because* something is wrong, and a missing credential must not take the
 instance's version down with it.
+
+**The instance is named where the owner has named it.** `Haus` is what
+`GET /api/appearance` answers ([`docs/api.md`](./api.md), The appearance), which
+is outside the door — so this needs no credential for it and works when the
+credential is the thing that is wrong. An instance nobody has named prints the
+address alone, exactly as before, and a name that could not be read is dropped
+rather than reported: it is a convenience, and a `status` that failed over one
+would be useless precisely when it is wanted. In `--json` it is `name`, beside
+`instance`, and `null` where there is none.
 
 ### `pea login --token-file FILE`
 

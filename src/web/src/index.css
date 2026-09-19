@@ -106,6 +106,88 @@
   --sidebar-ring: oklch(0.75 0.02 265);
 }
 
+
+/*
+ * The instance's own colour (PERSONAL-72). `--brand` is not only the mark: it
+ * is the active settings tab, the link colour, the version string and the soft
+ * background behind text. So a colour is not a hex somebody types — it is one
+ * of seven words, and each word is three hand-checked values in the light theme
+ * and three more in the dark one.
+ *
+ * `violet` is the product's own, and its six values are character for character
+ * the ones in `:root` and `.dark` above: an instance nobody has touched is
+ * unchanged by any of this.
+ *
+ * The six others were chosen so that **every one of them is at least as legible
+ * as violet, in both themes, in all three places the colour is read**. The
+ * check is `palette.test.ts`, which reads this file, converts the values to
+ * sRGB and computes the contrast ratios rather than trusting the table below.
+ *
+ *   colour | light: brand/bg  fg/brand  fg/soft | dark: brand/bg  fg/brand  fg/soft
+ *   violet |          4.17      4.23     13.41  |         7.79      8.10     11.46
+ *   blue   |          4.19      4.26     13.46  |         7.90      8.20     11.49
+ *   teal   |          4.20      4.26     13.57  |         8.20      8.47     11.50
+ *   green  |          4.18      4.25     13.56  |         8.19      8.45     11.51
+ *   amber  |          4.22      4.28     13.47  |         7.82      8.14     11.51
+ *   red    |          4.37      4.43     13.48  |         7.83      8.18     11.62
+ *   pink   |          4.40      4.46     13.44  |         7.79      8.14     11.64
+ *
+ * Teal is the one hue that could not hold 0.13 chroma at a legible lightness
+ * inside sRGB, so it gives up saturation rather than contrast.
+ *
+ * The order matters. The light blocks sit above `.dark` so that a dark theme
+ * still wins over them, and the dark blocks below it carry one more selector so
+ * that they win over both.
+ *
+ * Each block matches an element and not only the document, because the mark
+ * carries its own colour: the appearance screen previews a colour the document
+ * is not wearing, and one that re-declared the three values only on `<html>`
+ * could not be previewed without being applied. That is why the dark blocks
+ * match a descendant of `.dark` as well as `.dark` itself — a mark deep in the
+ * page is in the dark theme too.
+ */
+[data-mark-colour="violet"] {
+  --brand: oklch(0.58 0.13 265);
+  --brand-foreground: oklch(0.99 0.004 265);
+  --brand-soft: oklch(0.94 0.03 265);
+}
+
+[data-mark-colour="blue"] {
+  --brand: oklch(0.574 0.13 250);
+  --brand-foreground: oklch(0.99 0.004 250);
+  --brand-soft: oklch(0.94 0.03 250);
+}
+
+[data-mark-colour="teal"] {
+  --brand: oklch(0.564 0.095 200);
+  --brand-foreground: oklch(0.99 0.004 200);
+  --brand-soft: oklch(0.94 0.03 200);
+}
+
+[data-mark-colour="green"] {
+  --brand: oklch(0.562 0.13 145);
+  --brand-foreground: oklch(0.99 0.004 145);
+  --brand-soft: oklch(0.94 0.03 145);
+}
+
+[data-mark-colour="amber"] {
+  --brand: oklch(0.58 0.125 70);
+  --brand-foreground: oklch(0.99 0.004 70);
+  --brand-soft: oklch(0.942 0.03 70);
+}
+
+[data-mark-colour="red"] {
+  --brand: oklch(0.58 0.13 25);
+  --brand-foreground: oklch(0.99 0.004 25);
+  --brand-soft: oklch(0.944 0.025 25);
+}
+
+[data-mark-colour="pink"] {
+  --brand: oklch(0.58 0.13 345);
+  --brand-foreground: oklch(0.99 0.004 345);
+  --brand-soft: oklch(0.944 0.03 345);
+}
+
 .dark {
   --background: oklch(0.2 0.015 265);
   --foreground: oklch(0.94 0.008 265);
@@ -137,6 +219,55 @@
   --sidebar-accent-foreground: oklch(0.94 0.008 265);
   --sidebar-border: oklch(0.32 0.015 265);
   --sidebar-ring: oklch(0.52 0.02 265);
+}
+
+.dark[data-mark-colour="violet"],
+.dark [data-mark-colour="violet"] {
+  --brand: oklch(0.74 0.11 265);
+  --brand-foreground: oklch(0.18 0.03 265);
+  --brand-soft: oklch(0.3 0.04 265);
+}
+
+.dark[data-mark-colour="blue"],
+.dark [data-mark-colour="blue"] {
+  --brand: oklch(0.74 0.11 250);
+  --brand-foreground: oklch(0.18 0.03 250);
+  --brand-soft: oklch(0.298 0.04 250);
+}
+
+.dark[data-mark-colour="teal"],
+.dark [data-mark-colour="teal"] {
+  --brand: oklch(0.74 0.11 200);
+  --brand-foreground: oklch(0.18 0.03 200);
+  --brand-soft: oklch(0.294 0.04 200);
+}
+
+.dark[data-mark-colour="green"],
+.dark [data-mark-colour="green"] {
+  --brand: oklch(0.74 0.11 145);
+  --brand-foreground: oklch(0.18 0.03 145);
+  --brand-soft: oklch(0.294 0.04 145);
+}
+
+.dark[data-mark-colour="amber"],
+.dark [data-mark-colour="amber"] {
+  --brand: oklch(0.744 0.11 70);
+  --brand-foreground: oklch(0.18 0.03 70);
+  --brand-soft: oklch(0.3 0.04 70);
+}
+
+.dark[data-mark-colour="red"],
+.dark [data-mark-colour="red"] {
+  --brand: oklch(0.752 0.11 25);
+  --brand-foreground: oklch(0.18 0.03 25);
+  --brand-soft: oklch(0.3 0.04 25);
+}
+
+.dark[data-mark-colour="pink"],
+.dark [data-mark-colour="pink"] {
+  --brand: oklch(0.752 0.11 345);
+  --brand-foreground: oklch(0.18 0.03 345);
+  --brand-soft: oklch(0.3 0.04 345);
 }
 
 @layer base {

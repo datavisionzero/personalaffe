@@ -342,6 +342,18 @@ existing tables, and `Weather/OpenMeteo`, the one thing here that opens a socket
 to somewhere else; and `Http/SearchEndpoints`, `DashboardEndpoints` and
 `WeatherEndpoints`.
 
+PERSONAL-72 added `Domain/Appearance/` — what an instance is called and what its
+mark looks like — with `Application/Ports/IInstanceAppearance`,
+`Application/Acts/Appearance/`, `Persistence/InstanceAppearances` and its one
+seeded row, and `Http/AppearanceEndpoints`. It is the one module whose read is
+outside the door, and the only thing added there since PERSONAL-E2 closed that
+list: a browser tab and a sign-in screen are drawn before anybody has signed in,
+so what the instance is called has to be readable there
+([`docs/api.md`](./api.md), The appearance). In the web application it is
+`shell/theMark.ts` and `shell/Mark.tsx`, the seven colours in the token layer of
+`index.css`, and `shell/AppearanceProvider.tsx`, which sits above the router
+beside the theme because what it sets is the document's rather than a screen's.
+
 ## Where an application lives
 
 The four applications of `VISION.md` — Scratchpad, Knowledge, Tasks, Files — are

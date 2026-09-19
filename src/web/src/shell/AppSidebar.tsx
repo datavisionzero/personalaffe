@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { home } from "./applications";
+import { Mark } from "./Mark";
+import { useAppearance } from "./useAppearance";
 import type { TheApplications } from "./useApplications";
 
 /**
@@ -32,6 +34,7 @@ import type { TheApplications } from "./useApplications";
 export function AppSidebar({ applications }: { applications: TheApplications }) {
   const { setOpenMobile } = useSidebar();
   const { pathname } = useLocation();
+  const { appearance, name, known } = useAppearance();
 
   function walked() {
     // The drawer closes behind whoever walked through it. On a desk there is
@@ -46,9 +49,17 @@ export function AppSidebar({ applications }: { applications: TheApplications }) 
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarHeader className="px-3 pt-3">
-        <div className="flex items-center gap-2 px-1 text-sm font-semibold">
-          <span aria-hidden className="bg-brand size-4.5 rounded-sm" />
-          personalaffe
+        <div className="flex h-5 items-center gap-2 px-1 text-sm font-semibold">
+          {/* Its space is held rather than filled with the product name: an
+              instance with a title must not say `personalaffe` first. */}
+          {known ? (
+            <>
+              <Mark colour={appearance.colour} shape={appearance.shape} title={appearance.title} />
+              <span className="truncate">{name}</span>
+            </>
+          ) : (
+            <Skeleton className="h-4 w-28" />
+          )}
         </div>
       </SidebarHeader>
 
