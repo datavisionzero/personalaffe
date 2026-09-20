@@ -248,7 +248,7 @@ public sealed class TheSecurityPassTests(PostgresFixture postgres)
         // Without this, an epic that renamed a prefix would leave the theory
         // below with nothing to drive and a suite that passes by having no
         // subject.
-        foreach (var application in new[] { "scratchpad", "files", "knowledge", "tasks" })
+        foreach (var application in new[] { "scratchpad", "files", "knowledge", "tasks", "bookmarks" })
         {
             Assert.Contains(
                 Contract().Where(operation => operation.Method is not ("GET" or "HEAD" or "OPTIONS")),
@@ -375,6 +375,7 @@ public sealed class TheSecurityPassTests(PostgresFixture postgres)
                     knowledge = permission,
                     tasks = permission,
                     files = permission,
+                    bookmarks = permission,
                 },
             },
             Token);
@@ -391,6 +392,7 @@ public sealed class TheSecurityPassTests(PostgresFixture postgres)
     /// <summary>The four applications, what they put in the Trash, and the home page's own setting.</summary>
     private static bool Reaches(string path) =>
         path.StartsWith("/api/scratchpad", StringComparison.Ordinal)
+        || path.StartsWith("/api/bookmarks", StringComparison.Ordinal)
         || path.StartsWith("/api/files", StringComparison.Ordinal)
         || path.StartsWith("/api/knowledge", StringComparison.Ordinal)
         || path.StartsWith("/api/tasks", StringComparison.Ordinal)

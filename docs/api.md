@@ -1514,3 +1514,25 @@ Omission leaves private folders, descendants and retained private origins hidden
 including when reading deleted records. The context is never saved in a session
 or token. Filtering happens before counting, sorting and pagination. All `/api`
 responses carry `Cache-Control: private, no-store`, including error responses.
+
+## Bookmarks
+
+Bookmarks are plain-text titles and descriptions with an absolute HTTP(S) URL.
+No endpoint fetches the target. `/api/bookmarks` lists and creates links;
+`/api/bookmarks/{id}` reads, replaces or recoverably deletes one. The parallel
+`/api/bookmarks/folders` and `/api/bookmarks/folders/{id}` routes manage their
+independent tree. Both lists accept `offset` and `limit` (1–500, default 100)
+and return `next_offset` until the whole visible collection has been read.
+
+A link request carries `title`, `url`, `description` and nullable `folder`.
+A folder request carries `name`, nullable `parent` and `private`. Responses
+include timestamps and effective privacy. PUT and DELETE require `If-Match`;
+a stale version is `stale` (412), a hidden ID is `not-found`, and a visible
+deleted ID reports `deleted`. The app switch and permission guard every route.
+
+Folder deletion sets aside the subtree under one deletion timestamp. The shared
+Trash restores its needed ancestors and the entries deleted with it; separate
+deletions stay separate. If ancestors were removed, restore reports movement to
+the root. Private origin is retained before ancestors disappear, so restoration
+never makes previously private deleted content public. Permanent removal remains
+owner-only; expiry runs even with the application disabled.

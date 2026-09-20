@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Personalaffe.Domain;
 using Personalaffe.Domain.Bookmarks;
+using Personalaffe.Application.Ports;
+using Personalaffe.Infrastructure.Persistence;
 
 namespace Personalaffe.IntegrationTests;
 
@@ -10,6 +12,29 @@ namespace Personalaffe.IntegrationTests;
 public sealed class BookmarkModelTests(PostgresFixture postgres)
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task Expiry_needs_no_request_and_keeps_separately_deleted_private_content_protected()
+    {
+        await using var db = AnInstance.ContextFor(await postgres.CreateDatabaseAsync());
+        await AnInstance.MigratorFor(db).ApplyAsync(Token);
+        var now = DateTimeOffset.UtcNow;
+        var parent = BookmarkFolder.Make("Private", null, true, now.AddDays(-40));
+        parent.DeletedAt = now.AddDays(-35);
+        var link = Bookmark.Make("Separate", "https://example.com", null, parent.Id, now.AddDays(-40));
+        link.DeletedAt = now.AddDays(-20);
+        db.BookmarkFolders.Add(parent); db.Bookmarks.Add(link);
+        await db.SaveChangesAsync(Token);
+        var trash = new BookmarksTrash(db, new NoRequest(), new BookmarkWork(db), RetentionSettings.Default, TimeProvider.System);
+        Assert.Equal(1, await trash.PurgeAsync(now.AddDays(-30), Token));
+        Assert.True((await db.Bookmarks.IgnoreQueryFilters().SingleAsync(Token)).PrivateOrigin);
+        Assert.Empty(await BookmarkVisibility.Bookmarks(db, Caller.Owner(Guid.NewGuid()), deleted: true).ToListAsync(Token));
+    }
+
+    private sealed class NoRequest : ICallerIdentity
+    {
+        public Caller Caller => throw new InvalidOperationException("A retention sweep has no caller.");
+    }
 
     [Fact]
     public async Task Upgrade_keeps_existing_agents_without_access_to_saved_links()

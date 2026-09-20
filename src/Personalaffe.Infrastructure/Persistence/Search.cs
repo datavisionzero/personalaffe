@@ -133,6 +133,9 @@ public sealed class Search(PersonalaffeDbContext context) : ISearch
         ArgumentNullException.ThrowIfNull(needle);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
 
+        // This application has storage but no search contributor yet.
+        if (application == WorkspaceApplication.Bookmarks) return [];
+
         var statement = application switch
         {
             WorkspaceApplication.Scratchpad => Entries,

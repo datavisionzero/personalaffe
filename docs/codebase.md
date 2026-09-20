@@ -940,3 +940,9 @@ bound the complete resulting tree to 32 levels and reject cycles.
 The `bookmarks` application is seeded enabled. Its agent permission column
 starts at `none`, including for existing credentials; the owner explicitly grants
 access through the same controls as the other applications.
+
+`BookmarkActs` runs each read and write inside `IBookmarkWork`; the PostgreSQL
+adapter takes a transaction-scoped advisory lock before inspecting ancestry.
+`BookmarkVisibility` supplies the recursive SQL predicate used by content and
+Trash queries. `BookmarksTrash` preserves effective privacy on survivors before
+removing ancestors, and its retention path runs without a request identity.
