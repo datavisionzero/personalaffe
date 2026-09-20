@@ -16,6 +16,7 @@ export function BookmarkForm({ initial, folders, defaultFolder, saved, cancel }:
   const [suggestTitle, setSuggestTitle] = useState(!initial?.title);
   const [description, setDescription] = useState(initial?.description ?? "");
   const [folder, setFolder] = useState(initial?.folder ?? defaultFolder ?? "");
+  const [readLater, setReadLater] = useState(initial?.read_later ?? false);
   const [tags, setTags] = useState(initial?.tags ?? []);
   const [confirmed, setConfirmed] = useState(false);
   const exposing = initial?.private && !folders.find((row) => row.id === folder)?.effective_private;
@@ -26,7 +27,7 @@ export function BookmarkForm({ initial, folders, defaultFolder, saved, cancel }:
     event.preventDefault();
     if (exposing && !confirmed) return;
     setWorking(true); setError(undefined);
-    const body = { title: title.trim() || domainOf(url), url, description, folder: folder || null, tags };
+    const body = { title: title.trim() || domainOf(url), url, description, folder: folder || null, tags, read_later: readLater };
     try {
       const answer = initial
         ? await api.PUT("/api/bookmarks/{id}", { params: { path: { id: initial.id }, ...guardedBy(versionOf(initial.updated_at)) }, body, headers: privacy.headers })
@@ -50,6 +51,7 @@ export function BookmarkForm({ initial, folders, defaultFolder, saved, cancel }:
       <option value="">Unsorted</option>
       {folders.map((row) => <option key={row.id} value={row.id}>{row.effective_private ? "Private · " : ""}{folderPath(row, folders)}</option>)}
     </select></Field>
+    <label className="flex items-center gap-2 text-sm"><input name="read-later" type="checkbox" checked={readLater} onChange={(event) => setReadLater(event.target.checked)} /> Read later</label>
     <TagEditor value={tags} onChange={setTags} />
     {exposing && <label className="flex items-start gap-2 rounded-lg border p-3 text-sm"><input name="confirm-public" type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I understand that moving this bookmark may make it visible outside private mode.</label>}
     <Refused>{error}</Refused>

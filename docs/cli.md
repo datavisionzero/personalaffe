@@ -950,3 +950,12 @@ Leaving both options out preserves existing tags. On `ls` and `search`, repeated
 `--tag` options require all names and combine with other filters.
 `pea bookmarks tags` prints names and counts from visible bookmarks only;
 `--include-private` follows the same request-local rules as other commands.
+
+`pea bookmarks add URL --read-later` adds to the reading list.
+`pea bookmarks reading` lists it newest first and accepts the same tags/search/
+folder filters as `ls`. `pea bookmarks read-later ID` marks an existing link;
+`pea bookmarks read ID` marks it read without opening or deleting it.
+Both accept `--if-match`. To undo while retaining its old queue position, use
+`read-later ID --queued-at OLD_READ_LATER_AT --if-match VERSION_AFTER_MARK_READ`.
+`edit --read-later=false` can also clear the status. Private entries always need
+`--include-private`.

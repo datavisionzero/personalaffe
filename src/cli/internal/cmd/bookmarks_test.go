@@ -22,6 +22,9 @@ func TestBookmarkPrivateContextIsExplicitAndDoesNotPersistBetweenInvocations(t *
 			t.Fatalf("%v: %d %s", args, got.code, got.stderr)
 		}
 	}
+	if _, present := instance.Requests[0].URL.Query()["tag"]; present {
+		t.Fatal("empty tags must omit the query parameter")
+	}
 	for i, want := range []string{"true", "", "true", "true"} {
 		if instance.Requests[i].Header.Get("Personalaffe-Private") != want {
 			t.Fatalf("request %d private context = %q", i, instance.Requests[i].Header.Get("Personalaffe-Private"))
@@ -200,5 +203,41 @@ func TestBookmarkTagsUseRepeatedFiltersAndExplicitReplacement(t *testing.T) {
 	}
 	if len(written["tags"].([]any)) != 0 {
 		t.Fatalf("tags not cleared: %v", written)
+	}
+}
+
+func TestBookmarkReadingFiltersAndUndoTimestampAreExplicitAndGuarded(t *testing.T) {
+	var written map[string]any
+	instance := serving(t, "9.9.9", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "PUT" {
+			if err := json.NewDecoder(r.Body).Decode(&written); err != nil {
+				t.Error(err)
+			}
+			answering(bookmarkJSON)(w, r)
+		} else {
+			answering(`{"items":[],"next_offset":null}`)(w, r)
+		}
+	})
+	env := environment(t, map[string]string{config.EnvURL: instance.URL, config.EnvToken: secret})
+	if got := run(t, env, "bookmarks", "reading", "--tag", "research"); got.code != exit.OK {
+		t.Fatal(got)
+	}
+	if instance.Requests[0].URL.Query().Get("read_later") != "true" || instance.Requests[0].URL.Query().Get("sort") != "reading" {
+		t.Fatal("reading list lost membership or ordering")
+	}
+	if got := run(t, env, "bookmarks", "read", bookmarkID, "--if-match", `"current"`); got.code != exit.OK {
+		t.Fatal(got)
+	}
+	if written["read_later"] != false {
+		t.Fatal("not marked read")
+	}
+	if got := run(t, env, "bookmarks", "read-later", bookmarkID, "--if-match", `"next"`, "--queued-at", "2026-09-20T08:00:00Z"); got.code != exit.OK {
+		t.Fatal(got)
+	}
+	if written["read_later"] != true || written["queued_at"] != "2026-09-20T08:00:00Z" {
+		t.Fatal("undo lost queue timestamp")
+	}
+	if instance.Requests[2].Header.Get("If-Match") != `"next"` {
+		t.Fatal("undo lost version")
 	}
 }

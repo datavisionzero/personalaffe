@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/datavisionzero/personalaffe/src/cli/internal/api"
 	"github.com/datavisionzero/personalaffe/src/cli/internal/client"
@@ -21,7 +22,13 @@ func newBookmarks(g *globals) *cobra.Command {
 	root.AddCommand(bookmarkList(g, false), bookmarkList(g, true), bookmarkGet(g, false), bookmarkAdd(g), bookmarkEdit(g, false, false), bookmarkEdit(g, false, true), bookmarkRemove(g, false), bookmarkFavorite(g, true), bookmarkFavorite(g, false))
 	folders := &cobra.Command{Use: "folders", Short: "The saved-link folder tree; use IDs for parents."}
 	folders.AddCommand(bookmarkFolders(g), bookmarkGet(g, true), bookmarkFolderAdd(g), bookmarkEdit(g, true, false), bookmarkEdit(g, true, true), bookmarkRemove(g, true))
-	root.AddCommand(folders, bookmarkImport(g), bookmarkExport(g), bookmarkTags(g))
+	reading := bookmarkList(g, false)
+	reading.Use = "reading"
+	reading.Aliases = nil
+	reading.Short = "The reading list, newest additions first."
+	_ = reading.Flags().Set("read-later", "true")
+	_ = reading.Flags().Set("sort", "reading")
+	root.AddCommand(folders, bookmarkImport(g), bookmarkExport(g), bookmarkTags(g), reading, bookmarkReading(g, true), bookmarkReading(g, false))
 	return root
 }
 
@@ -88,7 +95,7 @@ func folderPrint(g *globals, row api.BookmarkFolderResponse, onlyID bool) error 
 func bookmarkList(g *globals, search bool) *cobra.Command {
 	var folder, query, sort string
 	var tags []string
-	var favorites bool
+	var favorites, readLater bool
 	var limit, offset int32
 	command := &cobra.Command{Use: "ls", Aliases: []string{"list"}, Short: "List saved links; pages report next_offset in JSON.", Args: cobra.NoArgs}
 	if search {
@@ -113,7 +120,11 @@ func bookmarkList(g *globals, search bool) *cobra.Command {
 			return err
 		}
 		unsorted := folder == "unsorted"
-		result, _, err := bookmarkAnswer[api.BookmarksResponse](c.ListBookmarks(cmd.Context(), &api.ListBookmarksParams{Q: &query, Folder: parent, Favorites: &favorites, Unsorted: &unsorted, Sort: &sort, Limit: &limit, Offset: &offset, Tag: &tags}))
+		var tagFilter *[]string
+		if len(tags) > 0 {
+			tagFilter = &tags
+		}
+		result, _, err := bookmarkAnswer[api.BookmarksResponse](c.ListBookmarks(cmd.Context(), &api.ListBookmarksParams{Q: &query, Folder: parent, Favorites: &favorites, Unsorted: &unsorted, Sort: &sort, Limit: &limit, Offset: &offset, Tag: tagFilter, ReadLater: &readLater}))
 		if err != nil {
 			return err
 		}
@@ -135,6 +146,7 @@ func bookmarkList(g *globals, search bool) *cobra.Command {
 	command.Flags().StringVar(&query, "query", "", "words to search in saved text")
 	command.Flags().StringVar(&sort, "sort", "rank", "rank, title, updated or created")
 	command.Flags().BoolVar(&favorites, "favorites", false, "only favorites")
+	command.Flags().BoolVar(&readLater, "read-later", false, "only the reading list; use --sort reading for queue order")
 	command.Flags().Int32Var(&limit, "limit", 100, "page size, 1..500")
 	command.Flags().Int32Var(&offset, "offset", 0, "page offset")
 	return command
@@ -165,6 +177,7 @@ func bookmarkGet(g *globals, folder bool) *cobra.Command {
 }
 func bookmarkAdd(g *globals) *cobra.Command {
 	var title, description, folder string
+	var readLater bool
 	var tags []string
 	command := &cobra.Command{Use: "add URL", Short: "Save a link; stdout is its stable ID.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		parent, err := bookmarkID(folder)
@@ -183,13 +196,14 @@ func bookmarkAdd(g *globals) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		row, _, err := bookmarkAnswer[api.BookmarkResponse](c.CreateBookmark(cmd.Context(), nil, api.BookmarkRequest{Title: &title, Url: &address, Description: &description, Folder: parent, Tags: &tags}))
+		row, _, err := bookmarkAnswer[api.BookmarkResponse](c.CreateBookmark(cmd.Context(), nil, api.BookmarkRequest{Title: &title, Url: &address, Description: &description, Folder: parent, Tags: &tags, ReadLater: &readLater}))
 		if err != nil {
 			return err
 		}
 		return bookmarkPrint(g, row, true)
 	}}
 	command.Flags().StringArrayVar(&tags, "tag", nil, "tag to assign; repeat for more tags")
+	command.Flags().BoolVar(&readLater, "read-later", false, "save in the reading list")
 	command.Flags().StringVar(&title, "title", "", "title; defaults to the URL domain")
 	command.Flags().StringVar(&description, "description", "", "plain-text description")
 	command.Flags().StringVar(&folder, "folder", "", "destination folder ID; unsorted by default")
@@ -251,7 +265,7 @@ func bookmarkFolders(g *globals) *cobra.Command {
 func bookmarkEdit(g *globals, folder, move bool) *cobra.Command {
 	var title, address, description, parent, held string
 	var tags []string
-	var clearTags bool
+	var clearTags, readLater bool
 	var private bool
 	command := &cobra.Command{Use: "edit ID", Short: "Change supplied fields while holding the read version.", Args: cobra.ExactArgs(1)}
 	if move {
@@ -308,6 +322,9 @@ func bookmarkEdit(g *globals, folder, move bool) *cobra.Command {
 		if held == "" {
 			held = version
 		}
+		if cmd.Flags().Changed("read-later") {
+			row.ReadLater = readLater
+		}
 		if clearTags || cmd.Flags().Changed("tag") {
 			row.Tags = append([]string{}, tags...)
 		}
@@ -323,7 +340,7 @@ func bookmarkEdit(g *globals, folder, move bool) *cobra.Command {
 		if cmd.Flags().Changed("folder") {
 			row.Folder = target
 		}
-		changed, _, err := bookmarkAnswer[api.BookmarkResponse](c.ChangeBookmark(cmd.Context(), id, &api.ChangeBookmarkParams{IfMatch: held}, api.BookmarkRequest{Title: &row.Title, Url: &row.Url, Description: &row.Description, Folder: row.Folder, Tags: &row.Tags}))
+		changed, _, err := bookmarkAnswer[api.BookmarkResponse](c.ChangeBookmark(cmd.Context(), id, &api.ChangeBookmarkParams{IfMatch: held}, api.BookmarkRequest{Title: &row.Title, Url: &row.Url, Description: &row.Description, Folder: row.Folder, Tags: &row.Tags, ReadLater: &row.ReadLater}))
 		if err != nil {
 			return err
 		}
@@ -336,6 +353,7 @@ func bookmarkEdit(g *globals, folder, move bool) *cobra.Command {
 	} else {
 		command.Flags().StringArrayVar(&tags, "tag", nil, "replace tags with this set; repeat for more tags")
 		command.Flags().BoolVar(&clearTags, "clear-tags", false, "remove all tags unless new --tag values are supplied")
+		command.Flags().BoolVar(&readLater, "read-later", false, "set reading-list membership; --read-later=false marks read")
 		command.Flags().StringVar(&title, "title", "", "new title")
 		command.Flags().StringVar(&address, "link", "", "new HTTP(S) URL")
 		command.Flags().StringVar(&description, "description", "", "new description, including empty")
@@ -434,4 +452,46 @@ func bookmarkTags(g *globals) *cobra.Command {
 		}
 		return nil
 	}}
+}
+
+func bookmarkReading(g *globals, later bool) *cobra.Command {
+	var held, queued string
+	verb := "read-later"
+	if !later {
+		verb = "read"
+	}
+	command := &cobra.Command{Use: verb + " ID", Short: "Set reading-list status without changing the bookmark or opening it.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		id, err := parseID(args[0])
+		if err != nil {
+			return err
+		}
+		var restored *time.Time
+		if queued != "" {
+			value, err := time.Parse(time.RFC3339Nano, queued)
+			if err != nil {
+				return &config.UsageError{Message: "--queued-at must be an RFC3339 timestamp"}
+			}
+			restored = &value
+		}
+		_, c, err := g.asSomebody()
+		if err != nil {
+			return err
+		}
+		if held == "" {
+			_, held, err = bookmarkAnswer[api.BookmarkResponse](c.ReadBookmark(cmd.Context(), id, nil))
+			if err != nil {
+				return err
+			}
+		}
+		row, _, err := bookmarkAnswer[api.BookmarkResponse](c.MarkBookmarkReading(cmd.Context(), id, &api.MarkBookmarkReadingParams{IfMatch: held}, api.BookmarkReadingRequest{ReadLater: later, QueuedAt: restored}))
+		if err != nil {
+			return err
+		}
+		return bookmarkPrint(g, row, true)
+	}}
+	command.Flags().StringVar(&held, "if-match", "", "expected ETag; read first otherwise")
+	if later {
+		command.Flags().StringVar(&queued, "queued-at", "", "restore a previous queue timestamp when undoing mark-as-read")
+	}
+	return command
 }

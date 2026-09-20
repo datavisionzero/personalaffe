@@ -5,7 +5,7 @@ namespace Personalaffe.Application.Acts.Bookmarks;
 
 public sealed record BookmarkDashboard(
     IReadOnlyList<SavedBookmark> Favorites, IReadOnlyList<SavedBookmark> Frequent,
-    IReadOnlyList<SavedBookmark> Recent, bool HasMoreFavorites);
+    IReadOnlyList<SavedBookmark> Recent, bool HasMoreFavorites, IReadOnlyList<SavedBookmark> ReadLater, int ReadLaterCount);
 
 public sealed partial class BookmarkActs
 {
@@ -41,6 +41,13 @@ public sealed partial class BookmarkActs
         return await Of(row, ct);
     }, token);
 
+    public Task<SavedBookmark> ReadingAsync(Guid id, bool later, DateTimeOffset? restoredAt, ContentVersion held, CancellationToken token) => Write(async ct =>
+    {
+        var row = await Find(id, ct); Current(row.Version, held);
+        if (row.MarkForReading(later, clock.GetUtcNow(), restoredAt)) await store.SaveAsync(ct);
+        return await Of(row, ct);
+    }, token);
+
     public Task<bool> OpenAsync(Guid id, Guid eventId, CancellationToken token) => Write(async ct =>
     {
         await Find(id, ct);
@@ -72,6 +79,7 @@ public sealed partial class BookmarkActs
             foreach (var row in rows) result.Add(await Of(row, ct));
             return result;
         }
-        return new BookmarkDashboard(await Saved(favorites.Take(take)), await Saved(frequent), await Saved(recent), favorites.Count > take);
+        var reading = await store.ListAsync(0, take, ct, new(null, null, false, false, "reading", ReadLater: true));
+        return new BookmarkDashboard(await Saved(favorites.Take(take)), await Saved(frequent), await Saved(recent), favorites.Count > take, await Saved(reading), await store.ReadingCountAsync(ct));
     }, token);
 }

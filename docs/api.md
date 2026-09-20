@@ -1618,3 +1618,18 @@ bookmarks only. `GET /api/bookmarks?tag=work&tag=research` requires both tags an
 combines with search, folder, unsorted and favorite filters before pagination.
 Tag names also participate in local and global word-prefix search; changes are
 visible immediately. Tags do not change private visibility or favorite order.
+
+### Reading list
+
+`read_later` on create/edit marks a bookmark for later; omitted on edit preserves
+its status. Responses carry `read_later` and nullable `read_later_at`. Repeating a
+mark preserves the existing queue time. `GET /api/bookmarks?read_later=true`
+combines with tags, search and folder filters; `sort=reading` orders queue time
+newest first, then ID. The bookmark dashboard includes a bounded `read_later`
+preview and visible `read_later_count` under the same privacy transaction.
+
+`PUT /api/bookmarks/{id}/reading` takes `{read_later,queued_at:null}` and an
+`If-Match` version. Marking read leaves the bookmark, folder, tags and favorite
+intact. Undo can restore the old `queued_at` while holding the version returned
+by mark-as-read; that time must lie between creation and now. Opening a bookmark
+never changes reading status. Deletion/recovery preserves its queue time.

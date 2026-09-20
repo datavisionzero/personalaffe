@@ -176,3 +176,35 @@ test("tags support keyboard filters and bulk changes without retaining private t
   await expect(page.getByRole("table", { name: "Saved bookmarks" }).getByRole("link")).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });
+
+test("reading list survives opening and supports mark-read undo and combined filters", async ({ page }) => {
+  await signedIn(page); await switchApplication(page, "bookmarks", true);
+  await page.goto("/bookmarks");
+  const title = `Reading ${Date.now()}`;
+  await page.getByRole("button", { name: "Add bookmark", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("URL", { exact: true }).fill("https://example.com/read");
+  await dialog.getByLabel("Title", { exact: true }).fill(title);
+  await dialog.getByLabel("Read later", { exact: true }).check();
+  await dialog.getByRole("button", { name: "Add bookmark", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  const section = page.getByRole("region", { name: /^Read later \(/ });
+  const link = section.getByRole("link", { name: new RegExp(title) });
+  await expect(link).toBeVisible();
+  await page.context().route("https://example.com/**", (route) => route.fulfill({ body: "Reading target" }));
+  const popup = page.waitForEvent("popup");
+  const opened = page.waitForResponse((response) => response.url().endsWith("/open"));
+  await link.click(); expect((await opened).ok()).toBeTruthy(); await (await popup).close();
+  await expect(link).toBeVisible();
+  await section.getByRole("button", { name: `Mark ${title} as read`, exact: true }).click();
+  await expect(page.getByText(/1 marked as read; 0 failed/)).toBeVisible();
+  await expect(link).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo mark as read", exact: true }).click();
+  await expect(link).toBeVisible();
+  await page.getByRole("link", { name: "See full reading list", exact: true }).click();
+  await expect(page.getByLabel("Reading list only", { exact: true })).toBeChecked();
+  await page.getByRole("searchbox", { name: "Search bookmarks", exact: true }).fill(title);
+  await expect(page.getByRole("region", { name: "Reading list", exact: true }).getByRole("link", { name: new RegExp(title) })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Reading list", exact: true }).getByRole("link", { name: new RegExp(title) })).toBeVisible();
+});

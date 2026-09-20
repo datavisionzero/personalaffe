@@ -26,6 +26,7 @@ public sealed class BookmarkSearch(PersonalaffeDbContext context, ICallerIdentit
               AND (NOT {3} OR b.folder_id IS NULL)
               AND (NOT {4} OR b.favorite_position IS NOT NULL)
               AND ({8}::text[] <@ b.tags)
+              AND (NOT {9} OR b.read_later_at IS NOT NULL)
         )
         SELECT b.id AS "Id", b.title AS "Title", b.url AS "Url", b.folder_id AS "FolderId",
             b.updated_at AS "UpdatedAt", b.folder_path AS "FolderPath",
@@ -33,7 +34,8 @@ public sealed class BookmarkSearch(PersonalaffeDbContext context, ICallerIdentit
             nullif(ts_headline('simple', b.description, q.query, 'StartSel="",StopSel="",MaxWords=24,MinWords=8,ShortWord=2,MaxFragments=1'), '') AS "Snippet"
         FROM visible b, to_tsquery('simple', nullif({0}, '')) AS q(query)
         WHERE {0} = '' OR b.words @@ q.query
-        ORDER BY CASE WHEN {5} = 'title' THEN lower(b.title) END,
+        ORDER BY CASE WHEN {5} = 'reading' THEN b.read_later_at END DESC,
+                 CASE WHEN {5} = 'title' THEN lower(b.title) END,
                  CASE WHEN {5} = 'rank' THEN ts_rank(b.words, q.query) END DESC,
                  CASE WHEN {5} IN ('rank', 'updated') THEN b.updated_at END DESC,
                  CASE WHEN {5} = 'created' THEN b.created_at END DESC, b.id
@@ -45,7 +47,7 @@ public sealed class BookmarkSearch(PersonalaffeDbContext context, ICallerIdentit
         caller.Caller.RequireRead(WorkspaceApplication.Bookmarks);
         var query = filter.Needle is null ? string.Empty : string.Join(" & ", filter.Needle.Words.Select(word => word + ":*"));
         return await context.Database.SqlQueryRaw<BookmarkSearchRow>(Statement, query, caller.Caller.PrivateBookmarks,
-            filter.Folder ?? Guid.Empty, filter.Unsorted, filter.Favorites, filter.Sort, limit, offset, filter.Tags ?? []).ToListAsync(token);
+            filter.Folder ?? Guid.Empty, filter.Unsorted, filter.Favorites, filter.Sort, limit, offset, filter.Tags ?? [], filter.ReadLater).ToListAsync(token);
     }
 }
 

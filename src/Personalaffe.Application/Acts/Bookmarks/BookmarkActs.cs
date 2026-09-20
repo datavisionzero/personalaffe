@@ -15,19 +15,19 @@ public sealed partial class BookmarkActs(
     IBookmarks store, IBookmarkWork work, IBookmarkActivity activity, IBookmarkHtml htmlParser, ReachingAnApplication reaching,
     ICallerIdentity caller, RetentionSettings retention, TimeProvider clock)
 {
-    public Task<SavedBookmarks> ListAsync(int? offset, int? limit, CancellationToken token, string? q = null, Guid? folder = null, bool? favorites = null, bool? unsorted = null, string? sort = null, string[]? tags = null) => Read(async ct =>
+    public Task<SavedBookmarks> ListAsync(int? offset, int? limit, CancellationToken token, string? q = null, Guid? folder = null, bool? favorites = null, bool? unsorted = null, string? sort = null, string[]? tags = null, bool? readLater = null) => Read(async ct =>
     {
         var skip = offset ?? 0;
         var take = limit ?? 100;
         if (skip < 0 || skip > int.MaxValue - 501) throw Refusal.Validation("offset", "Use a nonnegative offset.");
         if (take is < 1 or > 500) throw Refusal.Validation("limit", "Use a limit between 1 and 500.");
         var needle = string.IsNullOrWhiteSpace(q) ? null : Needle.Of(q);
-        var order = sort ?? (needle is null ? "created" : "rank");
-        if (order is not ("created" or "updated" or "title" or "rank"))
-            throw Refusal.Validation("sort", "Use created, updated, title or rank.");
+        var order = sort ?? (readLater == true ? "reading" : needle is null ? "created" : "rank");
+        if (order is not ("created" or "updated" or "title" or "rank" or "reading"))
+            throw Refusal.Validation("sort", "Use created, updated, title, rank or reading.");
         if (folder is not null && unsorted == true) throw Refusal.Validation("folder", "Choose a folder or Unsorted.");
         await Parent(folder, ct);
-        var found = await store.ListAsync(skip, take + 1, ct, new BookmarkFilter(needle, folder, favorites == true, unsorted == true, order, BookmarkTags.Of(tags)));
+        var found = await store.ListAsync(skip, take + 1, ct, new BookmarkFilter(needle, folder, favorites == true, unsorted == true, order, BookmarkTags.Of(tags), readLater == true));
         var rows = new List<SavedBookmark>();
         foreach (var row in found.Take(take)) rows.Add(await Of(row, ct));
         return new SavedBookmarks(rows, found.Count > take ? skip + take : null);
@@ -50,19 +50,19 @@ public sealed partial class BookmarkActs(
     public Task<SavedBookmark> ReadAsync(Guid id, CancellationToken token) => Read(async ct => await Of(await Find(id, ct), ct), token);
     public Task<SavedBookmarkFolder> ReadFolderAsync(Guid id, CancellationToken token) => Read(async ct => await Of(await Folder(id, ct), ct), token);
 
-    public Task<SavedBookmark> CreateAsync(string? title, string? url, string? description, Guid? folder, CancellationToken token, string[]? tags = null) => Write(async ct =>
+    public Task<SavedBookmark> CreateAsync(string? title, string? url, string? description, Guid? folder, CancellationToken token, string[]? tags = null, bool? readLater = null) => Write(async ct =>
     {
         await Parent(folder, ct);
-        var row = Bookmark.Make(title, url, description, folder, clock.GetUtcNow(), tags);
+        var row = Bookmark.Make(title, url, description, folder, clock.GetUtcNow(), tags, readLater == true);
         store.Add(row); await store.SaveAsync(ct);
         return await Of(row, ct);
     }, token);
 
-    public Task<SavedBookmark> ChangeAsync(Guid id, string? title, string? url, string? description, Guid? folder, ContentVersion held, CancellationToken token, string[]? tags = null) => Write(async ct =>
+    public Task<SavedBookmark> ChangeAsync(Guid id, string? title, string? url, string? description, Guid? folder, ContentVersion held, CancellationToken token, string[]? tags = null, bool? readLater = null) => Write(async ct =>
     {
         var row = await Find(id, ct); Current(row.Version, held);
         await Parent(folder, ct);
-        if (row.Change(title, url, description, folder, clock.GetUtcNow(), tags)) await store.SaveAsync(ct);
+        if (row.Change(title, url, description, folder, clock.GetUtcNow(), tags, readLater)) await store.SaveAsync(ct);
         return await Of(row, ct);
     }, token);
 

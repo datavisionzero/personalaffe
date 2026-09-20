@@ -8,6 +8,8 @@ import { Field, Refused, selectClass } from "@/shared/Form";
 import { useAsk } from "@/shared/ask";
 import { Busy, Failed } from "@/shell/States";
 import { useSettled } from "@/search/useFindings";
+import { useBookmarkReading } from "./useBookmarkReading";
+import { ReadingNotice } from "./ReadingNotice";
 import { TagEditor } from "./TagEditor";
 import { BookmarkTransfer } from "./BookmarkTransfer";
 import { BookmarkForm } from "./BookmarkForm";
@@ -28,6 +30,7 @@ export function BookmarkManagement() {
   const [action, setAction] = useState<Action>();
   const [actionTags, setActionTags] = useState<string[]>([]);
   const tags = params.getAll("tag");
+  const readLater = params.get("read_later") === "true";
   const [target, setTarget] = useState("");
   const [confirmPublic, setConfirmPublic] = useState(false);
   const [working, setWorking] = useState(false);
@@ -37,13 +40,13 @@ export function BookmarkManagement() {
   const [deleteFolder, setDeleteFolder] = useState<Folder>();
   const folder = params.get("folder") ?? "";
   const query = params.get("q") ?? "";
-  const sort = params.get("sort") ?? "updated";
+  const sort = params.get("sort") ?? (readLater ? "reading" : "updated");
   const favorites = params.get("favorites") === "true";
   const offset = Math.max(0, Number(params.get("offset")) || 0);
   const selectedId = params.get("selected");
   const hold = Boolean(editor || action || deleteFolder || selectedId || selected.length || working);
   const folders = useBookmarkFolders(hold);
-  const list = useBookmarkList(useSettled(query), folder, favorites, sort, offset, hold, tags);
+  const list = useBookmarkList(useSettled(query), folder, favorites, sort, offset, hold, tags, readLater);
   const detail = useAsk<Bookmark | null>(`bookmark-detail:${privacy.epoch}:${selectedId}`, (signal) => selectedId
     ? api.GET("/api/bookmarks/{id}", { params: { path: { id: selectedId } }, headers: privacy.headers, signal })
     : Promise.resolve({ data: null, response: new Response() }), { every: false });
@@ -58,6 +61,7 @@ export function BookmarkManagement() {
     setSelected([]); void setParams(next, { replace: true });
   }
   function refresh() { list.refresh(); folders.refresh(); }
+  const reading = useBookmarkReading(refresh);
   function closeEditor() { setEditor(undefined); if (selectedId) filter("selected", ""); }
   const bookmarkEditor = editor?.kind === "bookmark" ? editor : selectedId && detail.asked.at === "known" && detail.asked.value ? { kind: "bookmark" as const, row: detail.asked.value } : undefined;
   async function favorite(row: Bookmark) {
@@ -120,13 +124,15 @@ export function BookmarkManagement() {
       <select name="folder" aria-label="Bookmark folder" className={selectClass} value={folder} onChange={(event) => filter("folder", event.target.value)}>
         <option value="">All folders</option><option value="unsorted">Unsorted</option>{allFolders.map((row) => <option key={row.id} value={row.id}>{row.effective_private ? "Private · " : ""}{folderPath(row, allFolders)}</option>)}
       </select>
-      <select name="sort" aria-label="Sort bookmarks" className={selectClass} value={sort} onChange={(event) => filter("sort", event.target.value)}><option value="updated">Recently changed</option><option value="title">Title</option><option value="created">Recently added</option><option value="rank">Relevance</option></select>
+      <select name="sort" aria-label="Sort bookmarks" className={selectClass} value={sort} onChange={(event) => filter("sort", event.target.value)}><option value="updated">Recently changed</option><option value="title">Title</option><option value="created">Recently added</option><option value="rank">Relevance</option><option value="reading">Newest reading-list additions</option></select>
       <label className="flex items-center gap-2 text-sm"><input name="favorites" type="checkbox" checked={favorites} onChange={(event) => filter("favorites", event.target.checked ? "true" : "")} /> Favorites only</label>
     </div>
+    <label className="flex items-center gap-2 text-sm"><input name="read-later-filter" type="checkbox" checked={readLater} onChange={(event) => filter("read_later", event.target.checked ? "true" : "")} /> Reading list only</label>
     <TagEditor label="Filter tags (all selected)" value={tags} onChange={(values) => { const next = new URLSearchParams(params); next.delete("tag"); next.delete("offset"); values.forEach((tag) => next.append("tag", tag)); setSelected([]); void setParams(next, { replace: true }); }} />
-    {(query || folder || favorites || tags.length > 0) && <Button variant="ghost" className="self-start" onClick={() => { setSelected([]); void setParams({}); }}>Reset filters</Button>}
+    {(query || folder || favorites || tags.length > 0 || readLater) && <Button variant="ghost" className="self-start" onClick={() => { setSelected([]); void setParams({}); }}>Reset filters</Button>}
     {currentFolder && <div className="flex flex-wrap items-center gap-2 text-sm"><span className="min-w-0 break-words">{folderPath(currentFolder, allFolders)}{currentFolder.effective_private ? currentFolder.private ? " · Private" : " · Private (inherited)" : ""}</span>
       <Button size="sm" variant="outline" onClick={() => setEditor({ kind: "folder", row: currentFolder })}>Edit folder</Button><Button size="sm" variant="outline" onClick={() => setDeleteFolder(currentFolder)}>Delete folder</Button></div>}
+    <ReadingNotice reading={reading} />
     <Refused>{error}</Refused>{message && <p role="status" className="text-sm">{message} {undo.length > 0 && <Button variant="outline" size="sm" disabled={working} onClick={() => void restore()}>Undo deletion</Button>} <Link className="underline" to="/trash">Open Trash</Link></p>}
     {(list.unanswered || folders.unanswered) && <p role="status" className="text-sm text-muted-foreground">Refresh failed. Displayed information may have changed.</p>}
     {folders.asked.at === "failed" && <Failed why={folders.asked.why} again={folders.again} />}
@@ -136,6 +142,8 @@ export function BookmarkManagement() {
       <Button variant="outline" disabled={!selected.length || working} onClick={() => setAction("delete")}>Delete selected</Button>
       <Button variant="outline" disabled={!selected.length || working} onClick={() => { setActionTags([]); setAction("tag-add"); }}>Add tags to selected</Button>
       <Button variant="outline" disabled={!selected.length || working} onClick={() => { setActionTags([]); setAction("tag-remove"); }}>Remove tags from selected</Button>
+      <Button variant="outline" disabled={!selected.length || working || reading.working} onClick={() => void reading.change(selected, true).then(setSelected)}>Read selected later</Button>
+      <Button variant="outline" disabled={!selected.length || working || reading.working} onClick={() => void reading.change(selected, false).then(setSelected)}>Mark selected as read</Button>
       {selected.length > 0 && <Button variant="ghost" onClick={() => setSelected([])}>Clear selection</Button>}</div>
     {list.asked.at === "asking" && <Busy title="Reading bookmarks…" />}
     {list.asked.at === "failed" && <Failed why={list.asked.why} again={list.again} />}
@@ -152,7 +160,7 @@ export function BookmarkManagement() {
         <div role="cell" className="hidden min-w-0 break-words text-xs md:block">{allFolders.find((item) => item.id === row.folder)?.name ?? "Unsorted"}{row.private && " · Private"}</div>
         <div role="cell" className="hidden md:block"><Button variant="ghost" size="sm" disabled={working} aria-label={`${row.favorite ? "Unpin" : "Pin"} ${row.title}`} onClick={() => void favorite(row)}>{row.favorite ? "★" : "☆"}</Button></div>
         <div role="cell" className="hidden text-xs text-muted-foreground md:block">{new Date(row.updated_at).toLocaleString()}</div>
-        <div role="cell" className="flex flex-wrap justify-end gap-1"><Button className="md:hidden" variant="ghost" size="sm" disabled={working} aria-label={`${row.favorite ? "Unpin" : "Pin"} ${row.title}`} onClick={() => void favorite(row)}>{row.favorite ? "★" : "☆"}</Button><Button variant="outline" size="sm" onClick={() => setEditor({ kind: "bookmark", row })} aria-label={`Edit ${row.title}`}>Edit</Button></div>
+        <div role="cell" className="flex flex-wrap justify-end gap-1"><Button variant="ghost" size="sm" disabled={reading.working} aria-label={row.read_later ? `Mark ${row.title} as read` : `Read ${row.title} later`} onClick={() => void reading.change([row], !row.read_later)}>{row.read_later ? "Read" : "Later"}</Button><Button className="md:hidden" variant="ghost" size="sm" disabled={working} aria-label={`${row.favorite ? "Unpin" : "Pin"} ${row.title}`} onClick={() => void favorite(row)}>{row.favorite ? "★" : "☆"}</Button><Button variant="outline" size="sm" onClick={() => setEditor({ kind: "bookmark", row })} aria-label={`Edit ${row.title}`}>Edit</Button></div>
       </div>)}
     </div>}
     {list.asked.at === "known" && <div className="flex gap-2"><Button variant="outline" disabled={offset === 0} onClick={() => filter("offset", String(Math.max(0, offset - 100)))}>Previous</Button><Button variant="outline" disabled={list.asked.value.next_offset === null} onClick={() => filter("offset", String(offset + 100))}>Next</Button></div>}

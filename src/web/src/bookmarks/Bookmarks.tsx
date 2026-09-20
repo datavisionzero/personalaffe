@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Refused, selectClass } from "@/shared/Form";
 import { Busy, Failed } from "@/shell/States";
 import { useSettled } from "@/search/useFindings";
+import { useBookmarkReading } from "./useBookmarkReading";
+import { ReadingNotice } from "./ReadingNotice";
 import { TagEditor } from "./TagEditor";
 import { BookmarkManagement } from "./BookmarkManagement";
 import { BookmarkForm } from "./BookmarkForm";
@@ -31,12 +33,13 @@ function Dashboard() {
   const query = params.get("q") ?? "";
   const folder = params.get("folder") ?? "";
   const tags = params.getAll("tag");
+  const readLater = params.get("read_later") === "true";
   const favorites = params.get("favorites") === "true";
   const offset = Math.max(0, Number(params.get("offset")) || 0);
   const dashboard = useBookmarkDashboard(adding);
   const folders = useBookmarkFolders(adding);
-  const list = useBookmarkList(useSettled(query), folder, favorites, "rank", offset, adding, tags);
-  const filtered = Boolean(query || folder || tags.length || favorites);
+  const list = useBookmarkList(useSettled(query), folder, favorites, readLater ? "reading" : "rank", offset, adding, tags, readLater);
+  const filtered = Boolean(query || folder || tags.length || favorites || readLater);
   const allFolders = folders.asked.at === "known" ? folders.asked.value.items : [];
   function filter(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -45,6 +48,7 @@ function Dashboard() {
     void setParams(next, { replace: true });
   }
   function refresh() { dashboard.refresh(); list.refresh(); }
+  const reading = useBookmarkReading(refresh);
   async function favorite(row: Bookmark, value: boolean, after: string | null = null) {
     setError(undefined); setWorking(true);
     try {
@@ -80,9 +84,10 @@ function Dashboard() {
               <Button size="icon-sm" variant="ghost" disabled={working} aria-label={`${row.favorite ? "Unpin" : "Pin"} ${row.title}`}
                 onClick={() => void favorite(row, !row.favorite)}><StarIcon className={row.favorite ? "fill-current" : ""} /></Button>
             </div>
-            <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+            <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
               {(row.tags ?? []).slice(0, 2).map((tag) => <span key={tag} className="max-w-20 truncate rounded bg-secondary px-1">{tag}</span>)}
               {row.private && <LockKeyholeIcon aria-label="Private" className="size-3 shrink-0" />}
+              <Button size="sm" variant="ghost" disabled={reading.working} aria-label={row.read_later ? `Mark ${row.title} as read` : `Read ${row.title} later`} onClick={() => void reading.change([row], !row.read_later)}>{row.read_later ? "Mark read" : "Read later"}</Button>
               <Link className="mr-auto rounded-sm underline-offset-4 hover:underline" to={`/bookmarks/manage?selected=${row.id}`}>Edit</Link>
               {reorder && <>
                 <Button variant="ghost" size="icon-sm" disabled={working || index === 0} aria-label={`Move ${row.title} earlier`}
@@ -109,15 +114,17 @@ function Dashboard() {
       </select>
     </div>
     <label className="flex items-center gap-2 text-sm"><input name="favorites" type="checkbox" checked={favorites} onChange={(event) => filter("favorites", event.target.checked ? "true" : "")} /> Favorites only</label>
+    <label className="flex items-center gap-2 text-sm"><input name="read-later-filter" type="checkbox" checked={readLater} onChange={(event) => filter("read_later", event.target.checked ? "true" : "")} /> Reading list only</label>
     <TagEditor label="Filter tags (all selected)" value={tags} onChange={(values) => { const next = new URLSearchParams(params); next.delete("tag"); next.delete("offset"); values.forEach((tag) => next.append("tag", tag)); void setParams(next, { replace: true }); }} />
     {filtered && <Button variant="ghost" className="self-start" onClick={() => void setParams({})}>Reset filters</Button>}
+    <ReadingNotice reading={reading} />
     <Refused>{error}</Refused>
     {(dashboard.unanswered || folders.unanswered || list.unanswered) && <p role="status" className="text-muted-foreground text-sm">The latest refresh failed. Displayed links may have changed.</p>}
     {folders.asked.at === "failed" && <Failed why={folders.asked.why} again={folders.again} />}
     {filtered ? <>
       {list.asked.at === "asking" && <Busy title="Finding bookmarks…" />}
       {list.asked.at === "failed" && <Failed why={list.asked.why} again={list.again} />}
-      {list.asked.at === "known" && <>{section("Bookmarks", list.asked.value.items, "No matching bookmarks. Try another search or folder.")}
+      {list.asked.at === "known" && <>{section(readLater ? "Reading list" : "Bookmarks", list.asked.value.items, "No matching bookmarks. Try another search or folder.")}
         <div className="flex gap-2"><Button variant="outline" disabled={offset === 0} onClick={() => filter("offset", String(Math.max(0, offset - 100)))}>Previous</Button>
           <Button variant="outline" disabled={list.asked.value.next_offset === null} onClick={() => filter("offset", String(offset + 100))}>Next</Button></div></>}
     </> : <>
@@ -127,6 +134,8 @@ function Dashboard() {
         {section("Favorites", dashboard.asked.value.favorites, "Pin a bookmark to keep it here. Drag to reorder, or use the arrow buttons.", true)}
         {dashboard.asked.value.has_more_favorites && <Link className="text-sm underline" to="/bookmarks/manage?favorites=true">See all favorites</Link>}
         {section("Often used", dashboard.asked.value.frequent, "Links you open here appear here, based on the last 30 days. Favorites stay above.")}
+        {section(`Read later (${dashboard.asked.value.read_later_count ?? 0})`, dashboard.asked.value.read_later ?? [], "Save links for later. Opening a link keeps it here until you mark it as read.")}
+        <Link className="text-sm underline" to="/bookmarks?read_later=true">See full reading list</Link>
         {section("Recently added", dashboard.asked.value.recent, "Add your first bookmark to start your collection.")}
       </>}
     </>}

@@ -20,6 +20,8 @@ public sealed class Bookmarks(PersonalaffeDbContext context, ICallerIdentity cal
         return [.. found.Where(row => bookmarks.ContainsKey(row.Id)).Select(row => bookmarks[row.Id])];
     }
 
+    public Task<int> ReadingCountAsync(CancellationToken token) => BookmarkVisibility.Bookmarks(context, caller.Caller).CountAsync(row => row.ReadLaterAt != null, token);
+
     public async Task<IReadOnlyList<BookmarkTagCount>> TagsAsync(CancellationToken token) =>
         await BookmarkVisibility.Bookmarks(context, caller.Caller).SelectMany(row => row.Tags)
             .GroupBy(name => name).OrderBy(group => group.Key)

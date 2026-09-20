@@ -28,12 +28,12 @@ export function useBookmarkFolders(hold = false) {
   }, { hold });
 }
 
-export function useBookmarkList(query: string, folder: string, favorites = false, sort = "rank", offset = 0, hold = false, tags: string[] = []) {
+export function useBookmarkList(query: string, folder: string, favorites = false, sort = "rank", offset = 0, hold = false, tags: string[] = [], readLater = false) {
   const privacy = useBookmarkPrivacy();
-  return useAsk(`/api/bookmarks:${privacy.epoch}:${query}:${folder}:${favorites}:${sort}:${offset}:${JSON.stringify(tags)}`, (signal) =>
+  return useAsk(`/api/bookmarks:${privacy.epoch}:${query}:${folder}:${favorites}:${sort}:${offset}:${JSON.stringify(tags)}:${readLater}`, (signal) =>
     api.GET("/api/bookmarks", {
       params: { query: { q: query || undefined, folder: folder && folder !== "unsorted" ? folder : undefined,
-        unsorted: folder === "unsorted", favorites, sort, offset, limit: 100, tag: tags } },
+        unsorted: folder === "unsorted", favorites, sort, offset, limit: 100, tag: tags, read_later: readLater } },
       headers: privacy.headers, signal,
     }), { hold });
 }
