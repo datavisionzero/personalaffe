@@ -43,7 +43,8 @@ public sealed record Found(
     string? Snippet,
     Guid? Within,
     DateTimeOffset UpdatedAt,
-    double Rank);
+    double Rank,
+    string? TargetUrl = null);
 
 /// <summary>
 /// The index over what the owner has written (<see cref="Needle"/>).

@@ -946,3 +946,9 @@ adapter takes a transaction-scoped advisory lock before inspecting ancestry.
 `BookmarkVisibility` supplies the recursive SQL predicate used by content and
 Trash queries. `BookmarksTrash` preserves effective privacy on survivors before
 removing ancestors, and its retention path runs without a request identity.
+
+`BookmarkSearch` combines the stored generated link vector with a vector of the
+current folder path. Global search and the bookmark list use the same statement
+and recursive visibility predicate; no path cache can outlive a rename or a
+privacy change. The URL in a finding is optional and used for direct navigation,
+while the stable ID opens the editing view.

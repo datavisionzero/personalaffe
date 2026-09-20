@@ -21,6 +21,8 @@ public sealed class BookmarkConfiguration : IEntityTypeConfiguration<Bookmark>
         builder.Property(row => row.UpdatedAt).HasColumnName("updated_at").IsRequired().IsConcurrencyToken();
         builder.Ignore(row => row.Version);
         builder.IsRecoverable();
+        builder.IsSearchable("bookmarks", $"{SearchIndex.Called("title")} || {SearchIndex.Says("description")} || "
+            + "setweight(to_tsvector('simple', regexp_replace(coalesce(url, ''), '[^[:alnum:]]+', ' ', 'g')), 'B')");
         builder.HasIndex(row => row.FolderId);
     }
 }

@@ -1557,3 +1557,17 @@ ties use the latest opening and then stable ID. Privacy, deletion and app
 permissions filter every section. Old daily aggregates are removed by the normal
 retention sweep. Compact event-ID receipts remain until their bookmark is
 permanently removed, so a delayed retry cannot count a past opening again.
+
+### Searching saved links
+
+The bookmark list accepts `q`, `folder` (including descendants), `favorites=true`,
+`unsorted=true`, and `sort=rank|title|updated|created`. Folder and Unsorted filters
+are mutually exclusive. Words use the workspace search's prefix/all-words rules;
+titles, descriptions, URL components and the current folder path participate.
+A saved URL such as `https://docs.example.com/user-guide` matches `exam guide`.
+The same results participate in `/api/search`, with an optional `target_url`
+for a direct link; `id` remains the stable editing address.
+
+Folder paths are composed from current rows during the search rather than copied
+into the link index, so renames and moves take effect immediately. The privacy
+predicate is shared with ordinary reads and runs before ranking and limits.

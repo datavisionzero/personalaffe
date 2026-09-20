@@ -28,7 +28,8 @@ public sealed record FoundResponse(
     string? Snippet,
     Guid? Within,
     DateTimeOffset UpdatedAt,
-    double Rank)
+    double Rank,
+    string? TargetUrl = null)
 {
     public static FoundResponse Of(Found found) => new(
         found.Application,
@@ -37,7 +38,8 @@ public sealed record FoundResponse(
         found.Snippet,
         found.Within,
         found.UpdatedAt,
-        found.Rank);
+        found.Rank,
+        found.TargetUrl);
 }
 
 /// <summary>

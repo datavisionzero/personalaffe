@@ -36,9 +36,9 @@ public static class BookmarkEndpoints
 {
     public static IEndpointRouteBuilder MapBookmarks(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/bookmarks", async (int? offset, int? limit, BookmarkActs act, CancellationToken token) =>
+        endpoints.MapGet("/bookmarks", async (int? offset, int? limit, string? q, Guid? folder, bool? favorites, bool? unsorted, string? sort, BookmarkActs act, CancellationToken token) =>
         {
-            var rows = await act.ListAsync(offset, limit, token);
+            var rows = await act.ListAsync(offset, limit, token, q, folder, favorites, unsorted, sort);
             return Results.Ok(new BookmarksResponse([.. rows.Items.Select(BookmarkResponse.Of)], rows.NextOffset));
         }).WithName("ListBookmarks").BookmarkErrors().Produces<BookmarksResponse>();
         endpoints.MapGet("/bookmarks/folders", async (int? offset, int? limit, BookmarkActs act, CancellationToken token) =>

@@ -62,6 +62,7 @@ public static class InfrastructureServices
         services.AddScoped<IStoredFiles, StoredFiles>();
 
         services.AddScoped<IBookmarkWork, BookmarkWork>();
+        services.AddScoped<BookmarkSearch>();
         services.AddScoped<IBookmarks, Bookmarks>();
         services.AddScoped<IBookmarkActivity, BookmarkActivity>();
         services.AddScoped<IPages, Pages>();

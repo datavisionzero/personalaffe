@@ -4425,6 +4425,42 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "folder",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "favorites",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "unsorted",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Personalaffe-Private",
             "in": "header",
             "description": "Only the exact value true includes private bookmarks for this request. Application permission is still required. Responses are private, no-store.",
@@ -7317,6 +7353,12 @@
           "rank": {
             "type": "number",
             "format": "double"
+          },
+          "target_url": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "additionalProperties": false

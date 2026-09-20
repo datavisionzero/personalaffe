@@ -8,16 +8,16 @@ namespace Personalaffe.Infrastructure.Persistence;
 public static class BookmarkVisibility
 {
     /// <summary>Deleted ancestors still carry privacy; removed ancestry is retained on the surviving rows.</summary>
+    public const string HiddenFoldersCte = """
+        hidden(id) AS (
+            SELECT f.id FROM bookmark_folders f WHERE f.private OR f.private_origin
+            UNION
+            SELECT child.id FROM bookmark_folders child JOIN hidden parent ON child.parent_id = parent.id
+        )
+        """;
+
     public static IQueryable<Guid> HiddenFolders(PersonalaffeDbContext context) =>
-        context.Database.SqlQueryRaw<Guid>("""
-            WITH RECURSIVE hidden(id) AS (
-                SELECT f.id FROM bookmark_folders f
-                WHERE f.private OR f.private_origin
-                UNION
-                SELECT child.id FROM bookmark_folders child JOIN hidden parent ON child.parent_id = parent.id
-            )
-            SELECT id AS "Value" FROM hidden
-            """);
+        context.Database.SqlQueryRaw<Guid>($"WITH RECURSIVE {HiddenFoldersCte} SELECT id AS \"Value\" FROM hidden");
 
     public static IQueryable<BookmarkFolder> Folders(PersonalaffeDbContext context, Caller caller, bool deleted = false)
     {
