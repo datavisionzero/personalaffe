@@ -5983,7 +5983,8 @@
                 "knowledge",
                 "scratchpad",
                 "files",
-                "weather"
+                "weather",
+                "bookmarks"
               ],
               "type": "string"
             }
@@ -7047,7 +7048,8 @@
           "tasks",
           "knowledge",
           "scratchpad",
-          "files"
+          "files",
+          "bookmarks"
         ],
         "type": "object",
         "properties": {
@@ -7091,6 +7093,15 @@
             ],
             "items": {
               "$ref": "#/components/schemas/DashboardFileResponse"
+            }
+          },
+          "bookmarks": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/BookmarkResponse"
             }
           }
         },
@@ -7141,7 +7152,8 @@
           "knowledge",
           "scratchpad",
           "files",
-          "weather"
+          "weather",
+          "bookmarks"
         ],
         "type": "string"
       },

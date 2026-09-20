@@ -1,3 +1,5 @@
+import { BookmarkLink } from "@/bookmarks/BookmarkLink";
+import { domainOf } from "@/bookmarks/useBookmarks";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 
@@ -51,6 +53,7 @@ function Tiles({ home, applications: asked }: { home: TheHome; applications: The
     home.knowledge === null &&
     home.scratchpad === null &&
     home.files === null &&
+    home.bookmarks == null &&
     !drawn(home.tiles, "weather");
 
   if (nothing) {
@@ -124,6 +127,16 @@ function Tiles({ home, applications: asked }: { home: TheHome; applications: The
               <Changed at={file.updated_at} />
             </Row>
           ))}
+        </Panel>
+      )}
+
+      {home.bookmarks != null && (
+        <Panel tile="bookmarks" empty="Pin or open a bookmark to keep it close at hand.">
+          {home.bookmarks.map((bookmark) => <li key={bookmark.id}>
+            <BookmarkLink id={bookmark.id} url={bookmark.url} className="hover:bg-accent -mx-2 flex min-w-0 items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm">
+              <span className="truncate">{bookmark.title}</span><span className="text-muted-foreground max-w-32 truncate text-xs">{domainOf(bookmark.url)}</span>
+            </BookmarkLink>
+          </li>)}
         </Panel>
       )}
 

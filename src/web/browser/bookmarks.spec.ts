@@ -93,3 +93,29 @@ test("management preserves private inheritance, checks stale edits, and restores
   await expect(page.getByRole("button", { name: "Edit Changed elsewhere", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });
+
+test("home respects private favorites, tile visibility, and dashboard navigation", async ({ page }) => {
+  await signedIn(page); await switchApplication(page, "bookmarks", true);
+  const headers = { "X-Personalaffe-CSRF": "1", Origin: new URL(page.url()).origin, "Personalaffe-Private": "true" };
+  const folder = await (await page.request.post("/api/bookmarks/folders", { headers, data: { name: `Home secrets ${Date.now()}`, parent: null, private: true } })).json();
+  const title = `Private home ${Date.now()}`;
+  const created = await page.request.post("/api/bookmarks", { headers, data: { title, url: "https://example.com/home", description: "", folder: folder.id } });
+  const bookmark = await created.json();
+  expect((await page.request.put(`/api/bookmarks/${bookmark.id}/favorite`, { headers: { ...headers, "If-Match": created.headers()["etag"] }, data: { favorite: true, after: null } })).ok()).toBeTruthy();
+  await page.goto("/");
+  const tile = page.getByRole("region", { name: "Bookmarks", exact: true });
+  await expect(tile).toBeVisible(); await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+  await tile.getByRole("link", { name: "All of it", exact: true }).click();
+  await expect(page).toHaveURL(/\/bookmarks$/);
+  await page.getByRole("button", { name: "Private mode off", exact: true }).click();
+  await page.getByRole("navigation", { name: "The workspace" }).getByRole("link", { name: "Home", exact: true }).click();
+  await expect(tile.getByRole("link", { name: new RegExp(title) })).toBeVisible();
+  await page.getByRole("button", { name: "Private mode on", exact: true }).click();
+  await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+  await page.goto("/settings/home");
+  await page.getByRole("button", { name: "Hide Bookmarks", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Show Bookmarks", exact: true })).toBeVisible();
+  await page.goto("/"); await expect(page.getByRole("region", { name: "Tasks", exact: true })).toBeVisible(); await expect(tile).toHaveCount(0);
+  await page.goto("/settings/home"); await page.getByRole("button", { name: "Show Bookmarks", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Hide Bookmarks", exact: true })).toBeVisible();
+});

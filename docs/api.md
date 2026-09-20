@@ -1571,3 +1571,8 @@ for a direct link; `id` remains the stable editing address.
 Folder paths are composed from current rows during the search rather than copied
 into the link index, so renames and moves take effect immediately. The privacy
 predicate is shared with ordinary reads and runs before ranking and limits.
+
+The home dashboard also carries a `bookmarks` section: up to five visible links,
+favorites in manual order followed by frequently opened nonfavorites. The section
+is null when its tile is hidden or the application is unavailable. Private links
+require the same explicit request header as bookmark lists.

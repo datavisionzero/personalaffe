@@ -49,6 +49,16 @@ public sealed partial class BookmarkActs
         return true;
     }, token);
 
+    public Task<IReadOnlyList<SavedBookmark>> HomeAsync(int limit, CancellationToken token) => Read<IReadOnlyList<SavedBookmark>>(async ct =>
+    {
+        var favorites = (await activity.FavoritesAsync(ct)).Take(limit).ToList();
+        if (favorites.Count < limit)
+            favorites.AddRange(await activity.FrequentAsync(limit - favorites.Count, clock.GetUtcNow(), ct));
+        var rows = new List<SavedBookmark>();
+        foreach (var row in favorites) rows.Add(await Of(row, ct));
+        return rows;
+    }, token);
+
     public Task<BookmarkDashboard> DashboardAsync(int? limit, CancellationToken token) => Read(async ct =>
     {
         var take = limit ?? 12;

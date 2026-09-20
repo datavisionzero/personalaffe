@@ -125,7 +125,8 @@ public sealed record DashboardResponse(
     IReadOnlyList<DashboardTaskResponse>? Tasks,
     IReadOnlyList<DashboardPageResponse>? Knowledge,
     IReadOnlyList<DashboardEntryResponse>? Scratchpad,
-    IReadOnlyList<DashboardFileResponse>? Files);
+    IReadOnlyList<DashboardFileResponse>? Files,
+    IReadOnlyList<BookmarkResponse>? Bookmarks);
 
 /// <summary>Whether a tile is on the home page.</summary>
 public sealed record ShowTileRequest(bool Shown);
@@ -163,7 +164,8 @@ public static class DashboardEndpoints
                     dashboard.Tasks?.Select(DashboardTaskResponse.Of).ToArray(),
                     dashboard.Knowledge?.Select(DashboardPageResponse.Of).ToArray(),
                     dashboard.Scratchpad?.Select(DashboardEntryResponse.Of).ToArray(),
-                    dashboard.Files?.Select(DashboardFileResponse.Of).ToArray()));
+                    dashboard.Files?.Select(DashboardFileResponse.Of).ToArray(),
+                    dashboard.Bookmarks?.Select(BookmarkResponse.Of).ToArray()));
             })
             .WithName("ReadDashboard")
             .WithSummary("What is useful or pending: the tiles, and what is in the ones being drawn.")

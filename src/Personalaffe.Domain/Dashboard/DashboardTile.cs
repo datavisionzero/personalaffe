@@ -38,6 +38,9 @@ public enum DashboardTile
 
     /// <summary>What it is doing where the owner said, from outside this instance.</summary>
     Weather,
+
+    /// <summary>Favorite and frequently opened saved links.</summary>
+    Bookmarks,
 }
 
 /// <summary>
@@ -61,6 +64,7 @@ public static class Belongs
         DashboardTile.Scratchpad => WorkspaceApplication.Scratchpad,
         DashboardTile.Files => WorkspaceApplication.Files,
         DashboardTile.Weather => null,
+        DashboardTile.Bookmarks => WorkspaceApplication.Bookmarks,
         _ => throw new ArgumentOutOfRangeException(
             nameof(tile), tile, "A tile that is neither an application's nor nobody's."),
     };

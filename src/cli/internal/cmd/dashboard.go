@@ -113,6 +113,13 @@ func (g *globals) dashboard(ctx context.Context) error {
 		}
 	}
 
+	if home.Bookmarks != nil {
+		written = section(out, "bookmarks", len(*home.Bookmarks), written)
+		for _, bookmark := range *home.Bookmarks {
+			fmt.Fprintf(out, "%s\t%s\t%s\n", bookmark.Id, oneLine(bookmark.Title), oneLine(bookmark.Url))
+		}
+	}
+
 	if !written {
 		fmt.Fprintln(g.env.Stderr, "pea: nothing is on this home page.")
 	}
