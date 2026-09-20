@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
@@ -8,9 +9,12 @@ internal sealed class ABookmarkCollection(AnInstance instance, HttpClient owner)
 {
     public AnInstance Instance { get; } = instance;
     public HttpClient Owner { get; } = owner;
-    public static async Task<ABookmarkCollection> StartedAsync(PostgresFixture postgres)
+    public static async Task<ABookmarkCollection> StartedAsync(PostgresFixture postgres, TimeProvider? clock = null)
     {
-        var instance = await AnInstance.StartedAsync(postgres);
+        var instance = new AnInstance(await postgres.CreateDatabaseAsync(), registrations: services =>
+        {
+            if (clock is not null) services.AddSingleton(clock);
+        });
         return new(instance, await AnOwner.SignedInAsync(instance, TestContext.Current.CancellationToken));
     }
     public Task<Answer> Folder(string name, Guid? parent = null, bool isPrivate = false, bool context = false) =>

@@ -133,6 +133,9 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// </summary>
     public DbSet<PersonalTask> Tasks => Set<PersonalTask>();
 
+    public DbSet<BookmarkOpening> BookmarkOpenings => Set<BookmarkOpening>();
+    public DbSet<BookmarkOpenDay> BookmarkOpenDays => Set<BookmarkOpenDay>();
+
     public DbSet<Bookmark> Bookmarks => Set<Bookmark>();
 
     public DbSet<BookmarkFolder> BookmarkFolders => Set<BookmarkFolder>();

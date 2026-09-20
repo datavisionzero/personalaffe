@@ -1536,3 +1536,24 @@ deletions stay separate. If ancestors were removed, restore reports movement to
 the root. Private origin is retained before ancestors disappear, so restoration
 never makes previously private deleted content public. Permanent removal remains
 owner-only; expiry runs even with the application disabled.
+
+### Favorites and explicit openings
+
+`PUT /api/bookmarks/{id}/favorite` takes `favorite` and nullable `after` (another
+visible favorite ID, or null for first) and requires `If-Match`. Moving one
+favorite normally changes only its version. The order survives reloads and is
+independent of opening frequency.
+
+`POST /api/bookmarks/{id}/open` takes a fresh `event_id` for each deliberate
+opening. Retrying the same ID has no effect. It requires write access but no
+content version, and never changes the bookmark's version. Clients keep a normal
+HTTP(S) link and send this request without making navigation depend on success.
+Reads, previews and searches never record openings.
+
+`GET /api/bookmarks/dashboard` returns `favorites`, `frequent` and `recent`, up
+to `limit` each (1–100, default 12), plus `has_more_favorites`. Frequent excludes
+favorites and sums the current UTC day plus the preceding 29 calendar days;
+ties use the latest opening and then stable ID. Privacy, deletion and app
+permissions filter every section. Old daily aggregates are removed by the normal
+retention sweep. Compact event-ID receipts remain until their bookmark is
+permanently removed, so a delayed retry cannot count a past opening again.

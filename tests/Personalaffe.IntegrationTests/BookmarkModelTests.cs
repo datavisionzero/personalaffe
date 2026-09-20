@@ -24,10 +24,13 @@ public sealed class BookmarkModelTests(PostgresFixture postgres)
         var link = Bookmark.Make("Separate", "https://example.com", null, parent.Id, now.AddDays(-40));
         link.DeletedAt = now.AddDays(-20);
         db.BookmarkFolders.Add(parent); db.Bookmarks.Add(link);
+        db.BookmarkOpenDays.Add(BookmarkOpenDay.First(link.Id, now.AddDays(-31)));
+        db.BookmarkOpenDays.Add(BookmarkOpenDay.First(link.Id, now.AddDays(-1)));
         await db.SaveChangesAsync(Token);
         var trash = new BookmarksTrash(db, new NoRequest(), new BookmarkWork(db), RetentionSettings.Default, TimeProvider.System);
         Assert.Equal(1, await trash.PurgeAsync(now.AddDays(-30), Token));
         Assert.True((await db.Bookmarks.IgnoreQueryFilters().SingleAsync(Token)).PrivateOrigin);
+        Assert.Equal(BookmarkOpenDay.DayOf(now.AddDays(-1)), (await db.BookmarkOpenDays.SingleAsync(Token)).Day);
         Assert.Empty(await BookmarkVisibility.Bookmarks(db, Caller.Owner(Guid.NewGuid()), deleted: true).ToListAsync(Token));
     }
 

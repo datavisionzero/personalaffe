@@ -10,8 +10,8 @@ public sealed record SavedBookmarkFolders(IReadOnlyList<SavedBookmarkFolder> Ite
 public sealed record SavedBookmarks(IReadOnlyList<SavedBookmark> Items, int? NextOffset);
 
 /// <summary>Saved link operations share one transaction and visibility boundary.</summary>
-public sealed class BookmarkActs(
-    IBookmarks store, IBookmarkWork work, ReachingAnApplication reaching,
+public sealed partial class BookmarkActs(
+    IBookmarks store, IBookmarkWork work, IBookmarkActivity activity, ReachingAnApplication reaching,
     ICallerIdentity caller, RetentionSettings retention, TimeProvider clock)
 {
     public Task<SavedBookmarks> ListAsync(int? offset, int? limit, CancellationToken token) => Read(async ct =>

@@ -27,6 +27,11 @@ public sealed record BookmarkFoldersResponse(IReadOnlyList<BookmarkFolderRespons
 public sealed record BookmarkRequest(string? Title, string? Url, string? Description, Guid? Folder);
 public sealed record BookmarkFolderRequest(string? Name, Guid? Parent, bool Private);
 
+public sealed record FavoriteBookmarkRequest(bool Favorite, Guid? After);
+public sealed record OpenBookmarkRequest(Guid EventId);
+public sealed record BookmarkDashboardResponse(IReadOnlyList<BookmarkResponse> Favorites,
+    IReadOnlyList<BookmarkResponse> Frequent, IReadOnlyList<BookmarkResponse> Recent, bool HasMoreFavorites);
+
 public static class BookmarkEndpoints
 {
     public static IEndpointRouteBuilder MapBookmarks(this IEndpointRouteBuilder endpoints)
@@ -89,6 +94,24 @@ public static class BookmarkEndpoints
             await act.DeleteFolderAsync(id, EntityTags.Required(request), token);
             return Results.NoContent();
         }).WithName("DeleteBookmarkFolder").BookmarkErrors().Produces(StatusCodes.Status204NoContent).Guarded();
+        endpoints.MapPut("/bookmarks/{id:guid}/favorite", async (Guid id, FavoriteBookmarkRequest body,
+            HttpRequest request, HttpResponse response, BookmarkActs act, CancellationToken token) =>
+        {
+            var row = await act.FavoriteAsync(id, body.Favorite, body.After, EntityTags.Required(request), token);
+            EntityTags.Write(response, row.Content.Version);
+            return Results.Ok(BookmarkResponse.Of(row));
+        }).WithName("FavoriteBookmark").BookmarkErrors().Produces<BookmarkResponse>().Guarded();
+        endpoints.MapPost("/bookmarks/{id:guid}/open", async (Guid id, OpenBookmarkRequest body, BookmarkActs act, CancellationToken token) =>
+        {
+            await act.OpenAsync(id, body.EventId, token);
+            return Results.NoContent();
+        }).WithName("RecordBookmarkOpening").BookmarkErrors().Produces(StatusCodes.Status204NoContent);
+        endpoints.MapGet("/bookmarks/dashboard", async (int? limit, BookmarkActs act, CancellationToken token) =>
+        {
+            var rows = await act.DashboardAsync(limit, token);
+            return Results.Ok(new BookmarkDashboardResponse([.. rows.Favorites.Select(BookmarkResponse.Of)],
+                [.. rows.Frequent.Select(BookmarkResponse.Of)], [.. rows.Recent.Select(BookmarkResponse.Of)], rows.HasMoreFavorites));
+        }).WithName("ReadBookmarkDashboard").BookmarkErrors().Produces<BookmarkDashboardResponse>();
         return endpoints;
     }
     private static RouteHandlerBuilder BookmarkErrors(this RouteHandlerBuilder route) => route

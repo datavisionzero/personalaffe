@@ -190,6 +190,8 @@ public sealed class BookmarksTrash(
 
     private async Task<int> PurgeCoreAsync(DateTimeOffset expiredBefore, CancellationToken cancellationToken)
     {
+        var firstDay = BookmarkOpenDay.FirstDay(clock.GetUtcNow());
+        await context.BookmarkOpenDays.Where(row => row.Day < firstDay).ExecuteDeleteAsync(cancellationToken);
         var folders = await context.BookmarkFolders.IgnoreQueryFilters().ToListAsync(cancellationToken);
         var bookmarks = await context.Bookmarks.IgnoreQueryFilters().ToListAsync(cancellationToken);
 

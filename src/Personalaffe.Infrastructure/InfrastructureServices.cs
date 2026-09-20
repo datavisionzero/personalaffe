@@ -63,6 +63,7 @@ public static class InfrastructureServices
 
         services.AddScoped<IBookmarkWork, BookmarkWork>();
         services.AddScoped<IBookmarks, Bookmarks>();
+        services.AddScoped<IBookmarkActivity, BookmarkActivity>();
         services.AddScoped<IPages, Pages>();
         services.AddScoped<ITasks, Persistence.Tasks>();
 
