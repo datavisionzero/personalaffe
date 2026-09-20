@@ -78,7 +78,8 @@ func report(stderr io.Writer, err error) int {
 type globals struct {
 	env Env
 	// json prints the object as the API answered it.
-	json bool
+	json           bool
+	includePrivate bool
 	// address is --url: the first rung of the ladder that answers which
 	// instance this is.
 	address string
@@ -100,6 +101,7 @@ func newRoot(env Env) *cobra.Command {
 		SilenceErrors: true,
 	}
 
+	root.PersistentFlags().BoolVar(&g.includePrivate, "include-private", false, "include private bookmarks for this invocation only; still requires application permission")
 	root.PersistentFlags().BoolVar(&g.json, "json", false, "print the object as the API answered it")
 	root.PersistentFlags().StringVar(&g.address, "url", "",
 		"the instance, scheme and host; before "+config.EnvURL+" and before the configured one")
@@ -119,7 +121,7 @@ func newRoot(env Env) *cobra.Command {
 
 	root.AddCommand(
 		newVersion(g), newStatus(g), newLogin(g), newLogout(g), newWhoami(g),
-		newApplications(g), newScratchpad(g), newFiles(g), newKnowledge(g), newTasks(g), newTrash(g),
+		newApplications(g), newBookmarks(g), newScratchpad(g), newFiles(g), newKnowledge(g), newTasks(g), newTrash(g),
 		newSearch(g), newDashboard(g), newWeather(g))
 
 	usageMistakes(root)
@@ -227,7 +229,7 @@ func (g *globals) asSomebody() (config.Resolved, *client.Client, error) {
 		return config.Resolved{}, nil, err
 	}
 
-	c, err := client.New(resolved.Address, resolved.Token, g.httpClient())
+	c, err := client.New(resolved.Address, resolved.Token, g.httpClient(), g.includePrivate)
 	return resolved, c, err
 }
 

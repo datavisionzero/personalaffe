@@ -893,3 +893,40 @@ go build ./cmd/pea
 `go generate` is not optional and not a convenience: nothing compiles without
 it, which is the point — a working tree is never a state where the client agrees
 with a stale contract.
+
+### Saved links
+
+`pea bookmarks ls` lists a bounded page; `--json` includes `next_offset`, and
+`--offset` continues it. Use `--folder ID` (including descendants),
+`--folder unsorted`, `--favorites`, and `--sort title|updated|created|rank`.
+`pea bookmarks search WORDS...` searches saved titles, URLs, descriptions and
+folder paths with the same word-prefix/all-words rules as global search.
+
+```sh
+pea bookmarks add https://example.com/guide --title Guide
+pea bookmarks get ID --json
+pea bookmarks edit ID --description 'A useful reference' --link https://example.com/new
+pea bookmarks move ID --folder FOLDER_ID
+pea bookmarks favorite ID --after ANOTHER_FAVORITE_ID
+pea bookmarks unfavorite ID
+pea bookmarks rm ID
+pea trash restore bookmarks ID
+pea bookmarks folders ls
+pea bookmarks folders add Research --parent PARENT_ID
+pea bookmarks folders edit FOLDER_ID --name References
+pea bookmarks folders move FOLDER_ID --parent root
+pea bookmarks folders rm FOLDER_ID
+```
+
+Writes read the current ETag first; `--if-match` can require a version held by a
+script. Editing still reads fields that were not supplied. A stale write uses
+the existing stale-version exit code and is never retried silently.
+New links default their title to the domain and print their stable ID.
+
+Private folders inherit visibility to every descendant. Add `--include-private`
+explicitly to each invocation that needs them, including `search`, `dashboard`,
+`trash list` and `trash restore`. Creating a private folder uses both
+`--private` and `--include-private`. This flag is never persisted, does not grant
+application permissions, and describes a visibility filter rather than separate
+encryption. Moving an entry into a public folder can make it visible to ordinary
+calls. Reading, listing and searching never record an opening or fetch a website.
