@@ -10,6 +10,7 @@
        the file store each bring their own when they arrive. -->
 
   <ItemGroup Label="Persistence">
+    <PackageVersion Include="AngleSharp" Version="1.8.2" />
     <!-- The one place that declares schema (docs/codebase.md): EF Core owns the
          tables and the migrations that apply themselves on startup. The
          design-time package is what `dotnet ef migrations add` needs, and it

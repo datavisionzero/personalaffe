@@ -110,6 +110,24 @@ public static class OpenApiDocument
                     }
                 }
 
+                foreach (var path in document.Paths.Where(pair =>
+                    pair.Key.StartsWith("/api/bookmarks", StringComparison.Ordinal)
+                    || pair.Key.StartsWith("/api/trash", StringComparison.Ordinal)
+                    || pair.Key is "/api/search" or "/api/dashboard"))
+                {
+                    foreach (var operation in path.Value.Operations?.Values.AsEnumerable() ?? Enumerable.Empty<OpenApiOperation>())
+                    {
+                        operation.Parameters ??= [];
+                        operation.Parameters.Add(new OpenApiParameter
+                        {
+                            Name = "Personalaffe-Private", In = ParameterLocation.Header,
+                            Required = false,
+                            Description = "Only the exact value true includes private bookmarks for this request. Application permission is still required. Responses are private, no-store.",
+                            Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+                        });
+                    }
+                }
+
                 document.Info.Title = "personalaffe";
                 document.Info.Version = InstanceVersion.Value;
                 document.Info.Description =

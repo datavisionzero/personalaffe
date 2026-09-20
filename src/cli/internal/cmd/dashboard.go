@@ -61,7 +61,7 @@ func (g *globals) dashboard(ctx context.Context) error {
 		return err
 	}
 
-	resp, err := c.ReadDashboardWithResponse(ctx)
+	resp, err := c.ReadDashboardWithResponse(ctx, nil)
 	if err != nil {
 		return client.Transport(err)
 	}
@@ -110,6 +110,13 @@ func (g *globals) dashboard(ctx context.Context) error {
 		for _, file := range *home.Files {
 			fmt.Fprintf(out, "%s\t%s\t%s\n",
 				file.Id, strconv.FormatInt(file.Size, 10), oneLine(file.Name))
+		}
+	}
+
+	if home.Bookmarks != nil {
+		written = section(out, "bookmarks", len(*home.Bookmarks), written)
+		for _, bookmark := range *home.Bookmarks {
+			fmt.Fprintf(out, "%s\t%s\t%s\n", bookmark.Id, oneLine(bookmark.Title), oneLine(bookmark.Url))
 		}
 	}
 

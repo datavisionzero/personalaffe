@@ -19,7 +19,9 @@ func newSearch(g *globals) *cobra.Command {
 	search := &cobra.Command{
 		Use:   "search WORDS...",
 		Short: "Find something in the applications this credential can read.",
-		Long: "One question over knowledge pages, tasks, Scratchpad text and file names.\n" +
+		Long: "Search knowledge pages, tasks, Scratchpad text, file names and bookmarks.\n" +
+			"Bookmarks search saved titles, URLs, descriptions and folder paths.\n" +
+			"Private folders inherit visibility; --include-private opts in for this call.\n" +
 			"What is inside a file is never looked at (docs/api.md, The search).\n\n" +
 			"Every word is matched as a beginning and all of them have to be found, so\n" +
 			"`pea search arch dec` finds \"Architecture decisions\". There is no query\n" +

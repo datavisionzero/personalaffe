@@ -5,15 +5,15 @@ namespace Personalaffe.Domain;
 /// (<see cref="WorkspaceApplication"/>).
 /// </summary>
 /// <remarks>
-/// Four named members rather than a map, because it is a closed set of four and
-/// the contract is better for saying so: a generated client gets four fields it
-/// can see, not a dictionary it has to know the keys of.
+/// Named members keep the wire contract explicit. Omitted bookmark access is
+/// none, so credentials issued before this application existed gain nothing.
 /// </remarks>
 public sealed record Permissions(
     Permission Scratchpad,
     Permission Knowledge,
     Permission Tasks,
-    Permission Files)
+    Permission Files,
+    Permission Bookmarks = Permission.None)
 {
     /// <summary>An agent that has been given nothing yet.</summary>
     public static Permissions None { get; } =
@@ -21,7 +21,7 @@ public sealed record Permissions(
 
     /// <summary>The owner's, which is everything, everywhere.</summary>
     public static Permissions Full { get; } =
-        new(Permission.ReadWrite, Permission.ReadWrite, Permission.ReadWrite, Permission.ReadWrite);
+        new(Permission.ReadWrite, Permission.ReadWrite, Permission.ReadWrite, Permission.ReadWrite, Permission.ReadWrite);
 
     /// <summary>The answer for one application.</summary>
     public Permission For(WorkspaceApplication application) => application switch
@@ -30,6 +30,7 @@ public sealed record Permissions(
         WorkspaceApplication.Knowledge => Knowledge,
         WorkspaceApplication.Tasks => Tasks,
         WorkspaceApplication.Files => Files,
+        WorkspaceApplication.Bookmarks => Bookmarks,
         _ => throw new ArgumentOutOfRangeException(
             nameof(application), application, "An application without a permission."),
     };

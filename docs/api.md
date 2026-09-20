@@ -499,7 +499,7 @@ have reused, and the end is the one place that is always free.
 
 ## The applications
 
-The workspace is four applications and each can be switched off
+The workspace has five applications and each can be switched off
 (`CONTEXT.md`, Application). `GET /api/applications` is what a client draws its
 navigation from: all four, whether each is on, and what the caller may do in it.
 
@@ -538,8 +538,8 @@ refusal says nothing about how the owner has configured their workspace.
 
 ## The search
 
-One question over the four applications, at `GET /api/search?q=…`. Knowledge
-pages, tasks, Scratchpad text and file names (VISION §6.1) — and never what is
+One question over the five applications, at `GET /api/search?q=…`. Knowledge
+pages, tasks, Scratchpad text, file names and saved bookmark text — and never what is
 inside a file, which is the line between one search over a workspace and a
 document search over a disk.
 
@@ -734,7 +734,7 @@ refusal.
 
 ## The Trash
 
-One list over the four applications, at `GET /api/trash`. There is no table
+One list over the five applications, at `GET /api/trash`. There is no table
 under it: `deleted_at` stays in each module's own table and the Trash asks each
 of them, because a central index would be a second place that has to agree with
 the first, and the generic content entity personalaffe deliberately does not
@@ -783,8 +783,8 @@ removes one for good — thirty days after the deletion by default, and
 ([`docs/operations.md`](./operations.md)). Retention does not stop for anything:
 not for an application being switched off, and not for the instance being down.
 
-**Three of the four applications fill it**: a deleted file, folder, page, list
-or task is here — with its bytes, or with its history, or with the tasks that
+**Four of the five applications fill it**: a deleted file, folder, page, list
+task or bookmark is here — with its bytes, or with its history, or with the tasks that
 were in it — until it is restored or its retention runs out. The Scratchpad
 deliberately contributes nothing, because what it deletes is destroyed. A module
 joins the Trash by contributing to it and by nothing else, and the Scratchpad is
@@ -1498,3 +1498,154 @@ An address under the prefix that no endpoint took answers `not-found` as a
 problem document, not the web application's `index.html`. A client asking for an
 endpoint an older instance does not have gets JSON saying so, rather than a 200
 of HTML it has to recognise.
+
+### Saved link application permission
+
+`bookmarks` is an application value in the switch and permission contracts.
+The optional `permissions.bookmarks` field defaults to `none` when omitted.
+Existing agent credentials gain no access when the database is upgraded; the
+owner can explicitly grant `read` or `read_write` as for every other application.
+
+### Private bookmark request context
+
+Send `Personalaffe-Private: true` to include private bookmarks for that request.
+Only that exact value enables the context; it does not grant application access.
+Omission leaves private folders, descendants and retained private origins hidden,
+including when reading deleted records. The context is never saved in a session
+or token. Filtering happens before counting, sorting and pagination. All `/api`
+responses carry `Cache-Control: private, no-store`, including error responses.
+
+## Bookmarks
+
+Bookmarks are plain-text titles and descriptions with an absolute HTTP(S) URL.
+No endpoint fetches the target. `/api/bookmarks` lists and creates links;
+`/api/bookmarks/{id}` reads, replaces or recoverably deletes one. The parallel
+`/api/bookmarks/folders` and `/api/bookmarks/folders/{id}` routes manage their
+independent tree. Both lists accept `offset` and `limit` (1–500, default 100)
+and return `next_offset` until the whole visible collection has been read.
+
+A link request carries `title`, `url`, `description` and nullable `folder`.
+A folder request carries `name`, nullable `parent` and `private`. Responses
+include timestamps and effective privacy. PUT and DELETE require `If-Match`;
+a stale version is `stale` (412), a hidden ID is `not-found`, and a visible
+deleted ID reports `deleted`. The app switch and permission guard every route.
+
+Folder deletion sets aside the subtree under one deletion timestamp. The shared
+Trash restores its needed ancestors and the entries deleted with it; separate
+deletions stay separate. If ancestors were removed, restore reports movement to
+the root. Private origin is retained before ancestors disappear, so restoration
+never makes previously private deleted content public. Permanent removal remains
+owner-only; expiry runs even with the application disabled.
+
+### Favorites and explicit openings
+
+`PUT /api/bookmarks/{id}/favorite` takes `favorite` and nullable `after` (another
+visible favorite ID, or null for first) and requires `If-Match`. Moving one
+favorite normally changes only its version. The order survives reloads and is
+independent of opening frequency.
+
+`POST /api/bookmarks/{id}/open` takes a fresh `event_id` for each deliberate
+opening. Retrying the same ID has no effect. It requires write access but no
+content version, and never changes the bookmark's version. Clients keep a normal
+HTTP(S) link and send this request without making navigation depend on success.
+Reads, previews and searches never record openings.
+
+`GET /api/bookmarks/dashboard` returns `favorites`, `frequent` and `recent`, up
+to `limit` each (1–100, default 12), plus `has_more_favorites`. Frequent excludes
+favorites and sums the current UTC day plus the preceding 29 calendar days;
+ties use the latest opening and then stable ID. Privacy, deletion and app
+permissions filter every section. Old daily aggregates are removed by the normal
+retention sweep. Compact event-ID receipts remain until their bookmark is
+permanently removed, so a delayed retry cannot count a past opening again.
+
+### Searching saved links
+
+The bookmark list accepts `q`, `folder` (including descendants), `favorites=true`,
+`unsorted=true`, and `sort=rank|title|updated|created`. Folder and Unsorted filters
+are mutually exclusive. Words use the workspace search's prefix/all-words rules;
+titles, descriptions, URL components and the current folder path participate.
+A saved URL such as `https://docs.example.com/user-guide` matches `exam guide`.
+The same results participate in `/api/search`, with an optional `target_url`
+for a direct link; `id` remains the stable editing address.
+
+Folder paths are composed from current rows during the search rather than copied
+into the link index, so renames and moves take effect immediately. The privacy
+predicate is shared with ordinary reads and runs before ranking and limits.
+
+The home dashboard also carries a `bookmarks` section: up to five visible links,
+favorites in manual order followed by frequently opened nonfavorites. The section
+is null when its tile is hidden or the application is unavailable. Private links
+require the same explicit request header as bookmark lists.
+
+### Browser bookmark HTML
+
+`POST /api/bookmarks/import/preview` accepts `{html, folder, preview_hash:null}`
+and returns counts, rejected-entry reasons and `preview_hash`. It needs bookmark
+write permission. `POST /api/bookmarks/import` accepts the same HTML and target
+with that hash to confirm. Visible collection changes, a changed file or a
+changed private context invalidate the plan. Import rechecks visibility and
+writes atomically under the bookmark transaction lock. Reported invalid links
+are excluded from the confirmed plan; no existing content is overwritten.
+
+Limits are 2 MiB of UTF-8 HTML, 5,000 links/folders including rejected entries,
+32 folder levels, 128 HTML wrapper levels, and 100,000 visible entries in the
+existing collection. The JSON request envelope is limited to 13 MiB to allow
+escaped HTML. Exact duplicates in one destination folder are skipped. Comparison
+normalizes only scheme, host and default port; path, query and fragment retain
+their original spelling. Matching visible folders are reused on repeat imports.
+
+`GET /api/bookmarks/export?folder=ID&include_private=false` returns `{html,
+bookmarks, folders, warning}`. The folder is optional. Private export needs both
+`include_private=true` and `Personalaffe-Private: true`; active private context
+alone still exports only public entries. Deleted content is excluded. Select a
+smaller subtree if an export exceeds 5,000 entries or 2 MiB.
+
+Browser HTML preserves titles, URLs, descriptions and folder hierarchy. It loses
+private markings, favorites, tags and reading status, is unencrypted, and does
+not replace a backup. Reimport private exports into a private destination.
+
+### Bookmark tags
+
+Bookmark responses include `tags`; create/edit accepts an optional string array.
+Omitting it on an edit preserves the current set; `[]` removes every tag. Names
+are trimmed and lowercased, duplicates ignore case, and the stored order is
+stable. A bookmark or filter accepts at most 32 names of 1–64 characters without
+control characters. Blank names are refused. Existing rows start with no tags.
+Tag edits use the bookmark's ordinary version and survive Trash/restore.
+
+`GET /api/bookmarks/tags` returns `{name,count}` suggestions from visible live
+bookmarks only. `GET /api/bookmarks?tag=work&tag=research` requires both tags and
+combines with search, folder, unsorted and favorite filters before pagination.
+Tag names also participate in local and global word-prefix search; changes are
+visible immediately. Tags do not change private visibility or favorite order.
+
+### Reading list
+
+`read_later` on create/edit marks a bookmark for later; omitted on edit preserves
+its status. Responses carry `read_later` and nullable `read_later_at`. Repeating a
+mark preserves the existing queue time. `GET /api/bookmarks?read_later=true`
+combines with tags, search and folder filters; `sort=reading` orders queue time
+newest first, then ID. The bookmark dashboard includes a bounded `read_later`
+preview and visible `read_later_count` under the same privacy transaction.
+
+`PUT /api/bookmarks/{id}/reading` takes `{read_later,queued_at:null}` and an
+`If-Match` version. Marking read leaves the bookmark, folder, tags and favorite
+intact. Undo can restore the old `queued_at` while holding the version returned
+by mark-as-read; that time must lie between creation and now. Opening a bookmark
+never changes reading status. Deletion/recovery preserves its queue time.
+
+`GET /api/bookmarks/duplicates` groups only visible active links using the
+conservative import URL key: scheme/host/default-port normalization, preserving
+path case, query order, fragments and escapes. No target is fetched. `limit`
+is 1..50 groups (default 20), `offset` pages groups; `url` selects one group
+and `member_offset` pages its copies, 50 at a time. Both next offsets are
+returned explicitly. URL lookup also returns a single existing copy for an
+inert add-form hint. Review is limited to 100000 visible links.
+
+`POST /api/bookmarks/duplicates/cleanup` takes `{keep, remove:[{id,updated_at}]}`
+and the keeper's reviewed `If-Match`. It checks all selected versions and
+visibility before moving 1..100 distinct same-URL copies to Trash atomically.
+The keeper is untouched; no metadata or statistics are merged. Each deleted
+copy retains its own data for restoration; its statistics disappear only upon
+expiry or permanent deletion. Hidden copies do not influence public group
+counts or hints. A conflict requires reviewing the selection again.

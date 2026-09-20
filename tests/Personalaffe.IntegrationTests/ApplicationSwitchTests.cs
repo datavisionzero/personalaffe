@@ -21,14 +21,14 @@ public sealed class ApplicationSwitchTests(PostgresFixture postgres)
     private static readonly Actor TheOwner = new() { Kind = CallerKind.Owner, Id = Guid.CreateVersion7() };
 
     [Fact]
-    public async Task A_fresh_instance_has_all_four_switched_on()
+    public async Task A_fresh_instance_has_all_applications_switched_on()
     {
         await using var instance = await AnInstance.StartedAsync(postgres);
         using var owner = await AnOwner.SignedInAsync(instance, Token);
 
         var items = await Applications(owner);
 
-        Assert.Equal(["files", "knowledge", "scratchpad", "tasks"], items.Select(Named).Order());
+        Assert.Equal(["bookmarks", "files", "knowledge", "scratchpad", "tasks"], items.Select(Named).Order());
         Assert.All(items, item => Assert.True(item!["enabled"]!.GetValue<bool>()));
 
         // The owner's permission is everything, everywhere, and the switch says
@@ -88,7 +88,8 @@ public sealed class ApplicationSwitchTests(PostgresFixture postgres)
 
         // All four, whatever it may reach: the set is in the contract, and the
         // permission beside each is what tells the agent why it was refused.
-        Assert.Equal(4, items.Count);
+        Assert.Equal(5, items.Count);
+        Assert.Equal("none", PermissionFor(items, "bookmarks"));
         Assert.Equal("read_write", PermissionFor(items, "knowledge"));
         Assert.Equal("read", PermissionFor(items, "files"));
         Assert.Equal("none", PermissionFor(items, "tasks"));

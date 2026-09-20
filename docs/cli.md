@@ -6,7 +6,7 @@ reaches no database, no file volume and no other affe product, and it knows an
 instance only through the client generated from
 [`docs/api/openapi.json`](./api/openapi.json).
 
-**All four applications are here, and so is the question that reaches all of
+**All five applications are here, and so is the question that reaches all of
 them.** Two verbs are the foundation's, three are the credential's, two are the
 workspace's, seven are the Scratchpad's (PERSONAL-E5), six are Files'
 (PERSONAL-E6), nine are Knowledge's (PERSONAL-E7), ten are Tasks' (PERSONAL-E8)
@@ -893,3 +893,80 @@ go build ./cmd/pea
 `go generate` is not optional and not a convenience: nothing compiles without
 it, which is the point — a working tree is never a state where the client agrees
 with a stale contract.
+
+### Saved links
+
+`pea bookmarks ls` lists a bounded page; `--json` includes `next_offset`, and
+`--offset` continues it. Use `--folder ID` (including descendants),
+`--folder unsorted`, `--favorites`, and `--sort title|updated|created|rank`.
+`pea bookmarks search WORDS...` searches saved titles, URLs, descriptions and
+folder paths with the same word-prefix/all-words rules as global search.
+
+```sh
+pea bookmarks add https://example.com/guide --title Guide
+pea bookmarks get ID --json
+pea bookmarks edit ID --description 'A useful reference' --link https://example.com/new
+pea bookmarks move ID --folder FOLDER_ID
+pea bookmarks favorite ID --after ANOTHER_FAVORITE_ID
+pea bookmarks unfavorite ID
+pea bookmarks rm ID
+pea trash restore bookmarks ID
+pea bookmarks folders ls
+pea bookmarks folders add Research --parent PARENT_ID
+pea bookmarks folders edit FOLDER_ID --name References
+pea bookmarks folders move FOLDER_ID --parent root
+pea bookmarks folders rm FOLDER_ID
+```
+
+Writes read the current ETag first; `--if-match` can require a version held by a
+script. Editing still reads fields that were not supplied. A stale write uses
+the existing stale-version exit code and is never retried silently.
+New links default their title to the domain and print their stable ID.
+
+Private folders inherit visibility to every descendant. Add `--include-private`
+explicitly to each invocation that needs them, including `search`, `dashboard`,
+`trash list` and `trash restore`. Creating a private folder uses both
+`--private` and `--include-private`. This flag is never persisted, does not grant
+application permissions, and describes a visibility filter rather than separate
+encryption. Moving an entry into a public folder can make it visible to ordinary
+calls. Reading, listing and searching never record an opening or fetch a website.
+
+Preview browser HTML with `pea bookmarks import --file bookmarks.html --json`.
+Then confirm the reviewed plan with the same file and optional `--folder ID`,
+adding `--confirm --preview-hash HASH`. `--file -` reads UTF-8 from stdin.
+Changed files or visible collections require a fresh preview.
+
+`pea bookmarks export --out bookmarks.html` creates a new private-permission
+file; existing files are not overwritten. `--out -` writes HTML to stdout,
+while `--json` returns the structured export document. Exporting private links
+requires both `--include-private` and `--export-private`; otherwise the export
+contains public entries only. The file remains unencrypted and does not retain
+private markings, favorites, tags or reading status. Transfer limits are listed
+in `pea bookmarks import --help` and `docs/api.md`.
+
+Tags use repeated options: `pea bookmarks add URL --tag work --tag research`.
+On `edit`, supplied `--tag` values replace the set; `--clear-tags` removes it.
+Leaving both options out preserves existing tags. On `ls` and `search`, repeated
+`--tag` options require all names and combine with other filters.
+`pea bookmarks tags` prints names and counts from visible bookmarks only;
+`--include-private` follows the same request-local rules as other commands.
+
+`pea bookmarks add URL --read-later` adds to the reading list.
+`pea bookmarks reading` lists it newest first and accepts the same tags/search/
+folder filters as `ls`. `pea bookmarks read-later ID` marks an existing link;
+`pea bookmarks read ID` marks it read without opening or deleting it.
+Both accept `--if-match`. To undo while retaining its old queue position, use
+`read-later ID --queued-at OLD_READ_LATER_AT --if-match VERSION_AFTER_MARK_READ`.
+`edit --read-later=false` can also clear the status. Private entries always need
+`--include-private`.
+
+`pea bookmarks duplicates --json` shows visible groups with complete metadata
+and reviewed versions. Page with `--offset`; for groups larger than 50 copies,
+use `--url URL --member-offset OFFSET`. To clean up, write an explicit selection
+file with `{"keep":"ID","remove":[{"id":"ID","updated_at":"TIMESTAMP"}]}`
+using those reviewed versions, then run
+`pea bookmarks cleanup --selection selection.json --if-match KEEPER_UPDATED_AT --confirm`.
+Use `--selection -` for stdin and `--include-private` when reviewing private
+copies. Cleanup does not reread or retry versions: any changed or inaccessible
+selection refuses the entire action. The keeper stays unchanged and selected
+copies remain individually recoverable through Trash; statistics are not merged.

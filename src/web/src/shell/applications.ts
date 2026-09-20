@@ -1,5 +1,6 @@
 import {
   FileIcon,
+  BookmarkIcon,
   HomeIcon,
   ListTodoIcon,
   NotebookTextIcon,
@@ -30,6 +31,8 @@ export type Application = {
 };
 
 export const applications: Application[] = [
+  { name: "bookmarks", label: "Bookmarks", path: "/bookmarks", icon: BookmarkIcon,
+    hint: "Saved links, in folders of their own." },
   {
     name: "scratchpad",
     label: "Scratchpad",

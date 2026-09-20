@@ -45,7 +45,7 @@ namespace Personalaffe.Infrastructure.Persistence;
 /// better trade here.
 /// </para>
 /// </remarks>
-public sealed class Search(PersonalaffeDbContext context) : ISearch
+public sealed class Search(PersonalaffeDbContext context, BookmarkSearch bookmarks, IBookmarkWork bookmarkWork) : ISearch
 {
     /// <summary>
     /// What <c>ts_headline</c> is asked for: one fragment, no markup, and
@@ -132,6 +132,14 @@ public sealed class Search(PersonalaffeDbContext context) : ISearch
     {
         ArgumentNullException.ThrowIfNull(needle);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        if (application == WorkspaceApplication.Bookmarks)
+            return await bookmarkWork.ExecuteAsync<IReadOnlyList<Found>>(async token =>
+            {
+                var found = await bookmarks.FindAsync(new BookmarkFilter(needle, null, false, false, "rank"), 0, limit, token);
+                return [.. found.Select(row => new Found(application, row.Id, row.Title,
+                    row.Snippet, row.FolderId, row.UpdatedAt, row.Rank, row.Url))];
+            }, cancellationToken);
 
         var statement = application switch
         {

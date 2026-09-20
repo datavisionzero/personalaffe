@@ -1,3 +1,4 @@
+import { useBookmarkPrivacy } from "@/bookmarks/useBookmarkPrivacy";
 import { useEffect, useState } from "react";
 
 import { api, type Schemas } from "@/api/client";
@@ -52,15 +53,16 @@ export function useFindings(
   query: string,
   limit = 20,
 ): { asked: Asked<TheFindings>; again: () => void } {
+  const privacy = useBookmarkPrivacy();
   const asking = worthAsking(query);
 
   return useAsk(
     // The address is the answer's own label, so a search that is walked away
     // from cannot have its answer arrive under the next one (`shared/ask.ts`).
-    asking ? `/api/search?q=${encodeURIComponent(query)}&limit=${limit}` : "/api/search?",
+    `${privacy.epoch}:` + (asking ? `/api/search?q=${encodeURIComponent(query)}&limit=${limit}` : "/api/search?"),
     (signal) =>
       asking
-        ? api.GET("/api/search", { params: { query: { q: query, limit } }, signal })
+        ? api.GET("/api/search", { params: { query: { q: query, limit } }, headers: privacy.headers, signal })
         : Promise.resolve({
             data: { query, items: [], has_more: false },
             response: new Response(),
@@ -101,6 +103,8 @@ export function useSettled(typed: string, after = 200): string {
  */
 export function addressOf(found: Found): string {
   switch (found.application) {
+    case "bookmarks":
+      return `/bookmarks/manage?selected=${found.id}`;
     case "knowledge":
       return `/knowledge/${found.id}`;
     case "tasks":

@@ -363,7 +363,7 @@ per application, and never a name or a word of what the owner wrote.
 Swept the Trash: removed 4 expired item(s), Knowledge: 3, Files: 1.
 ```
 
-**Three of the four applications fill the Trash**: Files, Knowledge and Tasks.
+**Four of the five applications fill the Trash**: Files, Knowledge, Tasks and Bookmarks.
 The Scratchpad deliberately never puts anything there — what it deletes is
 destroyed. A page goes with its history, a list with its tasks, a folder with
 everything in it. When the sweep removes a file, it removes the row and then the

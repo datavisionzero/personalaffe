@@ -928,3 +928,27 @@ back, and `upgrade`, which needs two builds of this product at once.
   identity, not for anything.
 - **No second human account, ever.** The instance has one owner; agent access
   is not a user.
+
+## Saved link storage
+
+`Domain/Bookmarks` holds saved addresses and their independent folder tree.
+`BookmarkText` bounds plain text and accepts absolute HTTP(S) addresses without
+fetching them. Bookmark and folder rows carry recoverable deletion and guarded
+versions; favorites have a separate persisted position. Folder placement checks
+bound the complete resulting tree to 32 levels and reject cycles.
+
+The `bookmarks` application is seeded enabled. Its agent permission column
+starts at `none`, including for existing credentials; the owner explicitly grants
+access through the same controls as the other applications.
+
+`BookmarkActs` runs each read and write inside `IBookmarkWork`; the PostgreSQL
+adapter takes a transaction-scoped advisory lock before inspecting ancestry.
+`BookmarkVisibility` supplies the recursive SQL predicate used by content and
+Trash queries. `BookmarksTrash` preserves effective privacy on survivors before
+removing ancestors, and its retention path runs without a request identity.
+
+`BookmarkSearch` combines the stored generated link vector with a vector of the
+current folder path. Global search and the bookmark list use the same statement
+and recursive visibility predicate; no path cache can outlive a rename or a
+privacy change. The URL in a finding is optional and used for direct navigation,
+while the stable ID opens the editing view.

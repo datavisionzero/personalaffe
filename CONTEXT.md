@@ -52,6 +52,16 @@ _Avoid_: Separate attachment
 A named container for files and other folders.
 _Avoid_: Space, bucket
 
+**Bookmark**:
+A saved HTTP or HTTPS address with a title, optional description and a stable
+identity, optionally organised in a bookmark folder.
+_Avoid_: Archived web page, file
+
+**Bookmark folder**:
+A named container for bookmarks and other bookmark folders, independent of the
+file hierarchy. A private folder makes its descendants private too.
+_Avoid_: File folder, collection
+
 **Trash**:
 The recoverable state of deleted permanent content before its retention period
 ends or the owner permanently removes it.

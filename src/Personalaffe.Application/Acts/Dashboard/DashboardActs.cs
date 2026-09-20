@@ -1,3 +1,4 @@
+using Personalaffe.Application.Acts.Bookmarks;
 using Personalaffe.Application.Ports;
 using Personalaffe.Domain;
 using Personalaffe.Domain.Dashboard;
@@ -47,7 +48,8 @@ public sealed record TheDashboard(
     IReadOnlyList<OpenTask>? Tasks,
     IReadOnlyList<RecentPage>? Knowledge,
     IReadOnlyList<TheLatestEntry>? Scratchpad,
-    IReadOnlyList<RecentFile>? Files);
+    IReadOnlyList<RecentFile>? Files,
+    IReadOnlyList<SavedBookmark>? Bookmarks = null);
 
 /// <summary>
 /// What is useful or pending right now (VISION §6.1).
@@ -80,7 +82,8 @@ public sealed class ReadTheDashboard(
     IDashboardTiles tiles,
     IDashboard dashboard,
     ReachingAnApplication reaching,
-    RetentionSettings retention)
+    RetentionSettings retention,
+    BookmarkActs bookmarks)
 {
     /// <summary>
     /// How many rows a tile carries. Small on purpose: a tile answers "what is
@@ -121,6 +124,9 @@ public sealed class ReadTheDashboard(
                 : null,
             Drawn(drawn, DashboardTile.Files)
                 ? await dashboard.RecentFilesAsync(Rows, cancellationToken)
+                : null,
+            Drawn(drawn, DashboardTile.Bookmarks)
+                ? await bookmarks.HomeAsync(Rows, cancellationToken)
                 : null);
     }
 

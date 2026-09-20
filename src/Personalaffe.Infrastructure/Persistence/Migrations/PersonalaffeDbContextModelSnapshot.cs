@@ -72,6 +72,13 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         {
                             b1.IsRequired();
 
+                            b1.Property<string>("Bookmarks")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("text")
+                                .HasDefaultValue("none")
+                                .HasColumnName("bookmarks");
+
                             b1.Property<string>("Files")
                                 .IsRequired()
                                 .HasColumnType("text")
@@ -102,6 +109,8 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
 
                     b.ToTable("agent_access", null, t =>
                         {
+                            t.HasCheckConstraint("ck_agent_access_bookmarks", "bookmarks in ('none', 'read', 'read_write')");
+
                             t.HasCheckConstraint("ck_agent_access_files", "files in ('none', 'read', 'read_write')");
 
                             t.HasCheckConstraint("ck_agent_access_knowledge", "knowledge in ('none', 'read', 'read_write')");
@@ -203,7 +212,192 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                             Application = "files",
                             Enabled = true,
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Application = "bookmarks",
+                            Enabled = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         });
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Bookmarks.Bookmark", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<double?>("FavoritePosition")
+                        .HasColumnType("double precision")
+                        .HasColumnName("favorite_position");
+
+                    b.Property<Guid?>("FolderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("folder_id");
+
+                    b.Property<bool>("PrivateOrigin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("private_origin");
+
+                    b.Property<DateTimeOffset?>("ReadLaterAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_later_at");
+
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasColumnName("search_vector")
+                        .HasComputedColumnSql("setweight(to_tsvector('simple', regexp_replace(coalesce(title, ''), '[^[:alnum:]]+', ' ', 'g')), 'A') || setweight(to_tsvector('simple', coalesce(description, '')), 'B') || setweight(to_tsvector('simple', regexp_replace(coalesce(url, ''), '[^[:alnum:]]+', ' ', 'g')), 'B')", true);
+
+                    b.PrimitiveCollection<string[]>("Tags")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasColumnName("tags")
+                        .HasDefaultValueSql("ARRAY[]::text[]");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bookmarks");
+
+                    b.HasIndex("DeletedAt")
+                        .HasFilter("deleted_at is not null");
+
+                    b.HasIndex("FolderId");
+
+                    b.HasIndex("ReadLaterAt");
+
+                    b.HasIndex("SearchVector")
+                        .HasDatabaseName("ix_bookmarks_search");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "gin");
+
+                    b.HasIndex("Tags");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Tags"), "gin");
+
+                    b.ToTable("bookmarks", (string)null);
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Bookmarks.BookmarkFolder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<bool>("Private")
+                        .HasColumnType("boolean")
+                        .HasColumnName("private");
+
+                    b.Property<bool>("PrivateOrigin")
+                        .HasColumnType("boolean")
+                        .HasColumnName("private_origin");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bookmark_folders");
+
+                    b.HasIndex("DeletedAt")
+                        .HasFilter("deleted_at is not null");
+
+                    b.HasIndex("ParentId");
+
+                    b.ToTable("bookmark_folders", (string)null);
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Bookmarks.BookmarkOpenDay", b =>
+                {
+                    b.Property<Guid>("BookmarkId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bookmark_id");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date")
+                        .HasColumnName("day");
+
+                    b.Property<long>("Count")
+                        .HasColumnType("bigint")
+                        .HasColumnName("count");
+
+                    b.Property<DateTimeOffset>("LastOpenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_opened_at");
+
+                    b.HasKey("BookmarkId", "Day");
+
+                    b.HasIndex("Day");
+
+                    b.ToTable("bookmark_open_days", (string)null);
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Bookmarks.BookmarkOpening", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BookmarkId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bookmark_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookmarkId");
+
+                    b.ToTable("bookmark_openings", (string)null);
                 });
 
             modelBuilder.Entity("Personalaffe.Domain.BrowserSession", b =>
@@ -304,6 +498,12 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         new
                         {
                             Tile = "weather",
+                            Shown = true,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Tile = "bookmarks",
                             Shown = true,
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         });
@@ -879,6 +1079,88 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                     b.ToTable((string)null);
 
                     b.ToView(null, (string)null);
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Bookmarks.Bookmark", b =>
+                {
+                    b.OwnsOne("Personalaffe.Domain.Actor", "DeletedBy", b1 =>
+                        {
+                            b1.Property<Guid>("BookmarkId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("deleted_by_id");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("deleted_by_kind");
+
+                            b1.Property<string>("Name")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("deleted_by_name");
+
+                            b1.HasKey("BookmarkId");
+
+                            b1.ToTable("bookmarks");
+
+                            b1.WithOwner()
+                                .HasForeignKey("BookmarkId");
+                        });
+
+                    b.Navigation("DeletedBy");
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Bookmarks.BookmarkFolder", b =>
+                {
+                    b.OwnsOne("Personalaffe.Domain.Actor", "DeletedBy", b1 =>
+                        {
+                            b1.Property<Guid>("BookmarkFolderId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("deleted_by_id");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasColumnType("text")
+                                .HasColumnName("deleted_by_kind");
+
+                            b1.Property<string>("Name")
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("deleted_by_name");
+
+                            b1.HasKey("BookmarkFolderId");
+
+                            b1.ToTable("bookmark_folders");
+
+                            b1.WithOwner()
+                                .HasForeignKey("BookmarkFolderId");
+                        });
+
+                    b.Navigation("DeletedBy");
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Bookmarks.BookmarkOpenDay", b =>
+                {
+                    b.HasOne("Personalaffe.Domain.Bookmarks.Bookmark", null)
+                        .WithMany()
+                        .HasForeignKey("BookmarkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Personalaffe.Domain.Bookmarks.BookmarkOpening", b =>
+                {
+                    b.HasOne("Personalaffe.Domain.Bookmarks.Bookmark", null)
+                        .WithMany()
+                        .HasForeignKey("BookmarkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Personalaffe.Domain.BrowserSession", b =>

@@ -24,7 +24,7 @@ public sealed class DashboardTests(PostgresFixture postgres)
         // The order is the fixed layout's, and every one of them is shown and
         // offered: a workspace nobody configured is a whole workspace.
         Assert.Equal(
-            ["tasks", "knowledge", "scratchpad", "files", "weather"],
+            ["tasks", "knowledge", "scratchpad", "files", "weather", "bookmarks"],
             tiles.Select(tile => tile!["tile"]!.GetValue<string>()));
 
         Assert.All(tiles, tile =>

@@ -1,3 +1,4 @@
+using Personalaffe.Application.Acts.Bookmarks;
 // The composition root. Endpoints, authentication and the acts arrive with the
 // code they belong to rather than as empty registrations placed here in
 // advance (docs/codebase.md).
@@ -172,6 +173,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 // One line per act, named, rather than an assembly scan: what a caller can do
 // is a list somebody wrote, and an act that is not on it is not reachable by
 // accident.
+builder.Services.AddScoped<BookmarkActs>();
 builder.Services.AddScoped<ReadSetupState>();
 builder.Services.AddScoped<SetUpTheInstance>();
 builder.Services.AddScoped<AuthenticateCaller>();
@@ -410,6 +412,7 @@ api.MapScratchpad();
 api.MapFiles();
 api.MapKnowledge();
 api.MapTasks();
+api.MapBookmarks();
 api.MapSearch();
 api.MapDashboard();
 api.MapWeather();

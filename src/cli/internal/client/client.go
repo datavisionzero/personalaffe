@@ -44,13 +44,16 @@ type Client struct {
 // New builds the client for one instance. An empty token sends no header rather
 // than an empty one, which would be a credential the instance has to refuse:
 // the three operations of the foundation take none.
-func New(address, token string, httpClient *http.Client) (*Client, error) {
+func New(address, token string, httpClient *http.Client, includePrivate ...bool) (*Client, error) {
 	generated, err := api.NewClientWithResponses(
 		address,
 		api.WithHTTPClient(httpClient),
 		api.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
 			if token != "" {
 				req.Header.Set("Authorization", "Bearer "+token)
+			}
+			if len(includePrivate) > 0 && includePrivate[0] {
+				req.Header.Set("Personalaffe-Private", "true")
 			}
 			req.Header.Set("User-Agent", UserAgent())
 			return nil

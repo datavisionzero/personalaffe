@@ -1,3 +1,4 @@
+import { BookmarkLink } from "@/bookmarks/BookmarkLink";
 import { SearchIcon } from "lucide-react";
 import { useId } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -101,6 +102,15 @@ export function Search() {
 
 function Row({ found, words }: { found: Found; words: string[] }) {
   const application = applicationNamed(found.application);
+
+  if (found.application === "bookmarks" && found.target_url) {
+    return <li className="hover:bg-accent flex items-center gap-3 rounded-md px-2 py-2">
+      <BookmarkLink id={found.id} url={found.target_url} className="min-w-0 flex-1 truncate text-sm font-medium">
+        {marked(found.title, words)}
+      </BookmarkLink>
+      <Link to={addressOf(found)} className="text-muted-foreground shrink-0 text-sm underline">Edit bookmark</Link>
+    </li>;
+  }
 
   return (
     <li>

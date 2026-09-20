@@ -6,6 +6,7 @@ import { Agents } from "@/agents/Agents";
 import { anInstance, refused } from "@/shared/anInstance";
 
 const reading = {
+  bookmarks: "none",
   scratchpad: "none",
   knowledge: "read",
   tasks: "none",

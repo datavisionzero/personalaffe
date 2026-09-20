@@ -71,6 +71,20 @@ describe("marking what was asked for", () => {
 describe("the search screen", () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it("offers a safe direct bookmark link beside its stable editing address", async () => {
+    const bookmark = { ...aPage, application: "bookmarks", target_url: "https://example.com/guide" };
+    anInstance({
+      "GET /api/applications": theApplications(),
+      "GET /api/search": found([bookmark]),
+    });
+    renderAt("/search?q=arch", <Shell me={theOwner} onSignedOut={() => undefined} />);
+    const list = await screen.findByRole("list", { name: "What was found" });
+    const direct = within(list).getByRole("link", { name: "Architecture decisions" });
+    expect(direct).toHaveAttribute("href", bookmark.target_url);
+    expect(direct).toHaveAttribute("rel", "noopener noreferrer");
+    expect(within(list).getByRole("link", { name: "Edit bookmark" })).toHaveAttribute("href", `/bookmarks/manage?selected=${bookmark.id}`);
+  });
+
   it("asks for what is in the address and draws what came back", async () => {
     anInstance({
       "GET /api/applications": theApplications(),

@@ -61,6 +61,11 @@ public static class InfrastructureServices
         services.AddScoped<IScratchpadEntries, ScratchpadEntries>();
         services.AddScoped<IStoredFiles, StoredFiles>();
 
+        services.AddScoped<IBookmarkWork, BookmarkWork>();
+        services.AddSingleton<IBookmarkHtml, Personalaffe.Infrastructure.Bookmarks.BookmarkHtml>();
+        services.AddScoped<BookmarkSearch>();
+        services.AddScoped<IBookmarks, Persistence.Bookmarks>();
+        services.AddScoped<IBookmarkActivity, BookmarkActivity>();
         services.AddScoped<IPages, Pages>();
         services.AddScoped<ITasks, Persistence.Tasks>();
 
@@ -84,6 +89,7 @@ public static class InfrastructureServices
         // The Trash's contributors. Registering one is the whole of appearing in
         // GET /api/trash, in restore, in permanent removal and in the hourly
         // purge (docs/codebase.md).
+        services.AddScoped<ITrash, BookmarksTrash>();
         services.AddScoped<ITrash, FilesTrash>();
         services.AddScoped<ITrash, KnowledgeTrash>();
         services.AddScoped<ITrash, TasksTrash>();

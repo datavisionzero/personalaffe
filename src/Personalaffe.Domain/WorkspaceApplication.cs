@@ -1,24 +1,22 @@
 namespace Personalaffe.Domain;
 
 /// <summary>
-/// The four focused areas of the workspace, each of which can be enabled or
+/// The focused areas of the workspace, each of which can be enabled or
 /// disabled independently (<c>CONTEXT.md</c>, Application).
 /// </summary>
 /// <remarks>
 /// <para>
 /// The word is <em>application</em> and the wire spells it that way: the
 /// contract's values are <c>scratchpad</c>, <c>knowledge</c>, <c>tasks</c> and
-/// <c>files</c>, and a permission is per application and not per endpoint. The
+/// <c>files</c> and <c>bookmarks</c>, and a permission is per application and not per endpoint. The
 /// type carries <c>Workspace</c> in front of it for one reason, which is a fact
 /// about C# and not about the product: <c>Personalaffe.Application</c> is a
 /// layer of this codebase, and a type called <c>Application</c> would be
 /// ambiguous with that namespace in every file that names both.
 /// </para>
 /// <para>
-/// A closed set of four, not a registry. An application is a folder in each
-/// layer (<c>docs/codebase.md</c>) and a fifth one would be a decision
-/// somebody makes, a case added here, and a migration — which is the right
-/// amount of friction for adding a place the owner's content lives.
+/// A closed set, not a registry. Adding an application requires an explicit
+/// enum member and a migration for its switch and agent permissions.
 /// </para>
 /// </remarks>
 public enum WorkspaceApplication
@@ -34,6 +32,9 @@ public enum WorkspaceApplication
 
     /// <summary>Stored personal files in a folder hierarchy.</summary>
     Files,
+
+    /// <summary>Saved links in their own folder hierarchy.</summary>
+    Bookmarks,
 }
 
 /// <summary>What a caller may do in one application.</summary>

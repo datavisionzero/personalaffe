@@ -325,6 +325,9 @@ public static class SecurityHeaders
             {
                 var headers = context.Response.Headers;
 
+                if (context.Request.Path.StartsWithSegments("/api"))
+                    headers.CacheControl = "private, no-store";
+
                 headers["Content-Security-Policy"] = ContentSecurityPolicy;
 
                 // What the two say twice: `frame-ancestors` is the one modern

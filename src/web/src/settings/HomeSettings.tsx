@@ -16,6 +16,7 @@ type Somewhere = Schemas["PlaceResponse"];
 
 /** What each tile says it is, in the owner's words rather than the wire's. */
 const described: Record<TileName, { label: string; hint: string }> = {
+  bookmarks: { label: "Bookmarks", hint: "Favorites first, then frequently opened links." },
   tasks: { label: "Open tasks", hint: "What is open, soonest due first." },
   knowledge: { label: "Knowledge", hint: "The pages you wrote in most recently." },
   scratchpad: { label: "Scratchpad", hint: "What you put down last." },
