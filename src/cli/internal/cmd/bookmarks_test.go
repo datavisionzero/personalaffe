@@ -120,3 +120,49 @@ func TestBookmarkFavoriteCarriesPredecessorWithoutOpening(t *testing.T) {
 		t.Fatal("favorite did not carry intended order")
 	}
 }
+
+func TestBookmarkImportRequiresReviewedConfirmationAndExportHasSeparatePrivateOptIn(t *testing.T) {
+	var paths []string
+	instance := serving(t, "9.9.9", func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		switch r.URL.Path {
+		case "/api/bookmarks/import/preview":
+			answering(`{"valid_bookmarks":1,"folders":0,"new_bookmarks":1,"new_folders":0,"skipped_duplicates":0,"rejected":[],"preview_hash":"reviewed"}`)(w, r)
+		case "/api/bookmarks/import":
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Error(err)
+			}
+			if body["preview_hash"] != "reviewed" {
+				t.Error("missing reviewed hash")
+			}
+			answering(`{"imported_bookmarks":1,"created_folders":0,"skipped_duplicates":0,"rejected":[]}`)(w, r)
+		case "/api/bookmarks/export":
+			if r.Header.Get("Personalaffe-Private") != "true" || r.URL.Query().Get("include_private") != "false" {
+				t.Error("private context alone opted into private export")
+			}
+			answering(`{"html":"<DL></DL>","bookmarks":0,"folders":0,"warning":"Unencrypted"}`)(w, r)
+		default:
+			t.Error("unexpected route", r.URL.Path)
+		}
+	})
+	env := environment(t, map[string]string{config.EnvURL: instance.URL, config.EnvToken: secret})
+	if got := runWith(t, strings.NewReader("<A HREF='https://example.com'>Example</A>"), env, "bookmarks", "import", "--file", "-", "--json"); got.code != exit.OK || !strings.Contains(got.stdout, "reviewed") {
+		t.Fatal(got)
+	}
+	if len(paths) != 1 || paths[0] != "/api/bookmarks/import/preview" {
+		t.Fatal("preview wrote data")
+	}
+	if got := run(t, env, "bookmarks", "import", "--file", "-", "--confirm"); got.code != exit.Usage {
+		t.Fatal("confirmation accepted without reviewed plan")
+	}
+	if got := runWith(t, strings.NewReader("<A HREF='https://example.com'>Example</A>"), env, "bookmarks", "import", "--file", "-", "--confirm", "--preview-hash", "reviewed"); got.code != exit.OK {
+		t.Fatal(got)
+	}
+	if got := run(t, env, "bookmarks", "export", "--include-private"); got.code != exit.OK || got.stdout != "<DL></DL>" {
+		t.Fatal(got)
+	}
+	if got := run(t, env, "bookmarks", "export", "--export-private"); got.code != exit.Usage {
+		t.Fatal("private export accepted without context")
+	}
+}

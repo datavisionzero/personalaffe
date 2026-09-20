@@ -4401,6 +4401,311 @@
         }
       }
     },
+    "/api/bookmarks/import/preview": {
+      "post": {
+        "tags": [
+          "personalaffe"
+        ],
+        "operationId": "PreviewBookmarkImport",
+        "parameters": [
+          {
+            "name": "Personalaffe-Private",
+            "in": "header",
+            "description": "Only the exact value true includes private bookmarks for this request. Application permission is still required. Responses are private, no-store.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookmarkImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarkImportPreview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookmarks/import": {
+      "post": {
+        "tags": [
+          "personalaffe"
+        ],
+        "operationId": "ImportBookmarks",
+        "parameters": [
+          {
+            "name": "Personalaffe-Private",
+            "in": "header",
+            "description": "Only the exact value true includes private bookmarks for this request. Application permission is still required. Responses are private, no-store.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookmarkImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarkImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookmarks/export": {
+      "get": {
+        "tags": [
+          "personalaffe"
+        ],
+        "operationId": "ExportBookmarks",
+        "parameters": [
+          {
+            "name": "folder",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "include_private",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "Personalaffe-Private",
+            "in": "header",
+            "description": "Only the exact value true includes private bookmarks for this request. Application permission is still required. Responses are private, no-store.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookmarkExport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/bookmarks": {
       "get": {
         "tags": [
@@ -6542,6 +6847,32 @@
         },
         "additionalProperties": false
       },
+      "BookmarkExport": {
+        "required": [
+          "html",
+          "bookmarks",
+          "folders",
+          "warning"
+        ],
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": "string"
+          },
+          "bookmarks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "folders": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "warning": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "BookmarkFolderRequest": {
         "required": [
           "name",
@@ -6631,6 +6962,127 @@
               "integer"
             ],
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BookmarkImportPreview": {
+        "required": [
+          "valid_bookmarks",
+          "folders",
+          "new_bookmarks",
+          "new_folders",
+          "skipped_duplicates",
+          "rejected",
+          "preview_hash"
+        ],
+        "type": "object",
+        "properties": {
+          "valid_bookmarks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "folders": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "new_bookmarks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "new_folders": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skipped_duplicates": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookmarkImportRejection"
+            }
+          },
+          "preview_hash": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BookmarkImportRejection": {
+        "required": [
+          "entry",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "entry": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BookmarkImportRequest": {
+        "required": [
+          "html",
+          "folder",
+          "preview_hash"
+        ],
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "folder": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "preview_hash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "BookmarkImportResult": {
+        "required": [
+          "imported_bookmarks",
+          "created_folders",
+          "skipped_duplicates",
+          "rejected"
+        ],
+        "type": "object",
+        "properties": {
+          "imported_bookmarks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created_folders": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skipped_duplicates": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookmarkImportRejection"
+            }
           }
         },
         "additionalProperties": false

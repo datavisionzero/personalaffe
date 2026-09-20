@@ -8,6 +8,7 @@ import { Field, Refused, selectClass } from "@/shared/Form";
 import { useAsk } from "@/shared/ask";
 import { Busy, Failed } from "@/shell/States";
 import { useSettled } from "@/search/useFindings";
+import { BookmarkTransfer } from "./BookmarkTransfer";
 import { BookmarkForm } from "./BookmarkForm";
 import { FolderForm } from "./FolderForm";
 import { BookmarkLink } from "./BookmarkLink";
@@ -110,6 +111,7 @@ export function BookmarkManagement() {
     <header className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-xl font-semibold">Manage bookmarks</h1>
       <div className="flex flex-wrap gap-2"><PrivateSwitch /><Button variant="outline" render={<Link to={`/bookmarks?${params}`} />}>Dashboard</Button>
         <Button variant="outline" onClick={() => setEditor({ kind: "folder" })}>New folder</Button><Button onClick={() => setEditor({ kind: "bookmark" })}>Add bookmark</Button></div></header>
+    <BookmarkTransfer folders={allFolders} changed={refresh} />
     <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <Input name="query" type="search" aria-label="Search bookmarks" placeholder="Search bookmarks…" value={query} onChange={(event) => filter("q", event.target.value)} />
       <select name="folder" aria-label="Bookmark folder" className={selectClass} value={folder} onChange={(event) => filter("folder", event.target.value)}>

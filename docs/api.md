@@ -1576,3 +1576,30 @@ The home dashboard also carries a `bookmarks` section: up to five visible links,
 favorites in manual order followed by frequently opened nonfavorites. The section
 is null when its tile is hidden or the application is unavailable. Private links
 require the same explicit request header as bookmark lists.
+
+### Browser bookmark HTML
+
+`POST /api/bookmarks/import/preview` accepts `{html, folder, preview_hash:null}`
+and returns counts, rejected-entry reasons and `preview_hash`. It needs bookmark
+write permission. `POST /api/bookmarks/import` accepts the same HTML and target
+with that hash to confirm. Visible collection changes, a changed file or a
+changed private context invalidate the plan. Import rechecks visibility and
+writes atomically under the bookmark transaction lock. Reported invalid links
+are excluded from the confirmed plan; no existing content is overwritten.
+
+Limits are 2 MiB of UTF-8 HTML, 5,000 links/folders including rejected entries,
+32 folder levels, 128 HTML wrapper levels, and 100,000 visible entries in the
+existing collection. The JSON request envelope is limited to 13 MiB to allow
+escaped HTML. Exact duplicates in one destination folder are skipped. Comparison
+normalizes only scheme, host and default port; path, query and fragment retain
+their original spelling. Matching visible folders are reused on repeat imports.
+
+`GET /api/bookmarks/export?folder=ID&include_private=false` returns `{html,
+bookmarks, folders, warning}`. The folder is optional. Private export needs both
+`include_private=true` and `Personalaffe-Private: true`; active private context
+alone still exports only public entries. Deleted content is excluded. Select a
+smaller subtree if an export exceeds 5,000 entries or 2 MiB.
+
+Browser HTML preserves titles, URLs, descriptions and folder hierarchy. It loses
+private markings, favorites, tags and reading status, is unencrypted, and does
+not replace a backup. Reimport private exports into a private destination.

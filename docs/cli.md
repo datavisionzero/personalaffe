@@ -930,3 +930,16 @@ explicitly to each invocation that needs them, including `search`, `dashboard`,
 application permissions, and describes a visibility filter rather than separate
 encryption. Moving an entry into a public folder can make it visible to ordinary
 calls. Reading, listing and searching never record an opening or fetch a website.
+
+Preview browser HTML with `pea bookmarks import --file bookmarks.html --json`.
+Then confirm the reviewed plan with the same file and optional `--folder ID`,
+adding `--confirm --preview-hash HASH`. `--file -` reads UTF-8 from stdin.
+Changed files or visible collections require a fresh preview.
+
+`pea bookmarks export --out bookmarks.html` creates a new private-permission
+file; existing files are not overwritten. `--out -` writes HTML to stdout,
+while `--json` returns the structured export document. Exporting private links
+requires both `--include-private` and `--export-private`; otherwise the export
+contains public entries only. The file remains unencrypted and does not retain
+private markings, favorites, tags or reading status. Transfer limits are listed
+in `pea bookmarks import --help` and `docs/api.md`.

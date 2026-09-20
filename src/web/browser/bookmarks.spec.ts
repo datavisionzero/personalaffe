@@ -119,3 +119,28 @@ test("home respects private favorites, tile visibility, and dashboard navigation
   await page.goto("/settings/home"); await page.getByRole("button", { name: "Show Bookmarks", exact: true }).click();
   await expect(page.getByRole("button", { name: "Hide Bookmarks", exact: true })).toBeVisible();
 });
+
+test("HTML transfer previews before writing and exports escaped inert data", async ({ page }) => {
+  await signedIn(page); await switchApplication(page, "bookmarks", true);
+  await page.goto("/bookmarks/manage");
+  const title = `Imported <guide> ${Date.now()}`;
+  const html = `<DL><DT><H3>Import ${Date.now()}</H3><DL><DT><A HREF="https://example.com/import?x=1&amp;y=2">${title.replace("<", "&lt;").replace(">", "&gt;")}</A></DT><DD>Useful &amp; safe</DD><DT><A HREF="javascript:alert(1)">Rejected</A></DT></DL></DT></DL><script>window.importExecuted=true</script>`;
+  await page.getByRole("button", { name: "Import HTML", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Bookmark HTML file", { exact: true }).setInputFiles({ name: "bookmarks.html", mimeType: "text/html", buffer: Buffer.from(html) });
+  await dialog.getByRole("button", { name: "Preview import", exact: true }).click();
+  await expect(dialog.getByText(/1 valid bookmarks, 1 folders/)).toBeVisible();
+  await expect(dialog.getByText(/1 rejected/).first()).toBeVisible();
+  const before = await page.request.get("/api/bookmarks", { params: { q: title.replace(/[<>]/g, "") } });
+  expect((await before.json()).items).toHaveLength(0);
+  await dialog.getByRole("button", { name: "Confirm import", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("1 bookmarks imported");
+  expect(await page.evaluate(() => Object.hasOwn(window, "importExecuted"))).toBeFalsy();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Export HTML", exact: true }).click();
+  const downloaded = page.waitForEvent("download");
+  await page.getByRole("dialog").getByRole("button", { name: "Download HTML", exact: true }).click();
+  expect((await downloaded).suggestedFilename()).toBe("bookmarks.html");
+  await expect(page.getByRole("dialog").getByRole("status")).toContainText("exported");
+});

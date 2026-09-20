@@ -21,7 +21,7 @@ func newBookmarks(g *globals) *cobra.Command {
 	root.AddCommand(bookmarkList(g, false), bookmarkList(g, true), bookmarkGet(g, false), bookmarkAdd(g), bookmarkEdit(g, false, false), bookmarkEdit(g, false, true), bookmarkRemove(g, false), bookmarkFavorite(g, true), bookmarkFavorite(g, false))
 	folders := &cobra.Command{Use: "folders", Short: "The saved-link folder tree; use IDs for parents."}
 	folders.AddCommand(bookmarkFolders(g), bookmarkGet(g, true), bookmarkFolderAdd(g), bookmarkEdit(g, true, false), bookmarkEdit(g, true, true), bookmarkRemove(g, true))
-	root.AddCommand(folders)
+	root.AddCommand(folders, bookmarkImport(g), bookmarkExport(g))
 	return root
 }
 

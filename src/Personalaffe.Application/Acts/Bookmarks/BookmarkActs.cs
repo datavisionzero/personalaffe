@@ -12,7 +12,7 @@ public sealed record SavedBookmarks(IReadOnlyList<SavedBookmark> Items, int? Nex
 
 /// <summary>Saved link operations share one transaction and visibility boundary.</summary>
 public sealed partial class BookmarkActs(
-    IBookmarks store, IBookmarkWork work, IBookmarkActivity activity, ReachingAnApplication reaching,
+    IBookmarks store, IBookmarkWork work, IBookmarkActivity activity, IBookmarkHtml htmlParser, ReachingAnApplication reaching,
     ICallerIdentity caller, RetentionSettings retention, TimeProvider clock)
 {
     public Task<SavedBookmarks> ListAsync(int? offset, int? limit, CancellationToken token, string? q = null, Guid? folder = null, bool? favorites = null, bool? unsorted = null, string? sort = null) => Read(async ct =>

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Personalaffe.Application.Acts.Bookmarks;
 using Personalaffe.Domain;
 
@@ -28,6 +29,7 @@ public sealed record BookmarkRequest(string? Title, string? Url, string? Descrip
 public sealed record BookmarkFolderRequest(string? Name, Guid? Parent, bool Private);
 
 public sealed record FavoriteBookmarkRequest(bool Favorite, Guid? After);
+public sealed record BookmarkImportRequest(string? Html, Guid? Folder, string? PreviewHash);
 public sealed record OpenBookmarkRequest(Guid EventId);
 public sealed record BookmarkDashboardResponse(IReadOnlyList<BookmarkResponse> Favorites,
     IReadOnlyList<BookmarkResponse> Frequent, IReadOnlyList<BookmarkResponse> Recent, bool HasMoreFavorites);
@@ -36,6 +38,15 @@ public static class BookmarkEndpoints
 {
     public static IEndpointRouteBuilder MapBookmarks(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapPost("/bookmarks/import/preview", async (BookmarkImportRequest body, BookmarkActs act, CancellationToken token) =>
+            Results.Ok(await act.PreviewImportAsync(body.Html, body.Folder, token)))
+            .WithMetadata(new RequestSizeLimitAttribute(13 * 1024 * 1024)).WithName("PreviewBookmarkImport").BookmarkErrors().Produces<BookmarkImportPreview>();
+        endpoints.MapPost("/bookmarks/import", async (BookmarkImportRequest body, BookmarkActs act, CancellationToken token) =>
+            Results.Ok(await act.ImportAsync(body.Html, body.Folder, body.PreviewHash, token)))
+            .WithMetadata(new RequestSizeLimitAttribute(13 * 1024 * 1024)).WithName("ImportBookmarks").BookmarkErrors().Produces<BookmarkImportResult>();
+        endpoints.MapGet("/bookmarks/export", async (Guid? folder, [FromQuery(Name = "include_private")] bool? includePrivate, BookmarkActs act, CancellationToken token) =>
+            Results.Ok(await act.ExportAsync(folder, includePrivate == true, token)))
+            .WithName("ExportBookmarks").BookmarkErrors().Produces<BookmarkExport>();
         endpoints.MapGet("/bookmarks", async (int? offset, int? limit, string? q, Guid? folder, bool? favorites, bool? unsorted, string? sort, BookmarkActs act, CancellationToken token) =>
         {
             var rows = await act.ListAsync(offset, limit, token, q, folder, favorites, unsorted, sort);
