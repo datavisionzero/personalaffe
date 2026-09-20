@@ -18,13 +18,14 @@ public sealed class BookmarkSearch(PersonalaffeDbContext context, ICallerIdentit
             WHERE child.deleted_at IS NULL AND parent.depth < 32
         ), visible AS (
             SELECT b.*, p.names AS folder_path,
-                b.search_vector || setweight(to_tsvector('simple', regexp_replace(coalesce(p.names, ''), '[^[:alnum:]]+', ' ', 'g')), 'C') AS words
+                b.search_vector || setweight(to_tsvector('simple', array_to_string(b.tags, ' ')), 'B') || setweight(to_tsvector('simple', regexp_replace(coalesce(p.names, ''), '[^[:alnum:]]+', ' ', 'g')), 'C') AS words
             FROM bookmarks b LEFT JOIN paths p ON p.id = b.folder_id
             WHERE b.deleted_at IS NULL
               AND ({1} OR (NOT b.private_origin AND NOT EXISTS (SELECT 1 FROM hidden WHERE hidden.id = b.folder_id)))
               AND ({2} = '00000000-0000-0000-0000-000000000000'::uuid OR {2} = ANY(p.ancestry))
               AND (NOT {3} OR b.folder_id IS NULL)
               AND (NOT {4} OR b.favorite_position IS NOT NULL)
+              AND ({8}::text[] <@ b.tags)
         )
         SELECT b.id AS "Id", b.title AS "Title", b.url AS "Url", b.folder_id AS "FolderId",
             b.updated_at AS "UpdatedAt", b.folder_path AS "FolderPath",
@@ -44,7 +45,7 @@ public sealed class BookmarkSearch(PersonalaffeDbContext context, ICallerIdentit
         caller.Caller.RequireRead(WorkspaceApplication.Bookmarks);
         var query = filter.Needle is null ? string.Empty : string.Join(" & ", filter.Needle.Words.Select(word => word + ":*"));
         return await context.Database.SqlQueryRaw<BookmarkSearchRow>(Statement, query, caller.Caller.PrivateBookmarks,
-            filter.Folder ?? Guid.Empty, filter.Unsorted, filter.Favorites, filter.Sort, limit, offset).ToListAsync(token);
+            filter.Folder ?? Guid.Empty, filter.Unsorted, filter.Favorites, filter.Sort, limit, offset, filter.Tags ?? []).ToListAsync(token);
     }
 }
 

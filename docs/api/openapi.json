@@ -4766,6 +4766,16 @@
             }
           },
           {
+            "name": "tag",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
             "name": "Personalaffe-Private",
             "in": "header",
             "description": "Only the exact value true includes private bookmarks for this request. Application permission is still required. Responses are private, no-store.",
@@ -4939,6 +4949,99 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BookmarkResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookmarks/tags": {
+      "get": {
+        "tags": [
+          "personalaffe"
+        ],
+        "operationId": "ListBookmarkTags",
+        "parameters": [
+          {
+            "name": "Personalaffe-Private",
+            "in": "header",
+            "description": "Only the exact value true includes private bookmarks for this request. Application permission is still required. Responses are private, no-store.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BookmarkTagCount"
+                  }
                 }
               }
             }
@@ -7120,6 +7223,15 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "tags": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         },
         "additionalProperties": false
@@ -7135,7 +7247,8 @@
           "favorite",
           "favorite_position",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "tags"
         ],
         "type": "object",
         "properties": {
@@ -7179,6 +7292,29 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "BookmarkTagCount": {
+        "required": [
+          "name",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

@@ -8,6 +8,7 @@ import { Field, Refused, selectClass } from "@/shared/Form";
 import { useAsk } from "@/shared/ask";
 import { Busy, Failed } from "@/shell/States";
 import { useSettled } from "@/search/useFindings";
+import { TagEditor } from "./TagEditor";
 import { BookmarkTransfer } from "./BookmarkTransfer";
 import { BookmarkForm } from "./BookmarkForm";
 import { FolderForm } from "./FolderForm";
@@ -16,7 +17,7 @@ import { PrivateSwitch } from "./privacy";
 import { useBookmarkPrivacy } from "./useBookmarkPrivacy";
 import { domainOf, folderPath, useBookmarkFolders, useBookmarkList, type Bookmark, type Folder } from "./useBookmarks";
 
-type Action = "move" | "delete";
+type Action = "move" | "delete" | "tag-add" | "tag-remove";
 type Editor = { kind: "bookmark"; row?: Bookmark } | { kind: "folder"; row?: Folder };
 
 export function BookmarkManagement() {
@@ -25,6 +26,8 @@ export function BookmarkManagement() {
   const [editor, setEditor] = useState<Editor>();
   const [selected, setSelected] = useState<Bookmark[]>([]);
   const [action, setAction] = useState<Action>();
+  const [actionTags, setActionTags] = useState<string[]>([]);
+  const tags = params.getAll("tag");
   const [target, setTarget] = useState("");
   const [confirmPublic, setConfirmPublic] = useState(false);
   const [working, setWorking] = useState(false);
@@ -40,7 +43,7 @@ export function BookmarkManagement() {
   const selectedId = params.get("selected");
   const hold = Boolean(editor || action || deleteFolder || selectedId || selected.length || working);
   const folders = useBookmarkFolders(hold);
-  const list = useBookmarkList(useSettled(query), folder, favorites, sort, offset, hold);
+  const list = useBookmarkList(useSettled(query), folder, favorites, sort, offset, hold, tags);
   const detail = useAsk<Bookmark | null>(`bookmark-detail:${privacy.epoch}:${selectedId}`, (signal) => selectedId
     ? api.GET("/api/bookmarks/{id}", { params: { path: { id: selectedId } }, headers: privacy.headers, signal })
     : Promise.resolve({ data: null, response: new Response() }), { every: false });
@@ -73,13 +76,13 @@ export function BookmarkManagement() {
       try {
         const options = { headers: privacy.headers, params: { path: { id: row.id }, ...guardedBy(versionOf(row.updated_at)) } };
         const result = action === "delete" ? await api.DELETE("/api/bookmarks/{id}", options)
-          : await api.PUT("/api/bookmarks/{id}", { ...options, body: { title: row.title, url: row.url, description: row.description, folder: target || null } });
+          : await api.PUT("/api/bookmarks/{id}", { ...options, body: { title: row.title, url: row.url, description: row.description, folder: action === "move" ? target || null : row.folder, tags: action === "tag-add" ? [...new Set([...(row.tags ?? []), ...actionTags])] : action === "tag-remove" ? (row.tags ?? []).filter((tag) => !actionTags.includes(tag)) : row.tags } });
         if (result.response.ok) succeeded.push(row.id);
         else { failed.push(row); reasons.push(`${row.title}: ${describe(result.error, result.response.status)}`); }
       } catch { failed.push(row); reasons.push(`${row.title}: The instance did not answer.`); }
     }
     if (action === "delete") setUndo(succeeded);
-    setMessage(`${succeeded.length} ${action === "delete" ? "moved to Trash" : "moved"}; ${failed.length} failed.`);
+    setMessage(`${succeeded.length} ${action === "delete" ? "moved to Trash" : action === "move" ? "moved" : "updated"}; ${failed.length} failed.`);
     setError(reasons.length ? reasons.join(" ") + " Refresh the selection before retrying a changed item." : undefined);
     setSelected(failed); setAction(undefined); setWorking(false); refresh();
   }
@@ -120,6 +123,8 @@ export function BookmarkManagement() {
       <select name="sort" aria-label="Sort bookmarks" className={selectClass} value={sort} onChange={(event) => filter("sort", event.target.value)}><option value="updated">Recently changed</option><option value="title">Title</option><option value="created">Recently added</option><option value="rank">Relevance</option></select>
       <label className="flex items-center gap-2 text-sm"><input name="favorites" type="checkbox" checked={favorites} onChange={(event) => filter("favorites", event.target.checked ? "true" : "")} /> Favorites only</label>
     </div>
+    <TagEditor label="Filter tags (all selected)" value={tags} onChange={(values) => { const next = new URLSearchParams(params); next.delete("tag"); next.delete("offset"); values.forEach((tag) => next.append("tag", tag)); setSelected([]); void setParams(next, { replace: true }); }} />
+    {(query || folder || favorites || tags.length > 0) && <Button variant="ghost" className="self-start" onClick={() => { setSelected([]); void setParams({}); }}>Reset filters</Button>}
     {currentFolder && <div className="flex flex-wrap items-center gap-2 text-sm"><span className="min-w-0 break-words">{folderPath(currentFolder, allFolders)}{currentFolder.effective_private ? currentFolder.private ? " · Private" : " · Private (inherited)" : ""}</span>
       <Button size="sm" variant="outline" onClick={() => setEditor({ kind: "folder", row: currentFolder })}>Edit folder</Button><Button size="sm" variant="outline" onClick={() => setDeleteFolder(currentFolder)}>Delete folder</Button></div>}
     <Refused>{error}</Refused>{message && <p role="status" className="text-sm">{message} {undo.length > 0 && <Button variant="outline" size="sm" disabled={working} onClick={() => void restore()}>Undo deletion</Button>} <Link className="underline" to="/trash">Open Trash</Link></p>}
@@ -129,6 +134,8 @@ export function BookmarkManagement() {
     <div className="flex flex-wrap items-center gap-2"><span className="text-sm" role="status">{selected.length} selected</span>
       <Button variant="outline" disabled={!selected.length || working} onClick={() => { setTarget(""); setConfirmPublic(false); setAction("move"); }}>Move selected</Button>
       <Button variant="outline" disabled={!selected.length || working} onClick={() => setAction("delete")}>Delete selected</Button>
+      <Button variant="outline" disabled={!selected.length || working} onClick={() => { setActionTags([]); setAction("tag-add"); }}>Add tags to selected</Button>
+      <Button variant="outline" disabled={!selected.length || working} onClick={() => { setActionTags([]); setAction("tag-remove"); }}>Remove tags from selected</Button>
       {selected.length > 0 && <Button variant="ghost" onClick={() => setSelected([])}>Clear selection</Button>}</div>
     {list.asked.at === "asking" && <Busy title="Reading bookmarks…" />}
     {list.asked.at === "failed" && <Failed why={list.asked.why} again={list.again} />}
@@ -140,7 +147,7 @@ export function BookmarkManagement() {
       </div>
       {rows.map((row) => <div key={row.id} role="row" className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 border-b p-3 last:border-b-0 md:grid-cols-[2rem_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_5rem_8rem_4rem]">
         <div role="cell"><input name={`select-${row.id}`} type="checkbox" aria-label={`Select ${row.title}`} checked={selected.some((item) => item.id === row.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current.filter((item) => item.id !== row.id), row] : current.filter((item) => item.id !== row.id))} /></div>
-        <div role="cell" className="min-w-0"><BookmarkLink id={row.id} url={row.url} className="block break-words font-medium hover:underline">{row.title}</BookmarkLink><span className="block truncate text-xs text-muted-foreground md:hidden">{domainOf(row.url)}{row.private && " · Private"}</span></div>
+        <div role="cell" className="min-w-0"><BookmarkLink id={row.id} url={row.url} className="block break-words font-medium hover:underline">{row.title}</BookmarkLink><div className="flex flex-wrap gap-1">{(row.tags ?? []).map((tag) => <span key={tag} className="max-w-full truncate rounded bg-secondary px-1 text-xs">{tag}</span>)}</div><span className="block truncate text-xs text-muted-foreground md:hidden">{domainOf(row.url)}{row.private && " · Private"}</span></div>
         <div role="cell" className="hidden min-w-0 md:block"><span title={row.url} className="block truncate text-sm">{domainOf(row.url)}</span><span className="block truncate text-xs text-muted-foreground">{row.url}</span></div>
         <div role="cell" className="hidden min-w-0 break-words text-xs md:block">{allFolders.find((item) => item.id === row.folder)?.name ?? "Unsorted"}{row.private && " · Private"}</div>
         <div role="cell" className="hidden md:block"><Button variant="ghost" size="sm" disabled={working} aria-label={`${row.favorite ? "Unpin" : "Pin"} ${row.title}`} onClick={() => void favorite(row)}>{row.favorite ? "★" : "☆"}</Button></div>
@@ -155,11 +162,12 @@ export function BookmarkManagement() {
       {editor?.kind === "folder" && <FolderForm initial={editor.row} folders={allFolders} saved={() => { closeEditor(); refresh(); }} cancel={closeEditor} />}
     </DialogContent></Dialog>
     <Dialog open={Boolean(action || deleteFolder)} onOpenChange={(open) => { if (!open && !working) { setAction(undefined); setDeleteFolder(undefined); } }}><DialogContent>
-      <DialogTitle>{deleteFolder ? "Delete folder and contents?" : action === "delete" ? `Delete ${selected.length} bookmarks?` : `Move ${selected.length} bookmarks`}</DialogTitle>
-      <DialogDescription>{action === "move" ? "Each change uses the selected version. Changed items will be left alone." : "Deleted contents go to Trash and can be restored during the recovery period."}</DialogDescription>
+      <DialogTitle>{deleteFolder ? "Delete folder and contents?" : action === "delete" ? `Delete ${selected.length} bookmarks?` : action === "move" ? `Move ${selected.length} bookmarks` : `Update tags on ${selected.length} bookmarks`}</DialogTitle>
+      <DialogDescription>{action !== "delete" && !deleteFolder ? "Each change uses the selected version. Changed items will be left alone." : "Deleted contents go to Trash and can be restored during the recovery period."}</DialogDescription>
       {action === "move" && <Field label="Destination folder"><select name="destination" className={selectClass} value={target} onChange={(event) => { setTarget(event.target.value); setConfirmPublic(false); }}><option value="">Unsorted</option>{allFolders.map((row) => <option key={row.id} value={row.id}>{row.effective_private ? "Private · " : ""}{folderPath(row, allFolders)}</option>)}</select></Field>}
+      {(action === "tag-add" || action === "tag-remove") && <TagEditor value={actionTags} onChange={setActionTags} />}
       {exposing && <label className="flex items-start gap-2 text-sm"><input name="confirm-public" type="checkbox" checked={confirmPublic} onChange={(event) => setConfirmPublic(event.target.checked)} /> I understand that these bookmarks may become visible outside private mode.</label>}
-      <Refused>{error}</Refused><Button disabled={working || Boolean(exposing && !confirmPublic)} onClick={() => void (deleteFolder ? removeFolder() : apply())}>{working ? "Working…" : "Confirm"}</Button>
+      <Refused>{error}</Refused><Button disabled={working || Boolean(exposing && !confirmPublic) || ((action === "tag-add" || action === "tag-remove") && actionTags.length === 0)} onClick={() => void (deleteFolder ? removeFolder() : apply())}>{working ? "Working…" : "Confirm"}</Button>
     </DialogContent></Dialog>
   </main>;
 }

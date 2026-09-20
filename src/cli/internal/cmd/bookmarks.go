@@ -21,7 +21,7 @@ func newBookmarks(g *globals) *cobra.Command {
 	root.AddCommand(bookmarkList(g, false), bookmarkList(g, true), bookmarkGet(g, false), bookmarkAdd(g), bookmarkEdit(g, false, false), bookmarkEdit(g, false, true), bookmarkRemove(g, false), bookmarkFavorite(g, true), bookmarkFavorite(g, false))
 	folders := &cobra.Command{Use: "folders", Short: "The saved-link folder tree; use IDs for parents."}
 	folders.AddCommand(bookmarkFolders(g), bookmarkGet(g, true), bookmarkFolderAdd(g), bookmarkEdit(g, true, false), bookmarkEdit(g, true, true), bookmarkRemove(g, true))
-	root.AddCommand(folders, bookmarkImport(g), bookmarkExport(g))
+	root.AddCommand(folders, bookmarkImport(g), bookmarkExport(g), bookmarkTags(g))
 	return root
 }
 
@@ -87,6 +87,7 @@ func folderPrint(g *globals, row api.BookmarkFolderResponse, onlyID bool) error 
 }
 func bookmarkList(g *globals, search bool) *cobra.Command {
 	var folder, query, sort string
+	var tags []string
 	var favorites bool
 	var limit, offset int32
 	command := &cobra.Command{Use: "ls", Aliases: []string{"list"}, Short: "List saved links; pages report next_offset in JSON.", Args: cobra.NoArgs}
@@ -112,7 +113,7 @@ func bookmarkList(g *globals, search bool) *cobra.Command {
 			return err
 		}
 		unsorted := folder == "unsorted"
-		result, _, err := bookmarkAnswer[api.BookmarksResponse](c.ListBookmarks(cmd.Context(), &api.ListBookmarksParams{Q: &query, Folder: parent, Favorites: &favorites, Unsorted: &unsorted, Sort: &sort, Limit: &limit, Offset: &offset}))
+		result, _, err := bookmarkAnswer[api.BookmarksResponse](c.ListBookmarks(cmd.Context(), &api.ListBookmarksParams{Q: &query, Folder: parent, Favorites: &favorites, Unsorted: &unsorted, Sort: &sort, Limit: &limit, Offset: &offset, Tag: &tags}))
 		if err != nil {
 			return err
 		}
@@ -129,6 +130,7 @@ func bookmarkList(g *globals, search bool) *cobra.Command {
 		}
 		return nil
 	}
+	command.Flags().StringArrayVar(&tags, "tag", nil, "required tag; repeat to require all selected tags")
 	command.Flags().StringVar(&folder, "folder", "", "folder ID including descendants, or unsorted")
 	command.Flags().StringVar(&query, "query", "", "words to search in saved text")
 	command.Flags().StringVar(&sort, "sort", "rank", "rank, title, updated or created")
@@ -163,6 +165,7 @@ func bookmarkGet(g *globals, folder bool) *cobra.Command {
 }
 func bookmarkAdd(g *globals) *cobra.Command {
 	var title, description, folder string
+	var tags []string
 	command := &cobra.Command{Use: "add URL", Short: "Save a link; stdout is its stable ID.", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		parent, err := bookmarkID(folder)
 		if err != nil {
@@ -180,12 +183,13 @@ func bookmarkAdd(g *globals) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		row, _, err := bookmarkAnswer[api.BookmarkResponse](c.CreateBookmark(cmd.Context(), nil, api.BookmarkRequest{Title: &title, Url: &address, Description: &description, Folder: parent}))
+		row, _, err := bookmarkAnswer[api.BookmarkResponse](c.CreateBookmark(cmd.Context(), nil, api.BookmarkRequest{Title: &title, Url: &address, Description: &description, Folder: parent, Tags: &tags}))
 		if err != nil {
 			return err
 		}
 		return bookmarkPrint(g, row, true)
 	}}
+	command.Flags().StringArrayVar(&tags, "tag", nil, "tag to assign; repeat for more tags")
 	command.Flags().StringVar(&title, "title", "", "title; defaults to the URL domain")
 	command.Flags().StringVar(&description, "description", "", "plain-text description")
 	command.Flags().StringVar(&folder, "folder", "", "destination folder ID; unsorted by default")
@@ -246,6 +250,8 @@ func bookmarkFolders(g *globals) *cobra.Command {
 }
 func bookmarkEdit(g *globals, folder, move bool) *cobra.Command {
 	var title, address, description, parent, held string
+	var tags []string
+	var clearTags bool
 	var private bool
 	command := &cobra.Command{Use: "edit ID", Short: "Change supplied fields while holding the read version.", Args: cobra.ExactArgs(1)}
 	if move {
@@ -302,6 +308,9 @@ func bookmarkEdit(g *globals, folder, move bool) *cobra.Command {
 		if held == "" {
 			held = version
 		}
+		if clearTags || cmd.Flags().Changed("tag") {
+			row.Tags = append([]string{}, tags...)
+		}
 		if cmd.Flags().Changed("title") {
 			row.Title = title
 		}
@@ -314,7 +323,7 @@ func bookmarkEdit(g *globals, folder, move bool) *cobra.Command {
 		if cmd.Flags().Changed("folder") {
 			row.Folder = target
 		}
-		changed, _, err := bookmarkAnswer[api.BookmarkResponse](c.ChangeBookmark(cmd.Context(), id, &api.ChangeBookmarkParams{IfMatch: held}, api.BookmarkRequest{Title: &row.Title, Url: &row.Url, Description: &row.Description, Folder: row.Folder}))
+		changed, _, err := bookmarkAnswer[api.BookmarkResponse](c.ChangeBookmark(cmd.Context(), id, &api.ChangeBookmarkParams{IfMatch: held}, api.BookmarkRequest{Title: &row.Title, Url: &row.Url, Description: &row.Description, Folder: row.Folder, Tags: &row.Tags}))
 		if err != nil {
 			return err
 		}
@@ -325,6 +334,8 @@ func bookmarkEdit(g *globals, folder, move bool) *cobra.Command {
 		command.Flags().StringVar(&parent, "parent", "", "new parent ID or root")
 		command.Flags().BoolVar(&private, "private", false, "explicit private setting; inherited privacy cannot be overridden")
 	} else {
+		command.Flags().StringArrayVar(&tags, "tag", nil, "replace tags with this set; repeat for more tags")
+		command.Flags().BoolVar(&clearTags, "clear-tags", false, "remove all tags unless new --tag values are supplied")
 		command.Flags().StringVar(&title, "title", "", "new title")
 		command.Flags().StringVar(&address, "link", "", "new HTTP(S) URL")
 		command.Flags().StringVar(&description, "description", "", "new description, including empty")
@@ -403,4 +414,24 @@ func bookmarkFavorite(g *globals, favorite bool) *cobra.Command {
 	command.Flags().StringVar(&held, "if-match", "", "expected ETag; read first otherwise")
 	command.Flags().StringVar(&after, "after", "", "visible favorite ID; first when omitted")
 	return command
+}
+
+func bookmarkTags(g *globals) *cobra.Command {
+	return &cobra.Command{Use: "tags", Short: "Tag suggestions and counts from currently visible bookmarks.", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		_, c, err := g.asSomebody()
+		if err != nil {
+			return err
+		}
+		tags, _, err := bookmarkAnswer[[]api.BookmarkTagCount](c.ListBookmarkTags(cmd.Context(), nil))
+		if err != nil {
+			return err
+		}
+		if g.json {
+			return render.JSON(g.out(), tags)
+		}
+		for _, tag := range tags {
+			fmt.Fprintf(g.out(), "%s\t%d\n", oneLine(tag.Name), tag.Count)
+		}
+		return nil
+	}}
 }

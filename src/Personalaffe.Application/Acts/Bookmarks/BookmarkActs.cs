@@ -15,7 +15,7 @@ public sealed partial class BookmarkActs(
     IBookmarks store, IBookmarkWork work, IBookmarkActivity activity, IBookmarkHtml htmlParser, ReachingAnApplication reaching,
     ICallerIdentity caller, RetentionSettings retention, TimeProvider clock)
 {
-    public Task<SavedBookmarks> ListAsync(int? offset, int? limit, CancellationToken token, string? q = null, Guid? folder = null, bool? favorites = null, bool? unsorted = null, string? sort = null) => Read(async ct =>
+    public Task<SavedBookmarks> ListAsync(int? offset, int? limit, CancellationToken token, string? q = null, Guid? folder = null, bool? favorites = null, bool? unsorted = null, string? sort = null, string[]? tags = null) => Read(async ct =>
     {
         var skip = offset ?? 0;
         var take = limit ?? 100;
@@ -27,7 +27,7 @@ public sealed partial class BookmarkActs(
             throw Refusal.Validation("sort", "Use created, updated, title or rank.");
         if (folder is not null && unsorted == true) throw Refusal.Validation("folder", "Choose a folder or Unsorted.");
         await Parent(folder, ct);
-        var found = await store.ListAsync(skip, take + 1, ct, new BookmarkFilter(needle, folder, favorites == true, unsorted == true, order));
+        var found = await store.ListAsync(skip, take + 1, ct, new BookmarkFilter(needle, folder, favorites == true, unsorted == true, order, BookmarkTags.Of(tags)));
         var rows = new List<SavedBookmark>();
         foreach (var row in found.Take(take)) rows.Add(await Of(row, ct));
         return new SavedBookmarks(rows, found.Count > take ? skip + take : null);
@@ -45,22 +45,24 @@ public sealed partial class BookmarkActs(
         return new SavedBookmarkFolders(rows, found.Count > take ? skip + take : null);
     }, token);
 
+    public Task<IReadOnlyList<BookmarkTagCount>> TagsAsync(CancellationToken token) => Read(ct => store.TagsAsync(ct), token);
+
     public Task<SavedBookmark> ReadAsync(Guid id, CancellationToken token) => Read(async ct => await Of(await Find(id, ct), ct), token);
     public Task<SavedBookmarkFolder> ReadFolderAsync(Guid id, CancellationToken token) => Read(async ct => await Of(await Folder(id, ct), ct), token);
 
-    public Task<SavedBookmark> CreateAsync(string? title, string? url, string? description, Guid? folder, CancellationToken token) => Write(async ct =>
+    public Task<SavedBookmark> CreateAsync(string? title, string? url, string? description, Guid? folder, CancellationToken token, string[]? tags = null) => Write(async ct =>
     {
         await Parent(folder, ct);
-        var row = Bookmark.Make(title, url, description, folder, clock.GetUtcNow());
+        var row = Bookmark.Make(title, url, description, folder, clock.GetUtcNow(), tags);
         store.Add(row); await store.SaveAsync(ct);
         return await Of(row, ct);
     }, token);
 
-    public Task<SavedBookmark> ChangeAsync(Guid id, string? title, string? url, string? description, Guid? folder, ContentVersion held, CancellationToken token) => Write(async ct =>
+    public Task<SavedBookmark> ChangeAsync(Guid id, string? title, string? url, string? description, Guid? folder, ContentVersion held, CancellationToken token, string[]? tags = null) => Write(async ct =>
     {
         var row = await Find(id, ct); Current(row.Version, held);
         await Parent(folder, ct);
-        if (row.Change(title, url, description, folder, clock.GetUtcNow())) await store.SaveAsync(ct);
+        if (row.Change(title, url, description, folder, clock.GetUtcNow(), tags)) await store.SaveAsync(ct);
         return await Of(row, ct);
     }, token);
 

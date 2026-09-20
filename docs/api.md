@@ -1603,3 +1603,18 @@ smaller subtree if an export exceeds 5,000 entries or 2 MiB.
 Browser HTML preserves titles, URLs, descriptions and folder hierarchy. It loses
 private markings, favorites, tags and reading status, is unencrypted, and does
 not replace a backup. Reimport private exports into a private destination.
+
+### Bookmark tags
+
+Bookmark responses include `tags`; create/edit accepts an optional string array.
+Omitting it on an edit preserves the current set; `[]` removes every tag. Names
+are trimmed and lowercased, duplicates ignore case, and the stored order is
+stable. A bookmark or filter accepts at most 32 names of 1–64 characters without
+control characters. Blank names are refused. Existing rows start with no tags.
+Tag edits use the bookmark's ordinary version and survive Trash/restore.
+
+`GET /api/bookmarks/tags` returns `{name,count}` suggestions from visible live
+bookmarks only. `GET /api/bookmarks?tag=work&tag=research` requires both tags and
+combines with search, folder, unsorted and favorite filters before pagination.
+Tag names also participate in local and global word-prefix search; changes are
+visible immediately. Tags do not change private visibility or favorite order.

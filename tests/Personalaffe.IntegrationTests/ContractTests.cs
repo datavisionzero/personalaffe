@@ -55,6 +55,7 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/bookmarks/folders/{id}",
                 "/api/bookmarks/import",
                 "/api/bookmarks/import/preview",
+                "/api/bookmarks/tags",
                 "/api/bookmarks/{id}",
                 "/api/bookmarks/{id}/favorite",
                 "/api/bookmarks/{id}/open",

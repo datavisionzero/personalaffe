@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { LockKeyholeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -6,12 +7,17 @@ import { Context, useBookmarkPrivacy, type Privacy } from "./useBookmarkPrivacy"
 
 /** Memory belongs to this mounted session in this tab; never persisted or broadcast. */
 export function BookmarkPrivacyProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [state, setState] = useState({ enabled: false, epoch: 0 });
   const value = useMemo<Privacy>(() => ({
     ...state,
     headers: state.enabled ? { "Personalaffe-Private": "true" } : {} as Record<string, string>,
-    toggle: () => setState((current) => ({ enabled: !current.enabled, epoch: current.epoch + 1 })),
-  }), [state]);
+    toggle: () => {
+      if (state.enabled && location.pathname.startsWith("/bookmarks")) void navigate(location.pathname, { replace: true });
+      setState((current) => ({ enabled: !current.enabled, epoch: current.epoch + 1 }));
+    },
+  }), [state, navigate, location.pathname]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 

@@ -5,13 +5,13 @@ using Personalaffe.Domain;
 namespace Personalaffe.Api.Http;
 
 public sealed record BookmarkResponse(Guid Id, string Title, string Url, string Description, Guid? Folder,
-    bool Private, bool Favorite, double? FavoritePosition, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
+    bool Private, bool Favorite, double? FavoritePosition, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string[] Tags)
 {
     public static BookmarkResponse Of(SavedBookmark saved)
     {
         var row = saved.Content;
         return new(row.Id, row.Title, row.Url, row.Description, row.FolderId, saved.Private,
-            row.FavoritePosition.HasValue, row.FavoritePosition, row.CreatedAt, row.UpdatedAt);
+            row.FavoritePosition.HasValue, row.FavoritePosition, row.CreatedAt, row.UpdatedAt, row.Tags);
     }
 }
 public sealed record BookmarkFolderResponse(Guid Id, string Name, Guid? Parent, bool Private, bool EffectivePrivate,
@@ -25,7 +25,7 @@ public sealed record BookmarkFolderResponse(Guid Id, string Name, Guid? Parent, 
 }
 public sealed record BookmarksResponse(IReadOnlyList<BookmarkResponse> Items, int? NextOffset);
 public sealed record BookmarkFoldersResponse(IReadOnlyList<BookmarkFolderResponse> Items, int? NextOffset);
-public sealed record BookmarkRequest(string? Title, string? Url, string? Description, Guid? Folder);
+public sealed record BookmarkRequest(string? Title, string? Url, string? Description, Guid? Folder, string[]? Tags = null);
 public sealed record BookmarkFolderRequest(string? Name, Guid? Parent, bool Private);
 
 public sealed record FavoriteBookmarkRequest(bool Favorite, Guid? After);
@@ -47,11 +47,13 @@ public static class BookmarkEndpoints
         endpoints.MapGet("/bookmarks/export", async (Guid? folder, [FromQuery(Name = "include_private")] bool? includePrivate, BookmarkActs act, CancellationToken token) =>
             Results.Ok(await act.ExportAsync(folder, includePrivate == true, token)))
             .WithName("ExportBookmarks").BookmarkErrors().Produces<BookmarkExport>();
-        endpoints.MapGet("/bookmarks", async (int? offset, int? limit, string? q, Guid? folder, bool? favorites, bool? unsorted, string? sort, BookmarkActs act, CancellationToken token) =>
+        endpoints.MapGet("/bookmarks", async (int? offset, int? limit, string? q, Guid? folder, bool? favorites, bool? unsorted, string? sort, [FromQuery(Name = "tag")] string[]? tags, BookmarkActs act, CancellationToken token) =>
         {
-            var rows = await act.ListAsync(offset, limit, token, q, folder, favorites, unsorted, sort);
+            var rows = await act.ListAsync(offset, limit, token, q, folder, favorites, unsorted, sort, tags);
             return Results.Ok(new BookmarksResponse([.. rows.Items.Select(BookmarkResponse.Of)], rows.NextOffset));
         }).WithName("ListBookmarks").BookmarkErrors().Produces<BookmarksResponse>();
+        endpoints.MapGet("/bookmarks/tags", async (BookmarkActs act, CancellationToken token) =>
+            Results.Ok(await act.TagsAsync(token))).WithName("ListBookmarkTags").BookmarkErrors().Produces<IReadOnlyList<Personalaffe.Application.Ports.BookmarkTagCount>>();
         endpoints.MapGet("/bookmarks/folders", async (int? offset, int? limit, BookmarkActs act, CancellationToken token) =>
         {
             var rows = await act.FoldersAsync(offset, limit, token);
@@ -66,13 +68,13 @@ public static class BookmarkEndpoints
         }).WithName("ReadBookmark").BookmarkErrors().Produces<BookmarkResponse>();
         endpoints.MapPost("/bookmarks", async (BookmarkRequest body, HttpResponse response, BookmarkActs act, CancellationToken token) =>
         {
-            var row = await act.CreateAsync(body.Title, body.Url, body.Description, body.Folder, token);
+            var row = await act.CreateAsync(body.Title, body.Url, body.Description, body.Folder, token, body.Tags);
             EntityTags.Write(response, row.Content.Version);
             return Results.Created($"/api/bookmarks/{row.Content.Id}", BookmarkResponse.Of(row));
         }).WithName("CreateBookmark").BookmarkErrors().Produces<BookmarkResponse>(StatusCodes.Status201Created);
         endpoints.MapPut("/bookmarks/{id:guid}", async (Guid id, BookmarkRequest body, HttpRequest request, HttpResponse response, BookmarkActs act, CancellationToken token) =>
         {
-            var row = await act.ChangeAsync(id, body.Title, body.Url, body.Description, body.Folder, EntityTags.Required(request), token);
+            var row = await act.ChangeAsync(id, body.Title, body.Url, body.Description, body.Folder, EntityTags.Required(request), token, body.Tags);
             EntityTags.Write(response, row.Content.Version);
             return Results.Ok(BookmarkResponse.Of(row));
         }).WithName("ChangeBookmark").BookmarkErrors().Produces<BookmarkResponse>().Guarded();

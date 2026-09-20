@@ -166,3 +166,39 @@ func TestBookmarkImportRequiresReviewedConfirmationAndExportHasSeparatePrivateOp
 		t.Fatal("private export accepted without context")
 	}
 }
+
+func TestBookmarkTagsUseRepeatedFiltersAndExplicitReplacement(t *testing.T) {
+	var written map[string]any
+	instance := serving(t, "9.9.9", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", `"current"`)
+		if r.Method == "PUT" {
+			if err := json.NewDecoder(r.Body).Decode(&written); err != nil {
+				t.Error(err)
+			}
+		}
+		if r.URL.Path == "/api/bookmarks" {
+			answering(`{"items":[],"next_offset":null}`)(w, r)
+		} else {
+			answering(bookmarkJSON)(w, r)
+		}
+	})
+	env := environment(t, map[string]string{config.EnvURL: instance.URL, config.EnvToken: secret})
+	if got := run(t, env, "bookmarks", "ls", "--tag", "work", "--tag", "research"); got.code != exit.OK {
+		t.Fatal(got)
+	}
+	if values := instance.Requests[0].URL.Query()["tag"]; len(values) != 2 || values[0] != "work" || values[1] != "research" {
+		t.Fatalf("wrong all-tag filter: %v", values)
+	}
+	if got := run(t, env, "bookmarks", "edit", bookmarkID, "--tag", "work", "--tag", "research"); got.code != exit.OK {
+		t.Fatal(got)
+	}
+	if len(written["tags"].([]any)) != 2 {
+		t.Fatalf("tags not replaced: %v", written)
+	}
+	if got := run(t, env, "bookmarks", "edit", bookmarkID, "--clear-tags"); got.code != exit.OK {
+		t.Fatal(got)
+	}
+	if len(written["tags"].([]any)) != 0 {
+		t.Fatalf("tags not cleared: %v", written)
+	}
+}

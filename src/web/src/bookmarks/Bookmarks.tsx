@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Refused, selectClass } from "@/shared/Form";
 import { Busy, Failed } from "@/shell/States";
 import { useSettled } from "@/search/useFindings";
+import { TagEditor } from "./TagEditor";
 import { BookmarkManagement } from "./BookmarkManagement";
 import { BookmarkForm } from "./BookmarkForm";
 import { BookmarkLink } from "./BookmarkLink";
@@ -29,11 +30,13 @@ function Dashboard() {
   const [working, setWorking] = useState(false);
   const query = params.get("q") ?? "";
   const folder = params.get("folder") ?? "";
+  const tags = params.getAll("tag");
+  const favorites = params.get("favorites") === "true";
   const offset = Math.max(0, Number(params.get("offset")) || 0);
   const dashboard = useBookmarkDashboard(adding);
   const folders = useBookmarkFolders(adding);
-  const list = useBookmarkList(useSettled(query), folder, false, "rank", offset, adding);
-  const filtered = Boolean(query || folder);
+  const list = useBookmarkList(useSettled(query), folder, favorites, "rank", offset, adding, tags);
+  const filtered = Boolean(query || folder || tags.length || favorites);
   const allFolders = folders.asked.at === "known" ? folders.asked.value.items : [];
   function filter(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -78,6 +81,7 @@ function Dashboard() {
                 onClick={() => void favorite(row, !row.favorite)}><StarIcon className={row.favorite ? "fill-current" : ""} /></Button>
             </div>
             <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+              {(row.tags ?? []).slice(0, 2).map((tag) => <span key={tag} className="max-w-20 truncate rounded bg-secondary px-1">{tag}</span>)}
               {row.private && <LockKeyholeIcon aria-label="Private" className="size-3 shrink-0" />}
               <Link className="mr-auto rounded-sm underline-offset-4 hover:underline" to={`/bookmarks/manage?selected=${row.id}`}>Edit</Link>
               {reorder && <>
@@ -104,6 +108,9 @@ function Dashboard() {
         {allFolders.map((row) => <option key={row.id} value={row.id}>{row.effective_private ? "Private · " : ""}{folderPath(row, allFolders)}</option>)}
       </select>
     </div>
+    <label className="flex items-center gap-2 text-sm"><input name="favorites" type="checkbox" checked={favorites} onChange={(event) => filter("favorites", event.target.checked ? "true" : "")} /> Favorites only</label>
+    <TagEditor label="Filter tags (all selected)" value={tags} onChange={(values) => { const next = new URLSearchParams(params); next.delete("tag"); next.delete("offset"); values.forEach((tag) => next.append("tag", tag)); void setParams(next, { replace: true }); }} />
+    {filtered && <Button variant="ghost" className="self-start" onClick={() => void setParams({})}>Reset filters</Button>}
     <Refused>{error}</Refused>
     {(dashboard.unanswered || folders.unanswered || list.unanswered) && <p role="status" className="text-muted-foreground text-sm">The latest refresh failed. Displayed links may have changed.</p>}
     {folders.asked.at === "failed" && <Failed why={folders.asked.why} again={folders.again} />}

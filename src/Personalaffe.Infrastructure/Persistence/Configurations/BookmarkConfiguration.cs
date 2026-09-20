@@ -14,6 +14,8 @@ public sealed class BookmarkConfiguration : IEntityTypeConfiguration<Bookmark>
         builder.Property(row => row.Title).HasColumnName("title").HasMaxLength(BookmarkText.MaxTitleLength).IsRequired();
         builder.Property(row => row.Url).HasColumnName("url").HasMaxLength(BookmarkText.MaxUrlLength).IsRequired();
         builder.Property(row => row.Description).HasColumnName("description").IsRequired();
+        builder.Property(row => row.Tags).HasColumnName("tags").HasColumnType("text[]").HasDefaultValueSql("ARRAY[]::text[]").IsRequired();
+        builder.HasIndex(row => row.Tags).HasMethod("gin");
         builder.Property(row => row.FolderId).HasColumnName("folder_id");
         builder.Property(row => row.FavoritePosition).HasColumnName("favorite_position");
         builder.Property(row => row.PrivateOrigin).HasColumnName("private_origin");

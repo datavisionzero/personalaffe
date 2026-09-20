@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, Refused, selectClass } from "@/shared/Form";
 import { useBookmarkPrivacy } from "./useBookmarkPrivacy";
+import { TagEditor } from "./TagEditor";
 import { domainOf, folderPath, type Bookmark, type Folder } from "./useBookmarks";
 
 export function BookmarkForm({ initial, folders, defaultFolder, saved, cancel }: {
@@ -15,6 +16,7 @@ export function BookmarkForm({ initial, folders, defaultFolder, saved, cancel }:
   const [suggestTitle, setSuggestTitle] = useState(!initial?.title);
   const [description, setDescription] = useState(initial?.description ?? "");
   const [folder, setFolder] = useState(initial?.folder ?? defaultFolder ?? "");
+  const [tags, setTags] = useState(initial?.tags ?? []);
   const [confirmed, setConfirmed] = useState(false);
   const exposing = initial?.private && !folders.find((row) => row.id === folder)?.effective_private;
   const [working, setWorking] = useState(false);
@@ -24,7 +26,7 @@ export function BookmarkForm({ initial, folders, defaultFolder, saved, cancel }:
     event.preventDefault();
     if (exposing && !confirmed) return;
     setWorking(true); setError(undefined);
-    const body = { title: title.trim() || domainOf(url), url, description, folder: folder || null };
+    const body = { title: title.trim() || domainOf(url), url, description, folder: folder || null, tags };
     try {
       const answer = initial
         ? await api.PUT("/api/bookmarks/{id}", { params: { path: { id: initial.id }, ...guardedBy(versionOf(initial.updated_at)) }, body, headers: privacy.headers })
@@ -48,6 +50,7 @@ export function BookmarkForm({ initial, folders, defaultFolder, saved, cancel }:
       <option value="">Unsorted</option>
       {folders.map((row) => <option key={row.id} value={row.id}>{row.effective_private ? "Private · " : ""}{folderPath(row, folders)}</option>)}
     </select></Field>
+    <TagEditor value={tags} onChange={setTags} />
     {exposing && <label className="flex items-start gap-2 rounded-lg border p-3 text-sm"><input name="confirm-public" type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I understand that moving this bookmark may make it visible outside private mode.</label>}
     <Refused>{error}</Refused>
     <div className="flex justify-end gap-2">

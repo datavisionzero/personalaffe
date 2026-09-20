@@ -943,3 +943,10 @@ requires both `--include-private` and `--export-private`; otherwise the export
 contains public entries only. The file remains unencrypted and does not retain
 private markings, favorites, tags or reading status. Transfer limits are listed
 in `pea bookmarks import --help` and `docs/api.md`.
+
+Tags use repeated options: `pea bookmarks add URL --tag work --tag research`.
+On `edit`, supplied `--tag` values replace the set; `--clear-tags` removes it.
+Leaving both options out preserves existing tags. On `ls` and `search`, repeated
+`--tag` options require all names and combine with other filters.
+`pea bookmarks tags` prints names and counts from visible bookmarks only;
+`--include-private` follows the same request-local rules as other commands.
