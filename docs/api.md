@@ -1505,3 +1505,12 @@ of HTML it has to recognise.
 The optional `permissions.bookmarks` field defaults to `none` when omitted.
 Existing agent credentials gain no access when the database is upgraded; the
 owner can explicitly grant `read` or `read_write` as for every other application.
+
+### Private bookmark request context
+
+Send `Personalaffe-Private: true` to include private bookmarks for that request.
+Only that exact value enables the context; it does not grant application access.
+Omission leaves private folders, descendants and retained private origins hidden,
+including when reading deleted records. The context is never saved in a session
+or token. Filtering happens before counting, sorting and pagination. All `/api`
+responses carry `Cache-Control: private, no-store`, including error responses.

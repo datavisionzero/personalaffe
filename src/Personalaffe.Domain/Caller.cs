@@ -49,6 +49,9 @@ public sealed record Caller
     /// </summary>
     public required Permissions Permissions { get; init; }
 
+    /// <summary>Explicit visibility context for this request only; never a permission grant.</summary>
+    public bool PrivateBookmarks { get; init; }
+
     public bool IsOwner => Kind == CallerKind.Owner;
 
     /// <summary>The owner, in a browser.</summary>

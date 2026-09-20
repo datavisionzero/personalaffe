@@ -61,6 +61,7 @@ public static class InfrastructureServices
         services.AddScoped<IScratchpadEntries, ScratchpadEntries>();
         services.AddScoped<IStoredFiles, StoredFiles>();
 
+        services.AddScoped<IBookmarkWork, BookmarkWork>();
         services.AddScoped<IPages, Pages>();
         services.AddScoped<ITasks, Persistence.Tasks>();
 

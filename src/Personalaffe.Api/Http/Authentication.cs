@@ -107,6 +107,11 @@ public sealed class DoorHandler(
             return AuthenticateResult.Fail("The presented credential admits nobody.");
         }
 
+        caller = caller with
+        {
+            PrivateBookmarks = Request.Headers["Personalaffe-Private"].Count == 1
+                && Request.Headers["Personalaffe-Private"][0] == "true",
+        };
         Context.Features.Set(caller);
 
         return AuthenticateResult.Success(new AuthenticationTicket(

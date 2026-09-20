@@ -61,7 +61,7 @@ func (g *globals) dashboard(ctx context.Context) error {
 		return err
 	}
 
-	resp, err := c.ReadDashboardWithResponse(ctx)
+	resp, err := c.ReadDashboardWithResponse(ctx, nil)
 	if err != nil {
 		return client.Transport(err)
 	}
