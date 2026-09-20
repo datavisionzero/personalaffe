@@ -15,11 +15,14 @@ export function BookmarkForm({ initial, folders, defaultFolder, saved, cancel }:
   const [suggestTitle, setSuggestTitle] = useState(!initial?.title);
   const [description, setDescription] = useState(initial?.description ?? "");
   const [folder, setFolder] = useState(initial?.folder ?? defaultFolder ?? "");
+  const [confirmed, setConfirmed] = useState(false);
+  const exposing = initial?.private && !folders.find((row) => row.id === folder)?.effective_private;
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string>();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (exposing && !confirmed) return;
     setWorking(true); setError(undefined);
     const body = { title: title.trim() || domainOf(url), url, description, folder: folder || null };
     try {
@@ -41,14 +44,15 @@ export function BookmarkForm({ initial, folders, defaultFolder, saved, cancel }:
       <Input name="title" value={title} onChange={(event) => { setSuggestTitle(false); setTitle(event.target.value); }} maxLength={200} />
     </Field>
     <Field label="Description"><textarea name="description" className="min-h-24 w-full rounded-lg border border-input bg-transparent p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring" value={description} onChange={(event) => setDescription(event.target.value)} rows={3} /></Field>
-    <Field label="Folder"><select name="folder" className={selectClass} value={folder} onChange={(event) => setFolder(event.target.value)}>
+    <Field label="Folder"><select name="folder" className={selectClass} value={folder} onChange={(event) => { setFolder(event.target.value); setConfirmed(false); }}>
       <option value="">Unsorted</option>
       {folders.map((row) => <option key={row.id} value={row.id}>{row.effective_private ? "Private · " : ""}{folderPath(row, folders)}</option>)}
     </select></Field>
+    {exposing && <label className="flex items-start gap-2 rounded-lg border p-3 text-sm"><input name="confirm-public" type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> I understand that moving this bookmark may make it visible outside private mode.</label>}
     <Refused>{error}</Refused>
     <div className="flex justify-end gap-2">
       <Button type="button" variant="outline" onClick={cancel}>Cancel</Button>
-      <Button type="submit" disabled={working}>{working ? "Saving…" : initial ? "Save changes" : "Add bookmark"}</Button>
+      <Button type="submit" disabled={working || Boolean(exposing && !confirmed)}>{working ? "Saving…" : initial ? "Save changes" : "Add bookmark"}</Button>
     </div>
   </form>;
 }

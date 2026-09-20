@@ -50,3 +50,46 @@ test("private mode clears private cards and resets on reload at phone width", as
   await expect(page.getByRole("button", { name: "Private mode off", exact: true })).toBeVisible();
   await expect(page.getByText(title, { exact: true })).toHaveCount(0);
 });
+
+test("management preserves private inheritance, checks stale edits, and restores deletions", async ({ page }) => {
+  await signedIn(page); await switchApplication(page, "bookmarks", true);
+  const headers = { "X-Personalaffe-CSRF": "1", Origin: new URL(page.url()).origin, "Personalaffe-Private": "true" };
+  const parent = await (await page.request.post("/api/bookmarks/folders", { headers, data: { name: `Private tree ${Date.now()}`, parent: null, private: true } })).json();
+  const child = await (await page.request.post("/api/bookmarks/folders", { headers, data: { name: "Inherited", parent: parent.id, private: false } })).json();
+  const title = `Managed link ${Date.now()}`;
+  const create = await page.request.post("/api/bookmarks", { headers, data: { title, url: "https://example.com/" + "long-path".repeat(60), description: "", folder: child.id } });
+  expect(create.ok()).toBeTruthy(); const bookmark = await create.json();
+  await page.goto("/bookmarks/manage");
+  await page.getByRole("button", { name: "Private mode off", exact: true }).click();
+  await page.getByLabel("Bookmark folder", { exact: true }).selectOption(child.id);
+  await expect(page.getByText(/Private \(inherited\)/)).toBeVisible();
+  await page.getByRole("button", { name: `Edit ${title}`, exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Title", { exact: true }).fill("My current edit");
+  const other = await page.request.put(`/api/bookmarks/${bookmark.id}`, { headers: { ...headers, "If-Match": create.headers()["etag"] }, data: { title: "Changed elsewhere", url: bookmark.url, description: "", folder: child.id } });
+  expect(other.ok()).toBeTruthy();
+  await dialog.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(dialog.getByLabel("Title", { exact: true })).toHaveValue("My current edit");
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  // Navigation refreshes the selection while retaining tab-local private mode.
+  await page.getByRole("button", { name: "Private mode on", exact: true }).last().click();
+  await page.getByRole("button", { name: "Private mode off", exact: true }).click();
+  await page.getByLabel("Select Changed elsewhere", { exact: true }).check();
+  await page.getByRole("button", { name: "Move selected", exact: true }).click();
+  const move = page.getByRole("dialog");
+  await expect(move.getByRole("button", { name: "Confirm", exact: true })).toBeDisabled();
+  await move.getByRole("checkbox", { name: /outside private mode/ }).check();
+  await move.getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect(page.getByText(/1 moved; 0 failed/)).toBeVisible();
+  await page.getByLabel("Bookmark folder", { exact: true }).selectOption("unsorted");
+  await page.getByLabel("Select Changed elsewhere", { exact: true }).check();
+  await page.getByRole("button", { name: "Delete selected", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect(page.getByText(/1 moved to Trash; 0 failed/)).toBeVisible();
+  await page.getByRole("button", { name: "Undo deletion", exact: true }).click();
+  await expect(page.getByText(/1 restored; 0 could not/)).toBeVisible();
+  await page.setViewportSize({ width: 360, height: 800 });
+  await expect(page.getByRole("button", { name: "Edit Changed elsewhere", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+});

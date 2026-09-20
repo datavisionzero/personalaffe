@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 import { ArrowLeftIcon, ArrowRightIcon, LockKeyholeIcon, PlusIcon, StarIcon } from "lucide-react";
 import { api, describe, guardedBy, versionOf } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Refused, selectClass } from "@/shared/Form";
 import { Busy, Failed } from "@/shell/States";
 import { useSettled } from "@/search/useFindings";
+import { BookmarkManagement } from "./BookmarkManagement";
 import { BookmarkForm } from "./BookmarkForm";
 import { BookmarkLink } from "./BookmarkLink";
 import { PrivateSwitch } from "./privacy";
@@ -16,7 +17,8 @@ import { domainOf, folderPath, useBookmarkDashboard, useBookmarkFolders, useBook
 
 export function Bookmarks() {
   const privacy = useBookmarkPrivacy();
-  return <Dashboard key={privacy.epoch} />;
+  const location = useLocation();
+  return location.pathname.endsWith("/manage") ? <BookmarkManagement key={privacy.epoch} /> : <Dashboard key={privacy.epoch} />;
 }
 
 function Dashboard() {
