@@ -1,3 +1,4 @@
+import { useBookmarkPrivacy } from "@/bookmarks/useBookmarkPrivacy";
 import { useState } from "react";
 
 import { api, guardedBy, versionOf, type Schemas } from "@/api/client";
@@ -23,11 +24,12 @@ import { Refused } from "@/shared/Form";
  * moved.
  */
 export function Trash() {
+  const privacy = useBookmarkPrivacy();
   const [refused, setRefused] = useState<string>();
   const [working, setWorking] = useState<string>();
 
-  const { asked, again, refresh, unanswered } = useAsk("/api/trash", (signal) =>
-    api.GET("/api/trash", { signal }),
+  const { asked, again, refresh, unanswered } = useAsk(`/api/trash:${privacy.epoch}`, (signal) =>
+    api.GET("/api/trash", { signal, headers: privacy.headers }),
   );
 
   async function restore(entry: Schemas["TrashEntryResponse"]) {
@@ -36,6 +38,7 @@ export function Trash() {
 
     try {
       const answer = await api.POST("/api/trash/{application}/{id}/restore", {
+        headers: privacy.headers,
         params: {
           path: { application: entry.application, id: entry.id },
           ...guardedBy(versionOf(entry.updated_at)),

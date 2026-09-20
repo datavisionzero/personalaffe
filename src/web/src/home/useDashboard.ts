@@ -1,3 +1,4 @@
+import { useBookmarkPrivacy } from "@/bookmarks/useBookmarkPrivacy";
 import { api, type Schemas } from "@/api/client";
 import { useAsk, type Asked } from "@/shared/ask";
 
@@ -23,8 +24,9 @@ export function useDashboard(): {
   again: () => void;
   unanswered: boolean;
 } {
-  const { asked, again, unanswered } = useAsk("/api/dashboard", (signal) =>
-    api.GET("/api/dashboard", { signal }),
+  const privacy = useBookmarkPrivacy();
+  const { asked, again, unanswered } = useAsk(`/api/dashboard:${privacy.epoch}`, (signal) =>
+    api.GET("/api/dashboard", { signal, headers: privacy.headers }),
   );
 
   return { asked, again, unanswered };

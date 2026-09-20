@@ -5,6 +5,9 @@ import { Link, Route, Routes, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Bookmarks } from "@/bookmarks/Bookmarks";
+import { BookmarkPrivacyProvider, PrivateSwitch } from "@/bookmarks/privacy";
+import { useBookmarkPrivacy } from "@/bookmarks/useBookmarkPrivacy";
 import { Home } from "@/home/Home";
 import { Files } from "@/files/Files";
 import { Knowledge } from "@/knowledge/Knowledge";
@@ -40,6 +43,11 @@ const Palette = lazy(() => import("./Palette").then((module) => ({ default: modu
  * this workspace has.
  */
 export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) {
+  return <BookmarkPrivacyProvider><Frame me={me} onSignedOut={onSignedOut} /></BookmarkPrivacyProvider>;
+}
+
+function Frame({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) {
+  const privacy = useBookmarkPrivacy();
   const navigate = useNavigate();
   const applicationsAsked = useApplications();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -88,6 +96,7 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
           <SidebarTrigger className="md:hidden" />
           <Separator orientation="vertical" className="mr-1 h-4! md:hidden" />
           <div className="flex-1" />
+          {privacy.enabled && <PrivateSwitch />}
 
           {/* The one thing the frame says about the connection. A workspace
               that has stopped hearing from its instance is still readable, and
@@ -130,9 +139,9 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
         </header>
 
         <Routes>
-          <Route path="/" element={<Home me={me} applications={applicationsAsked} />} />
-          <Route path="/trash" element={<Trash />} />
-          <Route path="/search" element={<Search />} />
+          <Route path="/" element={<Home key={privacy.epoch} me={me} applications={applicationsAsked} />} />
+          <Route path="/trash" element={<Trash key={privacy.epoch} />} />
+          <Route path="/search" element={<Search key={privacy.epoch} />} />
           <Route
             path="/settings/*"
             element={<Settings me={me} applications={applicationsAsked} />}
@@ -170,6 +179,7 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
 
       <Suspense fallback={null}>
         <Palette
+          key={privacy.epoch}
           open={paletteOpen}
           onOpenChange={setPaletteOpen}
           applications={applicationsAsked}
@@ -191,7 +201,7 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
  * is a better answer than the empty state this used to fall back to.
  */
 const screens: Record<Application["name"], () => ReactElement> = {
-  bookmarks: () => <Empty title="Bookmarks">Your saved links will appear here.</Empty>,
+  bookmarks: () => <Bookmarks />,
   scratchpad: () => <Scratchpad />,
   files: () => <Files />,
   knowledge: () => <Knowledge />,
