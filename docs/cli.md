@@ -959,3 +959,14 @@ Both accept `--if-match`. To undo while retaining its old queue position, use
 `read-later ID --queued-at OLD_READ_LATER_AT --if-match VERSION_AFTER_MARK_READ`.
 `edit --read-later=false` can also clear the status. Private entries always need
 `--include-private`.
+
+`pea bookmarks duplicates --json` shows visible groups with complete metadata
+and reviewed versions. Page with `--offset`; for groups larger than 50 copies,
+use `--url URL --member-offset OFFSET`. To clean up, write an explicit selection
+file with `{"keep":"ID","remove":[{"id":"ID","updated_at":"TIMESTAMP"}]}`
+using those reviewed versions, then run
+`pea bookmarks cleanup --selection selection.json --if-match KEEPER_UPDATED_AT --confirm`.
+Use `--selection -` for stdin and `--include-private` when reviewing private
+copies. Cleanup does not reread or retry versions: any changed or inaccessible
+selection refuses the entire action. The keeper stays unchanged and selected
+copies remain individually recoverable through Trash; statistics are not merged.

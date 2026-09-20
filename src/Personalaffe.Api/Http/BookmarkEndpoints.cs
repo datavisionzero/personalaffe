@@ -29,6 +29,9 @@ public sealed record BookmarkRequest(string? Title, string? Url, string? Descrip
 public sealed record BookmarkFolderRequest(string? Name, Guid? Parent, bool Private);
 
 public sealed record FavoriteBookmarkRequest(bool Favorite, Guid? After);
+public sealed record BookmarkDuplicateGroupResponse(string Url, IReadOnlyList<BookmarkResponse> Items, int Count, int? NextMemberOffset);
+public sealed record BookmarkDuplicatesResponse(IReadOnlyList<BookmarkDuplicateGroupResponse> Groups, int? NextOffset);
+public sealed record BookmarkCleanupRequest(Guid Keep, IReadOnlyList<BookmarkDuplicateSelection>? Remove);
 public sealed record BookmarkImportRequest(string? Html, Guid? Folder, string? PreviewHash);
 public sealed record BookmarkReadingRequest(bool ReadLater, DateTimeOffset? QueuedAt);
 public sealed record OpenBookmarkRequest(Guid EventId);
@@ -48,6 +51,14 @@ public static class BookmarkEndpoints
         endpoints.MapGet("/bookmarks/export", async (Guid? folder, [FromQuery(Name = "include_private")] bool? includePrivate, BookmarkActs act, CancellationToken token) =>
             Results.Ok(await act.ExportAsync(folder, includePrivate == true, token)))
             .WithName("ExportBookmarks").BookmarkErrors().Produces<BookmarkExport>();
+        endpoints.MapGet("/bookmarks/duplicates", async (string? url, int? offset, int? limit, [FromQuery(Name = "member_offset")] int? memberOffset, BookmarkActs act, CancellationToken token) =>
+        {
+            var groups = await act.DuplicatesAsync(url, offset, limit, memberOffset, token);
+            return Results.Ok(new BookmarkDuplicatesResponse([.. groups.Groups.Select(group => new BookmarkDuplicateGroupResponse(group.Url, [.. group.Items.Select(BookmarkResponse.Of)], group.Count, group.NextMemberOffset))], groups.NextOffset));
+        }).WithName("ListBookmarkDuplicates").BookmarkErrors().Produces<BookmarkDuplicatesResponse>();
+        endpoints.MapPost("/bookmarks/duplicates/cleanup", async (BookmarkCleanupRequest body, HttpRequest request, BookmarkActs act, CancellationToken token) =>
+            Results.Ok(await act.CleanupAsync(body.Keep, body.Remove, EntityTags.Required(request), token)))
+            .WithName("CleanupBookmarkDuplicates").BookmarkErrors().Guarded().Produces<BookmarkCleanup>();
         endpoints.MapGet("/bookmarks", async (int? offset, int? limit, string? q, Guid? folder, bool? favorites, bool? unsorted, string? sort, [FromQuery(Name = "tag")] string[]? tags, [FromQuery(Name = "read_later")] bool? readLater, BookmarkActs act, CancellationToken token) =>
         {
             var rows = await act.ListAsync(offset, limit, token, q, folder, favorites, unsorted, sort, tags, readLater);

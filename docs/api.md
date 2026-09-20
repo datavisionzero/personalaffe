@@ -1633,3 +1633,19 @@ preview and visible `read_later_count` under the same privacy transaction.
 intact. Undo can restore the old `queued_at` while holding the version returned
 by mark-as-read; that time must lie between creation and now. Opening a bookmark
 never changes reading status. Deletion/recovery preserves its queue time.
+
+`GET /api/bookmarks/duplicates` groups only visible active links using the
+conservative import URL key: scheme/host/default-port normalization, preserving
+path case, query order, fragments and escapes. No target is fetched. `limit`
+is 1..50 groups (default 20), `offset` pages groups; `url` selects one group
+and `member_offset` pages its copies, 50 at a time. Both next offsets are
+returned explicitly. URL lookup also returns a single existing copy for an
+inert add-form hint. Review is limited to 100000 visible links.
+
+`POST /api/bookmarks/duplicates/cleanup` takes `{keep, remove:[{id,updated_at}]}`
+and the keeper's reviewed `If-Match`. It checks all selected versions and
+visibility before moving 1..100 distinct same-URL copies to Trash atomically.
+The keeper is untouched; no metadata or statistics are merged. Each deleted
+copy retains its own data for restoration; its statistics disappear only upon
+expiry or permanent deletion. Hidden copies do not influence public group
+counts or hints. A conflict requires reviewing the selection again.

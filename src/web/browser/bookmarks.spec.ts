@@ -208,3 +208,39 @@ test("reading list survives opening and supports mark-read undo and combined fil
   await page.reload();
   await expect(page.getByRole("region", { name: "Reading list", exact: true }).getByRole("link", { name: new RegExp(title) })).toBeVisible();
 });
+
+
+test("duplicate hints allow intentional copies and reviewed cleanup is recoverable on mobile", async ({ page }) => {
+  await signedIn(page); await switchApplication(page, "bookmarks", true);
+  const marker = `Duplicates ${Date.now()}`;
+  const url = `https://a.example.com/duplicates/${Date.now()}`;
+  const headers = { "X-Personalaffe-CSRF": "1", Origin: new URL(page.url()).origin };
+  const kept = await (await page.request.post("/api/bookmarks", { headers, data: { title: `${marker} keeper`, url, description: "Keep this description", tags: ["keep"] } })).json();
+  await page.setViewportSize({ width: 360, height: 800 }); await page.goto("/bookmarks/manage");
+  await page.getByRole("button", { name: "Add bookmark", exact: true }).click();
+  let dialog = page.getByRole("dialog");
+  await dialog.getByLabel("URL", { exact: true }).fill(url);
+  await expect(dialog.getByText("This URL is already saved. Saving another copy is allowed.")).toBeVisible();
+  await dialog.getByLabel("Title", { exact: true }).fill(`${marker} copy`);
+  await dialog.getByLabel("Read later", { exact: true }).check();
+  await dialog.getByRole("button", { name: "Add bookmark", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Review duplicates", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByRole("radio", { name: `Keep ${marker} keeper`, exact: true }).check();
+  await dialog.getByRole("checkbox", { name: `Remove ${marker} copy`, exact: true }).check();
+  const cleanup = dialog.getByRole("button", { name: "Move selected copies to Trash", exact: true });
+  await expect(cleanup).toBeDisabled();
+  await dialog.getByRole("checkbox", { name: "I reviewed differences and want to remove only the selected copies." }).check();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  await cleanup.click();
+  await expect(dialog.getByRole("status")).toContainText("1 selected copies moved to Trash");
+  const unchanged = await (await page.request.get(`/api/bookmarks/${kept.id}`)).json();
+  expect(unchanged).toEqual(kept);
+  const trash = await (await page.request.get("/api/trash?application=bookmarks")).json();
+  const removed = trash.items.find((row: { name: string }) => row.name === `${marker} copy`);
+  expect(removed).toBeTruthy();
+  const restored = await page.request.post(`/api/trash/bookmarks/${removed.id}/restore`, { headers: { ...headers, "If-Match": JSON.stringify(removed.updated_at) } });
+  expect(restored.ok()).toBeTruthy();
+  expect((await (await page.request.get(`/api/bookmarks/${removed.id}`)).json()).read_later).toBeTruthy();
+});

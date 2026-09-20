@@ -241,3 +241,20 @@ func TestBookmarkReadingFiltersAndUndoTimestampAreExplicitAndGuarded(t *testing.
 		t.Fatal("undo lost version")
 	}
 }
+
+func TestBookmarkDuplicateCleanupUsesReviewedVersionsAndNeverRetries(t *testing.T) {
+	instance := serving(t, "9.9.9", refusing(http.StatusPreconditionFailed, `{"type":"/problems/stale","title":"Changed","status":412}`))
+	env := environment(t, map[string]string{config.EnvURL: instance.URL, config.EnvToken: secret})
+	selection := `{"keep":"` + bookmarkID + `","remove":[{"id":"0199f0c4-0000-7000-8000-000000000002","updated_at":"2026-09-20T08:00:00Z"}]}`
+	got := runWith(t, strings.NewReader(selection), env, "bookmarks", "cleanup", "--selection", "-", "--if-match", `"2026-09-20T08:00:00Z"`, "--confirm", "--include-private")
+	if got.code != exit.Stale {
+		t.Fatalf("want stale: %d %s", got.code, got.stderr)
+	}
+	if len(instance.Requests) != 1 || instance.Requests[0].Method != "POST" || instance.Requests[0].Header.Get("Personalaffe-Private") != "true" || instance.Requests[0].Header.Get("If-Match") != `"2026-09-20T08:00:00Z"` {
+		t.Fatal("cleanup reread or lost held context/version")
+	}
+	got = runWith(t, strings.NewReader(selection), env, "bookmarks", "cleanup", "--selection", "-", "--if-match", "old")
+	if got.code == exit.OK || len(instance.Requests) != 1 {
+		t.Fatal("unconfirmed cleanup contacted server")
+	}
+}

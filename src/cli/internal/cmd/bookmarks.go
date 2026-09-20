@@ -28,7 +28,7 @@ func newBookmarks(g *globals) *cobra.Command {
 	reading.Short = "The reading list, newest additions first."
 	_ = reading.Flags().Set("read-later", "true")
 	_ = reading.Flags().Set("sort", "reading")
-	root.AddCommand(folders, bookmarkImport(g), bookmarkExport(g), bookmarkTags(g), reading, bookmarkReading(g, true), bookmarkReading(g, false))
+	root.AddCommand(bookmarkDuplicates(g), bookmarkCleanup(g), folders, bookmarkImport(g), bookmarkExport(g), bookmarkTags(g), reading, bookmarkReading(g, true), bookmarkReading(g, false))
 	return root
 }
 
