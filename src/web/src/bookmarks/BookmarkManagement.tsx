@@ -138,14 +138,14 @@ export function BookmarkManagement() {
     {(list.unanswered || folders.unanswered) && <p role="status" className="text-sm text-muted-foreground">Refresh failed. Displayed information may have changed.</p>}
     {folders.asked.at === "failed" && <Failed why={folders.asked.why} again={folders.again} />}
     {selectedId && detail.asked.at === "failed" && <Failed why={detail.asked.why} again={detail.again} />}
-    <div className="flex flex-wrap items-center gap-2"><span className="text-sm" role="status">{selected.length} selected</span>
+    {selected.length > 0 && <div className="flex flex-wrap items-center gap-2"><span className="text-sm" role="status">{selected.length} selected</span>
       <Button variant="outline" disabled={!selected.length || working} onClick={() => { setTarget(""); setConfirmPublic(false); setAction("move"); }}>Move selected</Button>
       <Button variant="outline" disabled={!selected.length || working} onClick={() => setAction("delete")}>Delete selected</Button>
       <Button variant="outline" disabled={!selected.length || working} onClick={() => { setActionTags([]); setAction("tag-add"); }}>Add tags to selected</Button>
       <Button variant="outline" disabled={!selected.length || working} onClick={() => { setActionTags([]); setAction("tag-remove"); }}>Remove tags from selected</Button>
       <Button variant="outline" disabled={!selected.length || working || reading.working} onClick={() => void reading.change(selected, true).then(setSelected)}>Read selected later</Button>
       <Button variant="outline" disabled={!selected.length || working || reading.working} onClick={() => void reading.change(selected, false).then(setSelected)}>Mark selected as read</Button>
-      {selected.length > 0 && <Button variant="ghost" onClick={() => setSelected([])}>Clear selection</Button>}</div>
+      {selected.length > 0 && <Button variant="ghost" onClick={() => setSelected([])}>Clear selection</Button>}</div>}
     {list.asked.at === "asking" && <Busy title="Reading bookmarks…" />}
     {list.asked.at === "failed" && <Failed why={list.asked.why} again={list.again} />}
     {list.asked.at === "known" && rows.length === 0 && <p className="text-muted-foreground rounded-lg border border-dashed p-6">No bookmarks match this view.</p>}

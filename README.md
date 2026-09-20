@@ -1,12 +1,12 @@
 # personalaffe
 
 A private workspace belonging to one person: a Scratchpad, a Knowledge base,
-Tasks and Files, reachable from a browser, from an HTTP API and from a console.
+Tasks, Files and Bookmarks, reachable from a browser, from an HTTP API and from a console.
 [`VISION.md`](VISION.md) says what it is and what it deliberately is not;
 [`CONTEXT.md`](CONTEXT.md) is the language it uses;
 [`docs/mvp-plan.md`](docs/mvp-plan.md) says in what order it is built.
 
-> **All four applications work.** What exists is
+> **All five applications work.** What exists is
 > the foundation of PERSONAL-E1 — a .NET host, a PostgreSQL schema that migrates
 > itself, a checked-in HTTP contract, and a web application and a CLI that read
 > it — and the door of PERSONAL-E2: an instance is claimed once by its one
@@ -88,6 +88,11 @@ its dependencies point; [`docs/api.md`](docs/api.md) is the HTTP surface, its
 conventions and its errors. Read them before adding a file or an endpoint.
 Installing what was published, rather than running what is here, is
 [`docs/install.md`](docs/install.md).
+
+Saved links now have their own [Bookmarks application](docs/bookmarks.md), with
+favorites, folders, tags, a reading list, browser HTML transfer and reviewed
+duplicate cleanup. Private folders stay hidden until explicitly requested in
+the current tab or API/CLI invocation.
 
 ## Prerequisites
 

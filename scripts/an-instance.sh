@@ -134,7 +134,7 @@ put_a_life_in() {
   api -X DELETE "$instance/api/knowledge/pages/$doomed_id" \
     -H "If-Match: $(etag_of "$instance/api/knowledge/pages/$doomed_id")" -o /dev/null
   expires_at="$(api "$instance/api/trash" \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin)["items"][0]["expires_at"])')"
+    | python3 -c 'import json,sys; print(next(i["expires_at"] for i in json.load(sys.stdin)["items"] if i["application"] == "knowledge"))')"
   ok "a page in the Trash, expiring $expires_at"
 
   local kept_token revoked revoked_id revoked_token
@@ -159,6 +159,8 @@ put_a_life_in() {
   api -X PUT "$instance/api/weather/place" -H "If-Match: $(etag_of "$instance/api/weather")" \
     -d '{"name":"Am Schreibtisch","latitude":52.52,"longitude":13.405,"units":"metric"}' -o /dev/null
   ok "the weather tile hidden, and a place set"
+
+  put_bookmarks_in
 
   cat > "$work/the-life" <<LIFE
 file_id='$file_id'
@@ -198,7 +200,7 @@ read_the_life_out() {
 
   local expires_now
   expires_now="$(api "$instance/api/trash" \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin)["items"][0]["expires_at"])')"
+    | python3 -c 'import json,sys; print(next(i["expires_at"] for i in json.load(sys.stdin)["items"] if i["application"] == "knowledge"))')"
   test "$expires_now" = "$expires_at" \
     || fail "the deadline moved: $expires_at became $expires_now"
   ok "the Trash, still expiring $expires_now — the same moment"
@@ -243,4 +245,71 @@ sys.exit(0 if not weather["shown"] else 1)' \
   api "$instance/api/weather" | grep -q 'Am Schreibtisch' \
     || fail "the weather place did not come back"
   ok "the dashboard: the tile still hidden and the place still set"
+  read_bookmarks_out
+}
+
+
+# Older rehearsal images may predate Bookmarks or its optional metadata. Seed
+# only capabilities they actually expose; compare every field they wrote after
+# upgrade/restore. The current image always exercises the complete application.
+put_bookmarks_in() {
+  rm -f "$work/bookmark-life.json"
+  if ! api "$instance/api/applications" | python3 -c 'import json,sys; sys.exit(0 if any(i["application"] == "bookmarks" for i in json.load(sys.stdin)["items"]) else 1)'; then
+    return
+  fi
+  local folder bookmark public deleted version
+  folder="$(api -X POST "$instance/api/bookmarks/folders" -H 'Personalaffe-Private: true' -d '{"name":"Private reading","private":true}')"
+  printf '%s' "$folder" > "$work/bookmark-folder.json"
+  bookmark="$(api -X POST "$instance/api/bookmarks" -H 'Personalaffe-Private: true' -d "{\"title\":\"Private guide\",\"url\":\"https://example.com/guide\",\"description\":\"Preserve this\",\"folder\":\"$(printf '%s' "$folder" | field '"id"')\"}")"
+  printf '%s' "$bookmark" > "$work/bookmark.json"
+  python3 - "$work/bookmark.json" > "$work/bookmark-edit.json" <<'PYBOOK'
+import json,sys
+b=json.load(open(sys.argv[1]))
+body={k:b[k] for k in ("title","url","description","folder")}
+if "tags" in b: body["tags"]=["research","restore"]
+if "read_later" in b: body["read_later"]=True
+print(json.dumps(body))
+PYBOOK
+  bookmark="$(printf '%s' "$bookmark" | field '"id"')"
+  version="$(api -D - -o /dev/null "$instance/api/bookmarks/$bookmark" -H 'Personalaffe-Private: true' | tr -d '\r' | awk '/^[Ee][Tt]ag:/ {print $2}')"
+  api -X PUT "$instance/api/bookmarks/$bookmark" -H 'Personalaffe-Private: true' -H "If-Match: $version" --data-binary "@$work/bookmark-edit.json" > "$work/bookmark.json"
+  version="$(python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1]))["updated_at"]))' "$work/bookmark.json")"
+  api -X PUT "$instance/api/bookmarks/$bookmark/favorite" -H 'Personalaffe-Private: true' -H "If-Match: $version" -d '{"favorite":true}' > "$work/bookmark.json"
+  api -X POST "$instance/api/bookmarks/$bookmark/open" -H 'Personalaffe-Private: true' -d '{"event_id":"0199f0c4-0000-7000-8000-000000000001"}' -o /dev/null
+  public="$(api -X POST "$instance/api/bookmarks" -d '{"title":"Public guide","url":"https://example.com/public"}')"
+  printf '%s' "$public" > "$work/bookmark-public.json"
+  deleted="$(api -X POST "$instance/api/bookmarks" -H 'Personalaffe-Private: true' -d "{\"title\":\"Deleted private guide\",\"url\":\"https://example.com/deleted\",\"folder\":\"$(printf '%s' "$folder" | field '"id"')\"}")"
+  version="$(printf '%s' "$deleted" | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["updated_at"]))')"
+  api -X DELETE "$instance/api/bookmarks/$(printf '%s' "$deleted" | field '"id"')" -H 'Personalaffe-Private: true' -H "If-Match: $version" -o /dev/null
+  api "$instance/api/trash?application=bookmarks" -H 'Personalaffe-Private: true' > "$work/bookmark-trash.json"
+  python3 - "$work" > "$work/bookmark-life.json" <<'PYBOOK'
+import json,sys,pathlib
+p=pathlib.Path(sys.argv[1]); print(json.dumps({k:json.loads((p/("bookmark-"+k+".json" if k!="bookmark" else "bookmark.json")).read_text()) for k in ("folder","bookmark","public","trash")}))
+PYBOOK
+  api -X PUT "$instance/api/applications/bookmarks" -H "If-Match: $(api "$instance/api/applications" | version_of items application bookmarks)" -d '{"enabled":false}' -o /dev/null
+  test "$(status_of "$instance/api/bookmarks")" = "409" || fail "disabled Bookmarks still answers"
+  api -X PUT "$instance/api/applications/bookmarks" -H "If-Match: $(api "$instance/api/applications" | version_of items application bookmarks)" -d '{"enabled":true}' -o /dev/null
+  ok "public and private bookmarks, folder, favorite, optional tags/reading status and private Trash"
+}
+
+read_bookmarks_out() {
+  test -f "$work/bookmark-life.json" || return 0
+  local folder bookmark public
+  folder="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["folder"]["id"])' "$work/bookmark-life.json")"
+  bookmark="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["bookmark"]["id"])' "$work/bookmark-life.json")"
+  public="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["public"]["id"])' "$work/bookmark-life.json")"
+  test "$(status_of "$instance/api/bookmarks/$bookmark")" = "404" || fail "private bookmark became public"
+  api "$instance/api/bookmarks/folders/$folder" -H 'Personalaffe-Private: true' > "$work/bookmark-folder.json"
+  api "$instance/api/bookmarks/$bookmark" -H 'Personalaffe-Private: true' > "$work/bookmark.json"
+  api "$instance/api/bookmarks/$public" > "$work/bookmark-public.json"
+  api "$instance/api/trash?application=bookmarks" -H 'Personalaffe-Private: true' > "$work/bookmark-trash.json"
+  python3 - "$work" <<'PYBOOK'
+import json,sys,pathlib
+p=pathlib.Path(sys.argv[1]); before=json.loads((p/"bookmark-life.json").read_text())
+for key, expected in before.items():
+    actual=json.loads((p/("bookmark-"+key+".json" if key!="bookmark" else "bookmark.json")).read_text())
+    for field,value in expected.items(): assert actual[field]==value, (key,field,actual[field],value)
+PYBOOK
+  test "$(as_agent "$kept_token" "$instance/api/bookmarks" -H 'Personalaffe-Private: true')" = "403" || fail "old agent silently gained Bookmarks permission"
+  ok "bookmark metadata, privacy, favorite order, Trash and old agent permissions survived"
 }

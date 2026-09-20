@@ -50,7 +50,9 @@ test.describe("Knowledge", () => {
     await expect(renamed).toHaveValue(`${title} (umbenannt)`);
     await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
 
+    const saved = page.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/api/knowledge/pages/"));
     await page.getByRole("button", { name: "Save" }).click();
+    expect((await saved).ok()).toBeTruthy();
     await expect(page.getByText("Saved.")).toBeVisible();
 
     // The same address still opens it: the id is the identity, and a rename
@@ -78,7 +80,9 @@ test.describe("Knowledge", () => {
     await expect(opened).toContainText("Und noch etwas.");
     await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
 
+    const savedAgain = page.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/api/knowledge/pages/"));
     await page.getByRole("button", { name: "Save" }).click();
+    expect((await savedAgain).ok()).toBeTruthy();
     await expect(page.getByText("Saved.")).toBeVisible();
 
     await page.goto("/");

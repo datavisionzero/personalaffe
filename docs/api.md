@@ -538,8 +538,8 @@ refusal says nothing about how the owner has configured their workspace.
 
 ## The search
 
-One question over the four applications, at `GET /api/search?q=…`. Knowledge
-pages, tasks, Scratchpad text and file names (VISION §6.1) — and never what is
+One question over the five applications, at `GET /api/search?q=…`. Knowledge
+pages, tasks, Scratchpad text, file names and saved bookmark text — and never what is
 inside a file, which is the line between one search over a workspace and a
 document search over a disk.
 
@@ -734,7 +734,7 @@ refusal.
 
 ## The Trash
 
-One list over the four applications, at `GET /api/trash`. There is no table
+One list over the five applications, at `GET /api/trash`. There is no table
 under it: `deleted_at` stays in each module's own table and the Trash asks each
 of them, because a central index would be a second place that has to agree with
 the first, and the generic content entity personalaffe deliberately does not
@@ -783,8 +783,8 @@ removes one for good — thirty days after the deletion by default, and
 ([`docs/operations.md`](./operations.md)). Retention does not stop for anything:
 not for an application being switched off, and not for the instance being down.
 
-**Three of the four applications fill it**: a deleted file, folder, page, list
-or task is here — with its bytes, or with its history, or with the tasks that
+**Four of the five applications fill it**: a deleted file, folder, page, list
+task or bookmark is here — with its bytes, or with its history, or with the tasks that
 were in it — until it is restored or its retention runs out. The Scratchpad
 deliberately contributes nothing, because what it deletes is destroyed. A module
 joins the Trash by contributing to it and by nothing else, and the Scratchpad is

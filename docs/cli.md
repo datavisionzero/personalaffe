@@ -6,7 +6,7 @@ reaches no database, no file volume and no other affe product, and it knows an
 instance only through the client generated from
 [`docs/api/openapi.json`](./api/openapi.json).
 
-**All four applications are here, and so is the question that reaches all of
+**All five applications are here, and so is the question that reaches all of
 them.** Two verbs are the foundation's, three are the credential's, two are the
 workspace's, seven are the Scratchpad's (PERSONAL-E5), six are Files'
 (PERSONAL-E6), nine are Knowledge's (PERSONAL-E7), ten are Tasks' (PERSONAL-E8)
