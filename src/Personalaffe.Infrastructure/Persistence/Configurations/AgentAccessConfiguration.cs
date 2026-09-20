@@ -27,6 +27,7 @@ public sealed class AgentAccessConfiguration : IEntityTypeConfiguration<AgentAcc
             table.HasCheckConstraint("ck_agent_access_knowledge", $"knowledge {Allowed}");
             table.HasCheckConstraint("ck_agent_access_tasks", $"tasks {Allowed}");
             table.HasCheckConstraint("ck_agent_access_files", $"files {Allowed}");
+            table.HasCheckConstraint("ck_agent_access_bookmarks", $"bookmarks {Allowed}");
         });
 
         builder.HasKey(access => access.Id).HasName("pk_agent_access");
@@ -56,6 +57,11 @@ public sealed class AgentAccessConfiguration : IEntityTypeConfiguration<AgentAcc
             permissions.Property(granted => granted.Tasks)
                 .HasColumnName("tasks")
                 .HasConversion(new SnakeCaseEnumConverter<Permission>())
+                .IsRequired();
+            permissions.Property(granted => granted.Bookmarks)
+                .HasColumnName("bookmarks")
+                .HasConversion(new SnakeCaseEnumConverter<Permission>())
+                .HasDefaultValue(Permission.None)
                 .IsRequired();
             permissions.Property(granted => granted.Files)
                 .HasColumnName("files")

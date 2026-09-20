@@ -11,9 +11,9 @@ type Granted = Schemas["Permissions"];
 type Permission = Schemas["Permission"];
 
 /** The four applications, in the order CONTEXT.md lists them. */
-const applications = ["scratchpad", "knowledge", "tasks", "files"] as const;
+const applications = ["scratchpad", "knowledge", "tasks", "files", "bookmarks"] as const;
 
-const nothing: Granted = { scratchpad: "none", knowledge: "none", tasks: "none", files: "none" };
+const nothing: Granted = { scratchpad: "none", knowledge: "none", tasks: "none", files: "none", bookmarks: "none" };
 
 /**
  * Agent access: what the owner has let in, and what each of them reaches.

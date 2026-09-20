@@ -928,3 +928,15 @@ back, and `upgrade`, which needs two builds of this product at once.
   identity, not for anything.
 - **No second human account, ever.** The instance has one owner; agent access
   is not a user.
+
+## Saved link storage
+
+`Domain/Bookmarks` holds saved addresses and their independent folder tree.
+`BookmarkText` bounds plain text and accepts absolute HTTP(S) addresses without
+fetching them. Bookmark and folder rows carry recoverable deletion and guarded
+versions; favorites have a separate persisted position. Folder placement checks
+bound the complete resulting tree to 32 levels and reject cycles.
+
+The `bookmarks` application is seeded enabled. Its agent permission column
+starts at `none`, including for existing credentials; the owner explicitly grants
+access through the same controls as the other applications.

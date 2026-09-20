@@ -499,7 +499,7 @@ have reused, and the end is the one place that is always free.
 
 ## The applications
 
-The workspace is four applications and each can be switched off
+The workspace has five applications and each can be switched off
 (`CONTEXT.md`, Application). `GET /api/applications` is what a client draws its
 navigation from: all four, whether each is on, and what the caller may do in it.
 
@@ -1498,3 +1498,10 @@ An address under the prefix that no endpoint took answers `not-found` as a
 problem document, not the web application's `index.html`. A client asking for an
 endpoint an older instance does not have gets JSON saying so, rather than a 200
 of HTML it has to recognise.
+
+### Saved link application permission
+
+`bookmarks` is an application value in the switch and permission contracts.
+The optional `permissions.bookmarks` field defaults to `none` when omitted.
+Existing agent credentials gain no access when the database is upgraded; the
+owner can explicitly grant `read` or `read_write` as for every other application.

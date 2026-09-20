@@ -101,6 +101,8 @@ export function useSettled(typed: string, after = 200): string {
  */
 export function addressOf(found: Found): string {
   switch (found.application) {
+    case "bookmarks":
+      return `/bookmarks/manage?selected=${found.id}`;
     case "knowledge":
       return `/knowledge/${found.id}`;
     case "tasks":

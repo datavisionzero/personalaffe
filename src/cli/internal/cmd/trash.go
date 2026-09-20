@@ -17,7 +17,7 @@ import (
 )
 
 // applications is the closed set of four, in the order CONTEXT.md lists them.
-var applications = []string{"scratchpad", "knowledge", "tasks", "files"}
+var applications = []string{"scratchpad", "knowledge", "tasks", "files", "bookmarks"}
 
 func newTrash(g *globals) *cobra.Command {
 	trash := &cobra.Command{

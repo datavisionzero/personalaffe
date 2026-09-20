@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Personalaffe.Domain;
+using Personalaffe.Domain.Bookmarks;
 using Personalaffe.Domain.Appearance;
 using Personalaffe.Domain.Dashboard;
 using Personalaffe.Domain.Files;
@@ -131,6 +132,10 @@ public sealed class PersonalaffeDbContext(DbContextOptions<PersonalaffeDbContext
     /// timezone bug.
     /// </summary>
     public DbSet<PersonalTask> Tasks => Set<PersonalTask>();
+
+    public DbSet<Bookmark> Bookmarks => Set<Bookmark>();
+
+    public DbSet<BookmarkFolder> BookmarkFolders => Set<BookmarkFolder>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

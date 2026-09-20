@@ -50,7 +50,7 @@ public static class ApplicationEndpoints
                 return Results.Ok(new ApplicationsResponse([.. applications.Select(ApplicationResponse.Of)]));
             })
             .WithName("ReadApplications")
-            .WithSummary("The four applications, whether each is switched on, and what this caller may do in it.")
+            .WithSummary("The applications, whether each is switched on, and what this caller may do in it.")
             .Produces<ApplicationsResponse>();
 
         endpoints.MapPut("/applications/{application}", async (

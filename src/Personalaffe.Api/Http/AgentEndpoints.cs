@@ -5,12 +5,12 @@ namespace Personalaffe.Api.Http;
 
 /// <summary>What a caller may do, one answer per application.</summary>
 public sealed record PermissionsShape(
-    Permission Scratchpad, Permission Knowledge, Permission Tasks, Permission Files)
+    Permission Scratchpad, Permission Knowledge, Permission Tasks, Permission Files, Permission Bookmarks = Permission.None)
 {
     public static PermissionsShape Of(Permissions permissions) => new(
-        permissions.Scratchpad, permissions.Knowledge, permissions.Tasks, permissions.Files);
+        permissions.Scratchpad, permissions.Knowledge, permissions.Tasks, permissions.Files, permissions.Bookmarks);
 
-    public Permissions Granted() => new(Scratchpad, Knowledge, Tasks, Files);
+    public Permissions Granted() => new(Scratchpad, Knowledge, Tasks, Files, Bookmarks);
 }
 
 /// <summary>One agent access, as the owner sees it.</summary>

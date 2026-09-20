@@ -191,6 +191,7 @@ export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) 
  * is a better answer than the empty state this used to fall back to.
  */
 const screens: Record<Application["name"], () => ReactElement> = {
+  bookmarks: () => <Empty title="Bookmarks">Your saved links will appear here.</Empty>,
   scratchpad: () => <Scratchpad />,
   files: () => <Files />,
   knowledge: () => <Knowledge />,

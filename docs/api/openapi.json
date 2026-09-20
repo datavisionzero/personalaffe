@@ -1134,7 +1134,7 @@
         "tags": [
           "personalaffe"
         ],
-        "summary": "The four applications, whether each is switched on, and what this caller may do in it.",
+        "summary": "The applications, whether each is switched on, and what this caller may do in it.",
         "operationId": "ReadApplications",
         "responses": {
           "500": {
@@ -1177,7 +1177,8 @@
                 "scratchpad",
                 "knowledge",
                 "tasks",
-                "files"
+                "files",
+                "bookmarks"
               ],
               "type": "string"
             }
@@ -1272,7 +1273,8 @@
                 "scratchpad",
                 "knowledge",
                 "tasks",
-                "files"
+                "files",
+                "bookmarks"
               ],
               "type": "string"
             }
@@ -1334,7 +1336,8 @@
                 "scratchpad",
                 "knowledge",
                 "tasks",
-                "files"
+                "files",
+                "bookmarks"
               ],
               "type": "string"
             }
@@ -1401,7 +1404,8 @@
                 "scratchpad",
                 "knowledge",
                 "tasks",
-                "files"
+                "files",
+                "bookmarks"
               ],
               "type": "string"
             }
@@ -1523,7 +1527,8 @@
                 "scratchpad",
                 "knowledge",
                 "tasks",
-                "files"
+                "files",
+                "bookmarks"
               ],
               "type": "string"
             }
@@ -4388,7 +4393,8 @@
                 "scratchpad",
                 "knowledge",
                 "tasks",
-                "files"
+                "files",
+                "bookmarks"
               ],
               "type": "string"
             }
@@ -5873,6 +5879,9 @@
           },
           "files": {
             "$ref": "#/components/schemas/Permission"
+          },
+          "bookmarks": {
+            "$ref": "#/components/schemas/Permission"
           }
         },
         "additionalProperties": false
@@ -6790,7 +6799,8 @@
           "scratchpad",
           "knowledge",
           "tasks",
-          "files"
+          "files",
+          "bookmarks"
         ],
         "type": "string"
       },

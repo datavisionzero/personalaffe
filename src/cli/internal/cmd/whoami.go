@@ -40,6 +40,10 @@ func (g *globals) whoami(ctx context.Context) error {
 		return render.JSON(g.out(), me)
 	}
 
+	bookmarks := api.Permission("none")
+	if me.Permissions.Bookmarks != nil {
+		bookmarks = *me.Permissions.Bookmarks
+	}
 	out := g.out()
 	render.Field(out, 11, "kind", string(me.Kind))
 
@@ -60,6 +64,7 @@ func (g *globals) whoami(ctx context.Context) error {
 		{"knowledge", me.Permissions.Knowledge},
 		{"tasks", me.Permissions.Tasks},
 		{"files", me.Permissions.Files},
+		{"bookmarks", bookmarks},
 	} {
 		render.Field(out, 11, granted.application, string(granted.permission))
 	}
