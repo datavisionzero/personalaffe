@@ -288,6 +288,182 @@
         }
       }
     },
+    "/api/session/lock": {
+      "get": {
+        "tags": [
+          "personalaffe"
+        ],
+        "summary": "Whether this browser session is locked after inactivity.",
+        "operationId": "ReadInactivityLockStatus",
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InactivityLockStatusResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/session/lock/activity": {
+      "post": {
+        "tags": [
+          "personalaffe"
+        ],
+        "summary": "Report deliberate activity while this browser session is still unlocked.",
+        "operationId": "RecordInactivityLockActivity",
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InactivityLockStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Locked",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/session/lock/unlock": {
+      "post": {
+        "tags": [
+          "personalaffe"
+        ],
+        "summary": "Unlock this valid browser session with the PIN or current password.",
+        "operationId": "UnlockInactivityLock",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnlockInactivityLockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions": {
       "get": {
         "tags": [
@@ -484,6 +660,60 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SecurityResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/inactivity-lock": {
+      "put": {
+        "tags": [
+          "personalaffe"
+        ],
+        "summary": "Turn the browser inactivity lock on or off, or change its PIN and duration.",
+        "operationId": "ConfigureInactivityLock",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InactivityLockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -8558,6 +8788,67 @@
         },
         "additionalProperties": false
       },
+      "InactivityLockRequest": {
+        "required": [
+          "enabled",
+          "pin",
+          "inactivity_minutes",
+          "current_password"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "pin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "inactivity_minutes": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "current_password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "InactivityLockStatusResponse": {
+        "required": [
+          "enabled",
+          "locked",
+          "locks_at"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "locks_at": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
       "MakeFolderRequest": {
         "required": [
           "name",
@@ -9150,7 +9441,9 @@
           "second_factor_enabled",
           "enrolled_at",
           "recovery_codes_remaining",
-          "recovered_at"
+          "recovered_at",
+          "inactivity_lock_enabled",
+          "inactivity_minutes"
         ],
         "type": "object",
         "properties": {
@@ -9174,6 +9467,13 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "inactivity_lock_enabled": {
+            "type": "boolean"
+          },
+          "inactivity_minutes": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -9620,6 +9920,28 @@
             "items": {
               "$ref": "#/components/schemas/OutlineResponse"
             }
+          }
+        },
+        "additionalProperties": false
+      },
+      "UnlockInactivityLockRequest": {
+        "required": [
+          "pin",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "pin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "additionalProperties": false

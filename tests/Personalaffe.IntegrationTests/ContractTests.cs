@@ -82,12 +82,16 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/scratchpad/entries/{id}",
                 "/api/search",
                 "/api/security",
+                "/api/security/inactivity-lock",
                 "/api/security/password",
                 "/api/security/recovery-codes",
                 "/api/security/second-factor",
                 "/api/security/second-factor/confirm",
                 "/api/security/second-factor/off",
                 "/api/session",
+                "/api/session/lock",
+                "/api/session/lock/activity",
+                "/api/session/lock/unlock",
                 "/api/sessions",
                 "/api/sessions/{id}",
                 "/api/setup",
@@ -128,8 +132,11 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Contains("SignInRequest", schemas);
         Assert.Contains("MeResponse", schemas);
         Assert.Contains("SecurityResponse", schemas);
+        Assert.Contains("InactivityLockRequest", schemas);
         Assert.Contains("RecoveryCodesResponse", schemas);
         Assert.Contains("SessionResponse", schemas);
+        Assert.Contains("InactivityLockStatusResponse", schemas);
+        Assert.Contains("UnlockInactivityLockRequest", schemas);
         Assert.Contains("AgentResponse", schemas);
         Assert.Contains("AgentTokenResponse", schemas);
         // `PermissionsShape` is the contract's shape of the Domain type of the

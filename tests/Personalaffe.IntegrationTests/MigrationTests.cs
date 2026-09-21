@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql;
+using Personalaffe.Domain;
 using Personalaffe.Domain.Knowledge;
 using Personalaffe.Domain.Scratchpad;
 using Personalaffe.Infrastructure.Persistence;
@@ -140,8 +141,12 @@ public sealed class MigrationTests(PostgresFixture postgres)
 
         var entry = ScratchpadEntry.Capture("Ünïcödé, and\ntwo lines.", pinned: true, written);
         var page = Page.Written("What I know", parent: null, "# First\n\nThe first version.", written);
+        var owner = Owner.Claim("owner@example.com", "$argon2id$an-existing-hash", written);
+        var (session, _) = BrowserSession.Begin(owner.Id, "an existing browser", written);
         context.ScratchpadEntries.Add(entry);
         context.Pages.Add(page);
+        context.Owners.Add(owner);
+        context.BrowserSessions.Add(session);
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // The earlier schema is made from the later one rather than from an
@@ -174,6 +179,20 @@ public sealed class MigrationTests(PostgresFixture postgres)
         Assert.Equal(
             page.Id,
             (await afterwards.Pages.SingleAsync(TestContext.Current.CancellationToken)).Id);
+
+        var existingOwner = await afterwards.Owners.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.False(existingOwner.InactivityLockEnabled);
+        Assert.Null(existingOwner.InactivityLockPinHash);
+        Assert.Equal(Owner.DefaultInactivityLockMinutes, existingOwner.InactivityLockMinutes);
+        Assert.Equal(0, existingOwner.InactivityLockVersion);
+        Assert.Equal(0, existingOwner.PinUnlockFailures);
+        Assert.Equal(0, existingOwner.PasswordUnlockFailures);
+
+        var existingSession = await afterwards.BrowserSessions.SingleAsync(
+            TestContext.Current.CancellationToken);
+        Assert.Equal(DateTimeOffset.UnixEpoch, existingSession.LastInteractionAt);
+        Assert.Equal(0, existingSession.InactivityLockVersion);
+        Assert.Null(existingSession.InactivityLockedAt);
     }
 
     [Fact]

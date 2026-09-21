@@ -29,6 +29,20 @@ public sealed class Owner
 {
     public const int EmailMaxLength = 100;
 
+    public const int PinMinLength = 4;
+
+    public const int PinMaxLength = 6;
+
+    public const int MinInactivityLockMinutes = 1;
+
+    public const int MaxInactivityLockMinutes = 1440;
+
+    public const int DefaultInactivityLockMinutes = 5;
+
+    public const int UnlockAttemptLimit = 5;
+
+    public static readonly TimeSpan UnlockAttemptWindow = TimeSpan.FromMinutes(15);
+
     /// <summary>
     /// How long an offered second-factor secret can still be confirmed. Long
     /// enough to find the phone, short enough that a secret shown on a screen
@@ -108,6 +122,36 @@ public sealed class Owner
     /// is a recovery somebody else performed.
     /// </summary>
     public DateTimeOffset? RecoveredAt { get; private set; }
+
+    /// <summary>
+    /// The slow, salted hash of the optional inactivity PIN. The PIN itself is
+    /// never stored. No hash means the additional browser lock is off.
+    /// </summary>
+    public string? InactivityLockPinHash { get; private set; }
+
+    /// <summary>How many minutes of deliberate inactivity precede the lock.</summary>
+    public int InactivityLockMinutes { get; private set; } = DefaultInactivityLockMinutes;
+
+    /// <summary>
+    /// Moves with every lock-configuration change so that a browser session
+    /// can tell whether an earlier unlock decision still belongs to the
+    /// current PIN and duration.
+    /// </summary>
+    public long InactivityLockVersion { get; private set; }
+
+    public bool InactivityLockEnabled => InactivityLockPinHash is not null;
+
+    public int PinUnlockFailures { get; private set; }
+
+    public DateTimeOffset? PinUnlockWindowStartedAt { get; private set; }
+
+    public DateTimeOffset? PinUnlockBlockedUntil { get; private set; }
+
+    public int PasswordUnlockFailures { get; private set; }
+
+    public DateTimeOffset? PasswordUnlockWindowStartedAt { get; private set; }
+
+    public DateTimeOffset? PasswordUnlockBlockedUntil { get; private set; }
 
     /// <summary>
     /// The owner of an instance that had none, from an address and a hash that
@@ -191,6 +235,133 @@ public sealed class Owner
         Email = NormalizeEmail(email);
         NormalizedEmail = NormalizeEmailForComparison(email);
         UpdatedAt = at;
+    }
+
+    /// <summary>
+    /// Turns the inactivity lock on, or changes its PIN or duration. A missing
+    /// hash keeps the current PIN and is only valid when the lock is already on.
+    /// </summary>
+    public void ConfigureInactivityLock(string? pinHash, int minutes, DateTimeOffset at)
+    {
+        ValidateInactivityLockMinutes(minutes);
+
+        if (pinHash is not null && string.IsNullOrWhiteSpace(pinHash))
+        {
+            throw new ArgumentException("A PIN hash is required when one is supplied.", nameof(pinHash));
+        }
+
+        if (pinHash is null && InactivityLockPinHash is null)
+        {
+            throw Refusal.Validation("pin", "A PIN is required when the inactivity lock is turned on.");
+        }
+
+        InactivityLockPinHash = pinHash ?? InactivityLockPinHash;
+        InactivityLockMinutes = minutes;
+        InactivityLockVersion = checked(InactivityLockVersion + 1);
+        UpdatedAt = at;
+    }
+
+    /// <summary>Turns the additional lock off and removes the only stored derivative of its PIN.</summary>
+    public void DisableInactivityLock(DateTimeOffset at)
+    {
+        InactivityLockPinHash = null;
+        InactivityLockVersion = checked(InactivityLockVersion + 1);
+        UpdatedAt = at;
+    }
+
+    /// <summary>Until when this proof is delayed after wrong attempts, if it is.</summary>
+    public DateTimeOffset? UnlockBlockedUntil(UnlockCredential credential, DateTimeOffset now)
+    {
+        var blocked = credential == UnlockCredential.Pin
+            ? PinUnlockBlockedUntil
+            : PasswordUnlockBlockedUntil;
+
+        return blocked > now ? blocked : null;
+    }
+
+    /// <summary>
+    /// Remembers one wrong proof across sessions and process restarts. Early
+    /// failures receive a short exponential delay; the fifth holds this proof
+    /// for the remainder of a fifteen-minute window. PIN and password have
+    /// separate budgets so the password remains a recovery path for a guessed PIN.
+    /// </summary>
+    public DateTimeOffset RecordFailedUnlock(UnlockCredential credential, DateTimeOffset now)
+    {
+        var window = credential == UnlockCredential.Pin
+            ? PinUnlockWindowStartedAt
+            : PasswordUnlockWindowStartedAt;
+        var failures = credential == UnlockCredential.Pin
+            ? PinUnlockFailures
+            : PasswordUnlockFailures;
+
+        if (window is null || now - window.Value >= UnlockAttemptWindow)
+        {
+            window = now;
+            failures = 0;
+        }
+
+        failures++;
+        var delay = failures >= UnlockAttemptLimit
+            ? UnlockAttemptWindow - (now - window.Value)
+            : TimeSpan.FromSeconds(Math.Pow(2, failures - 1));
+        var blockedUntil = now + (delay > TimeSpan.Zero ? delay : TimeSpan.FromSeconds(1));
+
+        if (credential == UnlockCredential.Pin)
+        {
+            PinUnlockFailures = failures;
+            PinUnlockWindowStartedAt = window;
+            PinUnlockBlockedUntil = blockedUntil;
+        }
+        else
+        {
+            PasswordUnlockFailures = failures;
+            PasswordUnlockWindowStartedAt = window;
+            PasswordUnlockBlockedUntil = blockedUntil;
+        }
+
+        return blockedUntil;
+    }
+
+    public void RecordSuccessfulUnlock(UnlockCredential credential)
+    {
+        if (credential == UnlockCredential.Pin)
+        {
+            PinUnlockFailures = 0;
+            PinUnlockWindowStartedAt = null;
+            PinUnlockBlockedUntil = null;
+        }
+        else
+        {
+            PasswordUnlockFailures = 0;
+            PasswordUnlockWindowStartedAt = null;
+            PasswordUnlockBlockedUntil = null;
+        }
+    }
+
+    /// <summary>The PIN exactly as accepted: four to six ASCII digits, including leading zeroes.</summary>
+    public static string ValidateInactivityLockPin(string? pin)
+    {
+        if (pin is null
+            || pin.Length is < PinMinLength or > PinMaxLength
+            || pin.Any(character => character is < '0' or > '9'))
+        {
+            throw Refusal.Validation(
+                "pin", $"A PIN is {PinMinLength} to {PinMaxLength} ASCII digits.");
+        }
+
+        return pin;
+    }
+
+    public static int ValidateInactivityLockMinutes(int minutes)
+    {
+        if (minutes is < MinInactivityLockMinutes or > MaxInactivityLockMinutes)
+        {
+            throw Refusal.Validation(
+                "inactivity_minutes",
+                $"Inactivity is {MinInactivityLockMinutes} to {MaxInactivityLockMinutes} whole minutes.");
+        }
+
+        return minutes;
     }
 
     /// <summary>

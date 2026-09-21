@@ -41,6 +41,16 @@ public sealed class BrowserSessionConfiguration : IEntityTypeConfiguration<Brows
         builder.Property(session => session.LastUsedAt).HasColumnName("last_used_at").IsRequired();
         builder.Property(session => session.ExpiresAt).HasColumnName("expires_at").IsRequired();
         builder.Property(session => session.RevokedAt).HasColumnName("revoked_at");
+        builder.Property(session => session.LastInteractionAt)
+            .HasColumnName("last_interaction_at")
+            .HasDefaultValue(DateTimeOffset.UnixEpoch)
+            .IsRequired();
+        builder.Property(session => session.InactivityLockVersion)
+            .HasColumnName("inactivity_lock_version")
+            .HasDefaultValue(0L)
+            .IsRequired();
+        builder.Property(session => session.InactivityLockedAt)
+            .HasColumnName("inactivity_locked_at");
 
         builder.Ignore(session => session.Revoked);
     }

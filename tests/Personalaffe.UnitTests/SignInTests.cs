@@ -174,6 +174,20 @@ public sealed class SignInTests
             byte[] secretHash, DateTimeOffset now, CancellationToken cancellationToken) =>
             Task.FromResult<BrowserSession?>(null);
 
+        public Task<BrowserSession?> FindAsync(
+            Guid id, Guid ownerId, DateTimeOffset now, CancellationToken cancellationToken) =>
+            Task.FromResult<BrowserSession?>(null);
+
+        public Task SaveAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task ApplyInactivityConfigurationAsync(
+            Guid ownerId,
+            long version,
+            DateTimeOffset now,
+            InactivityConfigurationEffect effect,
+            Guid? currentSession,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task<IReadOnlyList<BrowserSession>> ListAsync(
             Guid ownerId, DateTimeOffset now, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<BrowserSession>>([]);

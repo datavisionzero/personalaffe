@@ -16,6 +16,14 @@ public interface IPasswordHasher
     Task<string> HashAsync(string password, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The encoded hash of a chosen secret whose own domain rule has already
+    /// accepted it. This is the same slow, salted primitive as a password,
+    /// without imposing the password's length rule on another kind of secret.
+    /// </summary>
+    Task<string> HashAcceptedSecretAsync(string secret, CancellationToken cancellationToken) =>
+        HashAsync(secret, cancellationToken);
+
+    /// <summary>
     /// Whether <paramref name="password"/> is the one behind
     /// <paramref name="encodedHash"/>. An encoding this hasher cannot read is
     /// <c>false</c> and never an exception: a row that has been tampered with

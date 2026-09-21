@@ -98,7 +98,8 @@ public sealed class SignIn(
             }
         }
 
-        var begun = BrowserSession.Begin(owner.Id, description, clock.GetUtcNow());
+        var begun = BrowserSession.Begin(
+            owner.Id, description, clock.GetUtcNow(), owner.InactivityLockVersion);
         await sessions.AddAsync(begun.Session, cancellationToken);
 
         return new SignedIn(SignInOutcome.SignedIn, begun.Session, begun.Secret);

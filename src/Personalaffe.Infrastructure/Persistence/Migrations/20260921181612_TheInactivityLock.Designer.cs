@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -13,9 +14,11 @@ using Personalaffe.Infrastructure.Persistence;
 namespace Personalaffe.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PersonalaffeDbContext))]
-    partial class PersonalaffeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260921181612_TheInactivityLock")]
+    partial class TheInactivityLock
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -420,22 +423,6 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
-                    b.Property<long>("InactivityLockVersion")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasDefaultValue(0L)
-                        .HasColumnName("inactivity_lock_version");
-
-                    b.Property<DateTimeOffset?>("InactivityLockedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("inactivity_locked_at");
-
-                    b.Property<DateTimeOffset>("LastInteractionAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValue(new DateTimeOffset(new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)))
-                        .HasColumnName("last_interaction_at");
-
                     b.Property<DateTimeOffset>("LastUsedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_used_at");
@@ -806,20 +793,6 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("password_hash");
 
-                    b.Property<DateTimeOffset?>("PasswordUnlockBlockedUntil")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("password_unlock_blocked_until");
-
-                    b.Property<int>("PasswordUnlockFailures")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("password_unlock_failures");
-
-                    b.Property<DateTimeOffset?>("PasswordUnlockWindowStartedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("password_unlock_window_started_at");
-
                     b.Property<string>("PendingTotpSecret")
                         .HasColumnType("text")
                         .HasColumnName("pending_totp_secret");
@@ -827,20 +800,6 @@ namespace Personalaffe.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("PendingTotpSecretAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("pending_totp_secret_at");
-
-                    b.Property<DateTimeOffset?>("PinUnlockBlockedUntil")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("pin_unlock_blocked_until");
-
-                    b.Property<int>("PinUnlockFailures")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("pin_unlock_failures");
-
-                    b.Property<DateTimeOffset?>("PinUnlockWindowStartedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("pin_unlock_window_started_at");
 
                     b.Property<DateTimeOffset?>("RecoveredAt")
                         .HasColumnType("timestamp with time zone")

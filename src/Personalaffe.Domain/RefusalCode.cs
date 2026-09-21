@@ -34,6 +34,12 @@ public enum RefusalCode
     /// </summary>
     SecondFactor,
 
+    /// <summary>The browser session is signed in, but its inactivity lock is closed.</summary>
+    Locked,
+
+    /// <summary>Too many recent attempts; retry after the supplied delay.</summary>
+    Throttled,
+
     /// <summary>The caller may not do this.</summary>
     Forbidden,
 

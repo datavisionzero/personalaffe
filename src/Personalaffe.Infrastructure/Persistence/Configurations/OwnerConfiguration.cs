@@ -53,7 +53,35 @@ public sealed class OwnerConfiguration : IEntityTypeConfiguration<Owner>
         // What the operator did on the machine, where the owner can see it.
         builder.Property(owner => owner.RecoveredAt).HasColumnName("recovered_at");
 
+        builder.Property(owner => owner.InactivityLockPinHash)
+            .HasColumnName("inactivity_lock_pin_hash");
+        builder.Property(owner => owner.InactivityLockMinutes)
+            .HasColumnName("inactivity_lock_minutes")
+            .HasDefaultValue(Owner.DefaultInactivityLockMinutes)
+            .IsRequired();
+        builder.Property(owner => owner.InactivityLockVersion)
+            .HasColumnName("inactivity_lock_version")
+            .HasDefaultValue(0L)
+            .IsRequired();
+        builder.Property(owner => owner.PinUnlockFailures)
+            .HasColumnName("pin_unlock_failures")
+            .HasDefaultValue(0)
+            .IsRequired();
+        builder.Property(owner => owner.PinUnlockWindowStartedAt)
+            .HasColumnName("pin_unlock_window_started_at");
+        builder.Property(owner => owner.PinUnlockBlockedUntil)
+            .HasColumnName("pin_unlock_blocked_until");
+        builder.Property(owner => owner.PasswordUnlockFailures)
+            .HasColumnName("password_unlock_failures")
+            .HasDefaultValue(0)
+            .IsRequired();
+        builder.Property(owner => owner.PasswordUnlockWindowStartedAt)
+            .HasColumnName("password_unlock_window_started_at");
+        builder.Property(owner => owner.PasswordUnlockBlockedUntil)
+            .HasColumnName("password_unlock_blocked_until");
+
         builder.Ignore(owner => owner.SecondFactorEnabled);
+        builder.Ignore(owner => owner.InactivityLockEnabled);
 
         builder.Property(owner => owner.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(owner => owner.UpdatedAt).HasColumnName("updated_at").IsRequired();

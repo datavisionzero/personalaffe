@@ -7,7 +7,9 @@ public sealed record SecurityResponse(
     bool SecondFactorEnabled,
     DateTimeOffset? EnrolledAt,
     int RecoveryCodesRemaining,
-    DateTimeOffset? RecoveredAt);
+    DateTimeOffset? RecoveredAt,
+    bool InactivityLockEnabled,
+    int InactivityMinutes);
 
 /// <summary>A change to how this instance is signed in to, with the password that authorizes it.</summary>
 public sealed record PasswordRequest(string? Password);
@@ -17,6 +19,16 @@ public sealed record CodeRequest(string? Code);
 
 /// <summary>A new password, on the strength of the old one.</summary>
 public sealed record ChangePasswordRequest(string? CurrentPassword, string? Password);
+
+/// <summary>
+/// The complete desired inactivity-lock state. A PIN may be omitted while an
+/// enabled lock keeps its existing one; turning it on for the first time needs one.
+/// </summary>
+public sealed record InactivityLockRequest(
+    bool? Enabled,
+    string? Pin,
+    int? InactivityMinutes,
+    string? CurrentPassword);
 
 /// <summary>The secret an authenticator is given, and the URI it is usually read from.</summary>
 public sealed record SecondFactorOfferResponse(string Secret, string Uri);
@@ -46,12 +58,35 @@ public static class SecurityEndpoints
                     state.SecondFactorEnabled,
                     state.EnrolledAt,
                     state.RecoveryCodesRemaining,
-                    state.RecoveredAt));
+                    state.RecoveredAt,
+                    state.InactivityLockEnabled,
+                    state.InactivityMinutes));
             })
             .RequireAuthorization(Authentication.OwnerPolicy)
             .WithName("ReadSecurity")
             .WithSummary("Whether a second factor stands between the password and the workspace.")
             .Produces<SecurityResponse>()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        endpoints.MapPut("/security/inactivity-lock", async (
+                InactivityLockRequest request,
+                ConfigureInactivityLock act,
+                CancellationToken cancellationToken) =>
+            {
+                await act.ExecuteAsync(
+                    request.Enabled,
+                    request.Pin,
+                    request.InactivityMinutes,
+                    request.CurrentPassword,
+                    cancellationToken);
+
+                return Results.NoContent();
+            })
+            .RequireAuthorization(Authentication.OwnerPolicy)
+            .WithName("ConfigureInactivityLock")
+            .WithSummary("Turn the browser inactivity lock on or off, or change its PIN and duration.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         endpoints.MapPost("/security/second-factor", async (

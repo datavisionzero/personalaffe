@@ -82,4 +82,102 @@ public sealed class OwnerTests
     [Fact]
     public void An_owner_is_never_stored_without_a_hash() =>
         Assert.Throws<ArgumentException>(() => Owner.Claim("owner@example.com", "  ", Noon));
+
+    [Theory]
+    [InlineData("0000")]
+    [InlineData("12345")]
+    [InlineData("999999")]
+    public void A_pin_is_kept_as_text_including_leading_zeroes(string pin) =>
+        Assert.Equal(pin, Owner.ValidateInactivityLockPin(pin));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("123")]
+    [InlineData("1234567")]
+    [InlineData("12 34")]
+    [InlineData("１２３４")]
+    [InlineData("12a4")]
+    public void A_pin_that_is_not_four_to_six_ascii_digits_is_refused(string? pin)
+    {
+        var refusal = Assert.Throws<Refusal>(() => Owner.ValidateInactivityLockPin(pin));
+
+        Assert.Equal(RefusalCode.Validation, refusal.Code);
+        Assert.Contains("pin", refusal.Detail, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1441)]
+    public void An_inactivity_period_outside_one_day_is_refused(int minutes)
+    {
+        var refusal = Assert.Throws<Refusal>(() => Owner.ValidateInactivityLockMinutes(minutes));
+
+        Assert.Equal(RefusalCode.Validation, refusal.Code);
+        Assert.Contains("inactivity_minutes", refusal.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Lock_configuration_has_a_safe_default_and_each_change_moves_its_version()
+    {
+        var owner = Owner.Claim("owner@example.com", "$argon2id$password", Noon);
+
+        Assert.False(owner.InactivityLockEnabled);
+        Assert.Equal(Owner.DefaultInactivityLockMinutes, owner.InactivityLockMinutes);
+        Assert.Equal(0, owner.InactivityLockVersion);
+
+        owner.ConfigureInactivityLock("$argon2id$pin-one", 17, Noon.AddMinutes(1));
+
+        Assert.True(owner.InactivityLockEnabled);
+        Assert.Equal("$argon2id$pin-one", owner.InactivityLockPinHash);
+        Assert.Equal(17, owner.InactivityLockMinutes);
+        Assert.Equal(1, owner.InactivityLockVersion);
+
+        owner.ConfigureInactivityLock(pinHash: null, 18, Noon.AddMinutes(2));
+
+        Assert.Equal("$argon2id$pin-one", owner.InactivityLockPinHash);
+        Assert.Equal(18, owner.InactivityLockMinutes);
+        Assert.Equal(2, owner.InactivityLockVersion);
+
+        owner.DisableInactivityLock(Noon.AddMinutes(3));
+
+        Assert.False(owner.InactivityLockEnabled);
+        Assert.Null(owner.InactivityLockPinHash);
+        Assert.Equal(3, owner.InactivityLockVersion);
+    }
+
+    [Fact]
+    public void Wrong_pin_attempts_are_delayed_persistently_without_blocking_the_password_path()
+    {
+        var owner = Owner.Claim("owner@example.com", "$argon2id$password", Noon);
+
+        var first = owner.RecordFailedUnlock(UnlockCredential.Pin, Noon);
+
+        Assert.Equal(Noon.AddSeconds(1), first);
+        Assert.Equal(first, owner.UnlockBlockedUntil(UnlockCredential.Pin, Noon));
+        Assert.Null(owner.UnlockBlockedUntil(UnlockCredential.Password, Noon));
+
+        owner.RecordSuccessfulUnlock(UnlockCredential.Pin);
+
+        Assert.Null(owner.UnlockBlockedUntil(UnlockCredential.Pin, Noon));
+        Assert.Equal(0, owner.PinUnlockFailures);
+    }
+
+    [Fact]
+    public void The_fifth_wrong_proof_holds_only_that_proof_for_the_rest_of_the_window()
+    {
+        var owner = Owner.Claim("owner@example.com", "$argon2id$password", Noon);
+        var now = Noon;
+
+        for (var attempt = 0; attempt < Owner.UnlockAttemptLimit; attempt++)
+        {
+            owner.RecordFailedUnlock(UnlockCredential.Pin, now);
+            now = owner.PinUnlockBlockedUntil!.Value;
+        }
+
+        Assert.Equal(Noon.Add(Owner.UnlockAttemptWindow), owner.PinUnlockBlockedUntil);
+        Assert.Null(owner.PasswordUnlockBlockedUntil);
+        Assert.Null(owner.UnlockBlockedUntil(
+            UnlockCredential.Pin, Noon.Add(Owner.UnlockAttemptWindow)));
+    }
 }

@@ -472,6 +472,12 @@ scope, what this product deliberately does not promise, and — claim by claim,
 with the test that proves each one — what the door in front of the workspace is
 made of.
 
+An owner may also enable a PIN lock for an inactive browser. It is off by
+default, remains enforced across reloads and server restarts, and can always be
+opened with the current password instead. It does not apply to agent tokens or
+`pea`; [the operations guide](docs/operations.md#locking-an-inactive-browser)
+explains the boundary and its settings.
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).

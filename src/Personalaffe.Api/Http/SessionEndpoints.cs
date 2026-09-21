@@ -20,6 +20,13 @@ public sealed record SessionResponse(
     DateTimeOffset ExpiresAt,
     bool Current);
 
+public sealed record InactivityLockStatusResponse(
+    bool Enabled,
+    bool Locked,
+    DateTimeOffset? LocksAt);
+
+public sealed record UnlockInactivityLockRequest(string? Pin, string? Password);
+
 /// <summary>
 /// The browser's way in and out (<c>docs/api.md</c>).
 /// </summary>
@@ -101,9 +108,58 @@ public static class SessionEndpoints
             })
             .WithName("SignOut")
             .WithSummary("End the session this request came in on.")
+            .WithMetadata(new AllowWhileInactivityLocked())
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        endpoints.MapGet("/session/lock", (ReadInactivityLockStatus act) =>
+            {
+                var state = act.Execute();
+                return Results.Ok(new InactivityLockStatusResponse(
+                    state.Enabled, state.Locked, state.LocksAt));
+            })
+            .RequireAuthorization(Authentication.OwnerPolicy)
+            .WithMetadata(new AllowWhileInactivityLocked())
+            .WithName("ReadInactivityLockStatus")
+            .WithSummary("Whether this browser session is locked after inactivity.")
+            .Produces<InactivityLockStatusResponse>()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        endpoints.MapPost("/session/lock/activity", async (
+                RecordInactivityLockActivity act,
+                CancellationToken cancellationToken) =>
+            {
+                var state = await act.ExecuteAsync(cancellationToken);
+                return Results.Ok(new InactivityLockStatusResponse(
+                    state.Enabled, state.Locked, state.LocksAt));
+            })
+            .RequireAuthorization(Authentication.OwnerPolicy)
+            .WithMetadata(new AllowWhileInactivityLocked())
+            .WithName("RecordInactivityLockActivity")
+            .WithSummary("Report deliberate activity while this browser session is still unlocked.")
+            .Produces<InactivityLockStatusResponse>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status423Locked);
+
+        endpoints.MapPost("/session/lock/unlock", async (
+                UnlockInactivityLockRequest request,
+                UnlockInactivityLock act,
+                CancellationToken cancellationToken) =>
+            {
+                await act.ExecuteAsync(request.Pin, request.Password, cancellationToken);
+                return Results.NoContent();
+            })
+            .RequireAuthorization(Authentication.OwnerPolicy)
+            .WithMetadata(new AllowWhileInactivityLocked())
+            .WithName("UnlockInactivityLock")
+            .WithSummary("Unlock this valid browser session with the PIN or current password.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         endpoints.MapGet("/sessions", async (ListSessions act, CancellationToken cancellationToken) =>
             {

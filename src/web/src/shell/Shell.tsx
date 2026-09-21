@@ -60,6 +60,7 @@ function Frame({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) {
   // modifier.
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent) {
+      if (document.documentElement.dataset.sessionLocked === "true") return;
       if (is("global:palette", event)) {
         event.preventDefault();
         // One dialog at a time: the palette arrives over whatever the overview

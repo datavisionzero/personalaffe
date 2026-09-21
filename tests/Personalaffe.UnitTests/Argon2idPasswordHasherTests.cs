@@ -16,6 +16,18 @@ public sealed class Argon2idPasswordHasherTests
     private readonly IPasswordHasher _hasher = new Argon2idPasswordHasher();
 
     [Fact]
+    public async Task Another_accepted_secret_uses_the_same_slow_salted_primitive_without_the_password_rule()
+    {
+        var encoded = await _hasher.HashAcceptedSecretAsync(
+            "0012", TestContext.Current.CancellationToken);
+
+        Assert.True(await _hasher.VerifyAsync(
+            encoded, "0012", TestContext.Current.CancellationToken));
+        Assert.False(await _hasher.VerifyAsync(
+            encoded, "12", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task What_was_hashed_verifies()
     {
         var encoded = await _hasher.HashAsync(Correct, TestContext.Current.CancellationToken);

@@ -20,6 +20,17 @@ public interface IOwners
     Task<Owner?> FindAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Starts a serialized owner change. Used where attempts from several
+    /// browser sessions must share one persistent budget.
+    /// </summary>
+    Task<IOwnerChange> BeginChangeAsync(CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    /// <summary>The owner under the row lock opened by <see cref="BeginChangeAsync"/>.</summary>
+    Task<Owner?> FindForUpdateAsync(CancellationToken cancellationToken) =>
+        throw new NotSupportedException();
+
+    /// <summary>
     /// Writes the first and only owner, and refuses to write a second even
     /// when two callers ask at once: the schema decides that, not a read
     /// taken a moment earlier.
@@ -29,4 +40,9 @@ public interface IOwners
 
     /// <summary>Persists changes to the owner that was read here.</summary>
     Task SaveAsync(CancellationToken cancellationToken);
+}
+
+public interface IOwnerChange : IAsyncDisposable
+{
+    Task CompleteAsync(CancellationToken cancellationToken);
 }

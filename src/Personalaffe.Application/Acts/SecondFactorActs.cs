@@ -8,7 +8,9 @@ public sealed record SecurityState(
     bool SecondFactorEnabled,
     DateTimeOffset? EnrolledAt,
     int RecoveryCodesRemaining,
-    DateTimeOffset? RecoveredAt);
+    DateTimeOffset? RecoveredAt,
+    bool InactivityLockEnabled,
+    int InactivityMinutes);
 
 /// <summary>What an enrolment offers: the secret, and the URI a phone reads it from.</summary>
 public sealed record SecondFactorOffer(string Secret, string Uri);
@@ -29,7 +31,9 @@ public sealed class ReadSecurity(ICallerIdentity caller, IOwners owners, IRecove
             await codes.RemainingAsync(owner.Id, cancellationToken),
             // A recovery nobody performed is a recovery somebody else
             // performed, so the owner is shown when the last one was.
-            owner.RecoveredAt);
+            owner.RecoveredAt,
+            owner.InactivityLockEnabled,
+            owner.InactivityLockMinutes);
     }
 }
 

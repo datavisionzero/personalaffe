@@ -87,6 +87,7 @@ public sealed class AgentAccessTests(PostgresFixture postgres)
             (HttpMethod.Post, "/api/security/second-factor/off"),
             (HttpMethod.Post, "/api/security/recovery-codes"),
             (HttpMethod.Post, "/api/security/password"),
+            (HttpMethod.Put, "/api/security/inactivity-lock"),
             (HttpMethod.Get, "/api/sessions"),
             (HttpMethod.Delete, "/api/sessions"),
             (HttpMethod.Delete, "/api/session"),

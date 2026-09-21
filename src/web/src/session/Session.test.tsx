@@ -12,6 +12,7 @@ import {
 } from "@/shared/anInstance";
 
 const nothingBehindTheDoor = {
+  "GET /api/session/lock": { body: { enabled: false, locked: false, locks_at: null } },
   "GET /api/applications": theApplications(),
   "GET /api/trash": { body: { items: [], has_more: false } },
   "GET /api/security": {
@@ -175,6 +176,69 @@ describe("the door", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: "Sign out" }));
 
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+  });
+
+  it("shows only the lock screen when a locked browser reloads", async () => {
+    anInstance({
+      "GET /api/setup": { body: { required: false } },
+      "GET /api/me": refused("locked", 423, "This browser is locked."),
+    });
+
+    renderAt("/settings/security", <App />);
+
+    expect(await screen.findByRole("heading", { name: "Workspace locked" })).toBeInTheDocument();
+    expect(screen.queryByText(owner.email!)).not.toBeInTheDocument();
+    const pin = screen.getByLabelText("PIN");
+    expect(pin).toHaveAttribute("type", "password");
+    expect(pin).toHaveAttribute("inputmode", "numeric");
+    expect(pin).toHaveAttribute("maxlength", "6");
+  });
+
+  it("unlocks with the PIN and validates the result with the server", async () => {
+    const { asked } = anInstance({
+      ...nothingBehindTheDoor,
+      "GET /api/setup": { body: { required: false } },
+      "GET /api/me": { body: owner },
+      "GET /api/session/lock": [
+        { body: { enabled: true, locked: true, locks_at: null } },
+        { body: { enabled: true, locked: false, locks_at: "2099-01-01T00:00:00Z" } },
+      ],
+      "POST /api/session/lock/unlock": [{}],
+    });
+
+    renderAt("/", <App />);
+    const pin = await screen.findByLabelText("PIN");
+    const preservedAccount = screen.getByRole("button", { name: `Account: ${owner.email}`, hidden: true });
+    expect(preservedAccount.closest("[hidden]")).toBeTruthy();
+    await userEvent.type(pin, "0042");
+    await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
+
+    expect(await screen.findByText(owner.email!)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `Account: ${owner.email}` })).toBe(preservedAccount);
+    expect(asked.find((request) => request.path === "/api/session/lock/unlock")?.body).toEqual({
+      pin: "0042",
+      password: null,
+    });
+    expect(asked.filter((request) => request.path === "/api/session/lock")).toHaveLength(2);
+  });
+
+  it("offers password fallback and explains when another attempt is allowed", async () => {
+    anInstance({
+      "GET /api/setup": { body: { required: false } },
+      "GET /api/me": refused("locked", 423),
+      "POST /api/session/lock/unlock": [{
+        ...refused("throttled", 429, "That proof did not unlock this browser."),
+        headers: { "Retry-After": "7" },
+      }],
+    });
+
+    renderAt("/", <App />);
+    await screen.findByRole("heading", { name: "Workspace locked" });
+    await userEvent.click(screen.getByRole("button", { name: "Use my password" }));
+    await userEvent.type(screen.getByLabelText("Current password"), "not the password");
+    await userEvent.click(screen.getByRole("button", { name: "Unlock" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Try again in 7 seconds");
   });
 
   it("tells an instance that is not there apart from one that refused", async () => {

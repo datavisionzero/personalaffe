@@ -95,4 +95,54 @@ public sealed class BrowserSessionTests
         Assert.False(session.IsValid(Noon.AddHours(1)));
         Assert.False(session.Touch(Noon.AddDays(1)));
     }
+
+    [Fact]
+    public void The_inactivity_boundary_is_closed_and_a_late_activity_report_cannot_reopen_it()
+    {
+        var owner = Personalaffe.Domain.Owner.Claim("owner@example.com", "$argon2id$password", Noon);
+        owner.ConfigureInactivityLock("$argon2id$pin", 5, Noon);
+        var (session, _) = BrowserSession.Begin(
+            Owner, null, Noon, owner.InactivityLockVersion);
+
+        Assert.False(session.InactivityState(owner, Noon.AddMinutes(5).AddTicks(-1)).Locked);
+        Assert.True(session.InactivityState(owner, Noon.AddMinutes(5)).Locked);
+        Assert.False(session.RecordInteraction(owner, Noon.AddMinutes(5)));
+
+        session.MarkInactivityLocked(Noon.AddMinutes(5));
+        Assert.True(session.InactivityState(owner, Noon.AddMinutes(4)).Locked);
+    }
+
+    [Fact]
+    public void Only_explicit_activity_moves_the_inactivity_deadline()
+    {
+        var owner = Personalaffe.Domain.Owner.Claim("owner@example.com", "$argon2id$password", Noon);
+        owner.ConfigureInactivityLock("$argon2id$pin", 5, Noon);
+        var (session, _) = BrowserSession.Begin(
+            Owner, null, Noon, owner.InactivityLockVersion);
+
+        session.Touch(Noon.AddMinutes(4));
+        Assert.Equal(Noon, session.LastInteractionAt);
+
+        Assert.True(session.RecordInteraction(owner, Noon.AddMinutes(4)));
+        Assert.Equal(Noon.AddMinutes(4), session.LastInteractionAt);
+        Assert.False(session.InactivityState(owner, Noon.AddMinutes(8)).Locked);
+    }
+
+    [Fact]
+    public void A_new_pin_configuration_closes_an_old_session_until_it_is_explicitly_unlocked()
+    {
+        var owner = Personalaffe.Domain.Owner.Claim("owner@example.com", "$argon2id$password", Noon);
+        owner.ConfigureInactivityLock("$argon2id$first", 5, Noon);
+        var (session, _) = BrowserSession.Begin(
+            Owner, null, Noon, owner.InactivityLockVersion);
+
+        owner.ConfigureInactivityLock("$argon2id$second", 5, Noon.AddMinutes(1));
+
+        Assert.True(session.InactivityState(owner, Noon.AddMinutes(1)).Locked);
+
+        session.Unlock(owner.InactivityLockVersion, Noon.AddMinutes(1));
+
+        Assert.False(session.InactivityState(owner, Noon.AddMinutes(1)).Locked);
+        Assert.Equal(Noon.AddMinutes(1), session.LastInteractionAt);
+    }
 }

@@ -15,6 +15,26 @@ public interface IBrowserSessions
     /// </summary>
     Task<BrowserSession?> AdmitAsync(byte[] secretHash, DateTimeOffset now, CancellationToken cancellationToken);
 
+    /// <summary>A still-valid session by id, for one of its own lock operations.</summary>
+    Task<BrowserSession?> FindAsync(
+        Guid id, Guid ownerId, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>Persists changes to a session read by this store.</summary>
+    Task SaveAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Brings sessions under a new owner configuration. Activation restarts
+    /// every deadline; a duration-only change keeps activity; a PIN change
+    /// admits only the current session; disabling clears every lock.
+    /// </summary>
+    Task ApplyInactivityConfigurationAsync(
+        Guid ownerId,
+        long version,
+        DateTimeOffset now,
+        InactivityConfigurationEffect effect,
+        Guid? currentSession,
+        CancellationToken cancellationToken);
+
     /// <summary>The owner's sessions that still admit anybody, newest first.</summary>
     Task<IReadOnlyList<BrowserSession>> ListAsync(
         Guid ownerId, DateTimeOffset now, CancellationToken cancellationToken);
@@ -27,4 +47,12 @@ public interface IBrowserSessions
     /// which is how a password change ends the ones somebody else is holding.
     /// </summary>
     Task RevokeAllAsync(Guid ownerId, Guid? except, DateTimeOffset now, CancellationToken cancellationToken);
+}
+
+public enum InactivityConfigurationEffect
+{
+    Activated,
+    DurationChanged,
+    PinChanged,
+    Disabled,
 }
