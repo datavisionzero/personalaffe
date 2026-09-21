@@ -46,6 +46,17 @@ public sealed class Argon2idPasswordHasher : IPasswordHasher
             Parallelism,
             cancellationToken);
 
+    public Task<string> HashAcceptedSecretAsync(string secret, CancellationToken cancellationToken) =>
+        EncodeAsync(
+            string.IsNullOrEmpty(secret)
+                ? throw new ArgumentException("An accepted secret is required.", nameof(secret))
+                : secret,
+            RandomNumberGenerator.GetBytes(SaltBytes),
+            MemoryKiB,
+            Iterations,
+            Parallelism,
+            cancellationToken);
+
     public async Task<bool> VerifyAsync(
         string encodedHash, string password, CancellationToken cancellationToken)
     {

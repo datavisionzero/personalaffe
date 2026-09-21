@@ -188,6 +188,7 @@ builder.Services.AddScoped<DisableSecondFactor>();
 builder.Services.AddScoped<ReissueRecoveryCodes>();
 builder.Services.AddScoped<SetTheOwnersPassword>();
 builder.Services.AddScoped<ChangePassword>();
+builder.Services.AddScoped<ConfigureInactivityLock>();
 builder.Services.AddScoped<ListAgentAccess>();
 builder.Services.AddScoped<GrantAgentAccess>();
 builder.Services.AddScoped<ChangeAgentAccess>();

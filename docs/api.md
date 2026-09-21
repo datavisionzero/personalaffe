@@ -1158,8 +1158,39 @@ anything about.
 ### `GET /api/security`
 
 ```json
-{ "second_factor_enabled": false, "enrolled_at": null, "recovery_codes_remaining": 0 }
+{
+  "second_factor_enabled": false,
+  "enrolled_at": null,
+  "recovery_codes_remaining": 0,
+  "recovered_at": null,
+  "inactivity_lock_enabled": false,
+  "inactivity_minutes": 5
+}
 ```
+
+The inactivity lock is off on new and upgraded instances. Its suggested
+duration is five minutes, but the number alone does not turn it on. Nothing
+about the PIN or its hash is ever returned.
+
+### `PUT /api/security/inactivity-lock`
+
+Turns the additional browser lock on, or changes its PIN and duration:
+
+```json
+{
+  "enabled": true,
+  "pin": "0042",
+  "inactivity_minutes": 15,
+  "current_password": "…"
+}
+```
+
+The PIN is a string of exactly four to six ASCII digits, so leading zeroes are
+part of it. The duration is a whole number from 1 through 1440 minutes. Once the
+lock is on, `pin` may be omitted to retain the existing PIN while changing the
+duration. Turning it off sends `enabled: false` and the current password; that
+removes the stored PIN hash. Every change requires the current password and a
+valid owner browser session. Agent tokens cannot read or change these settings.
 
 ### `POST /api/security/second-factor`
 

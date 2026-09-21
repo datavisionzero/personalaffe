@@ -82,6 +82,7 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/scratchpad/entries/{id}",
                 "/api/search",
                 "/api/security",
+                "/api/security/inactivity-lock",
                 "/api/security/password",
                 "/api/security/recovery-codes",
                 "/api/security/second-factor",
@@ -128,6 +129,7 @@ public sealed class ContractTests(PostgresFixture postgres)
         Assert.Contains("SignInRequest", schemas);
         Assert.Contains("MeResponse", schemas);
         Assert.Contains("SecurityResponse", schemas);
+        Assert.Contains("InactivityLockRequest", schemas);
         Assert.Contains("RecoveryCodesResponse", schemas);
         Assert.Contains("SessionResponse", schemas);
         Assert.Contains("AgentResponse", schemas);

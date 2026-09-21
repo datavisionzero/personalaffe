@@ -501,6 +501,60 @@
         }
       }
     },
+    "/api/security/inactivity-lock": {
+      "put": {
+        "tags": [
+          "personalaffe"
+        ],
+        "summary": "Turn the browser inactivity lock on or off, or change its PIN and duration.",
+        "operationId": "ConfigureInactivityLock",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InactivityLockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/security/second-factor": {
       "post": {
         "tags": [
@@ -8558,6 +8612,43 @@
         },
         "additionalProperties": false
       },
+      "InactivityLockRequest": {
+        "required": [
+          "enabled",
+          "pin",
+          "inactivity_minutes",
+          "current_password"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "pin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "inactivity_minutes": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "current_password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "MakeFolderRequest": {
         "required": [
           "name",
@@ -9150,7 +9241,9 @@
           "second_factor_enabled",
           "enrolled_at",
           "recovery_codes_remaining",
-          "recovered_at"
+          "recovered_at",
+          "inactivity_lock_enabled",
+          "inactivity_minutes"
         ],
         "type": "object",
         "properties": {
@@ -9174,6 +9267,13 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "inactivity_lock_enabled": {
+            "type": "boolean"
+          },
+          "inactivity_minutes": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

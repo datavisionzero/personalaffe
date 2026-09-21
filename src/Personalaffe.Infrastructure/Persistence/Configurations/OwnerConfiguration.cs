@@ -53,7 +53,19 @@ public sealed class OwnerConfiguration : IEntityTypeConfiguration<Owner>
         // What the operator did on the machine, where the owner can see it.
         builder.Property(owner => owner.RecoveredAt).HasColumnName("recovered_at");
 
+        builder.Property(owner => owner.InactivityLockPinHash)
+            .HasColumnName("inactivity_lock_pin_hash");
+        builder.Property(owner => owner.InactivityLockMinutes)
+            .HasColumnName("inactivity_lock_minutes")
+            .HasDefaultValue(Owner.DefaultInactivityLockMinutes)
+            .IsRequired();
+        builder.Property(owner => owner.InactivityLockVersion)
+            .HasColumnName("inactivity_lock_version")
+            .HasDefaultValue(0L)
+            .IsRequired();
+
         builder.Ignore(owner => owner.SecondFactorEnabled);
+        builder.Ignore(owner => owner.InactivityLockEnabled);
 
         builder.Property(owner => owner.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(owner => owner.UpdatedAt).HasColumnName("updated_at").IsRequired();
