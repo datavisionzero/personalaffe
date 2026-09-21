@@ -111,7 +111,7 @@ public sealed class RecordInactivityLockActivity(
     IBrowserSessions sessions,
     TimeProvider clock)
 {
-    public async Task ExecuteAsync(CancellationToken cancellationToken)
+    public async Task<InactivityLockState> ExecuteAsync(CancellationToken cancellationToken)
     {
         var who = caller.Caller;
         who.RequireOwner("report browser activity");
@@ -134,6 +134,7 @@ public sealed class RecordInactivityLockActivity(
         }
 
         await sessions.SaveAsync(cancellationToken);
+        return session.InactivityState(owner, now);
     }
 }
 

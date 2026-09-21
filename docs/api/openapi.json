@@ -347,8 +347,15 @@
               }
             }
           },
-          "204": {
-            "description": "No Content"
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InactivityLockStatusResponse"
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized",

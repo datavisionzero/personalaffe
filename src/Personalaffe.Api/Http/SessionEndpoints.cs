@@ -130,14 +130,15 @@ public static class SessionEndpoints
                 RecordInactivityLockActivity act,
                 CancellationToken cancellationToken) =>
             {
-                await act.ExecuteAsync(cancellationToken);
-                return Results.NoContent();
+                var state = await act.ExecuteAsync(cancellationToken);
+                return Results.Ok(new InactivityLockStatusResponse(
+                    state.Enabled, state.Locked, state.LocksAt));
             })
             .RequireAuthorization(Authentication.OwnerPolicy)
             .WithMetadata(new AllowWhileInactivityLocked())
             .WithName("RecordInactivityLockActivity")
             .WithSummary("Report deliberate activity while this browser session is still unlocked.")
-            .Produces(StatusCodes.Status204NoContent)
+            .Produces<InactivityLockStatusResponse>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status423Locked);

@@ -1,7 +1,8 @@
 import { api } from "@/api/client";
 import { Setup } from "@/session/Setup";
 import { SignIn } from "@/session/SignIn";
-import { useSession } from "@/session/useSession";
+import { InactivityLock } from "@/session/InactivityLock";
+import { useSession, type Session } from "@/session/useSession";
 import { Shell } from "@/shell/Shell";
 import { useAppearance } from "@/shell/useAppearance";
 import { Mark } from "@/shell/Mark";
@@ -20,7 +21,7 @@ import { useInstance } from "@/shell/useInstance";
  * somebody has not come through yet.
  */
 export function App() {
-  const { session, signedIn, signedOut } = useSession();
+  const { session, ask, signedIn, signedOut, unlocked } = useSession();
 
   async function signOut() {
     await api.DELETE("/api/session");
@@ -63,7 +64,45 @@ export function App() {
     );
   }
 
-  return <Shell me={session.me} onSignedOut={() => void signOut()} />;
+  return (
+    <Authenticated
+      session={session}
+      onRetry={ask}
+      onUnlocked={unlocked}
+      onSignOut={signOut}
+    />
+  );
+}
+
+function Authenticated({
+  session,
+  onRetry,
+  onUnlocked,
+  onSignOut,
+}: {
+  session: Extract<Session, { state: "signed-in" | "locked" }>;
+  onRetry: () => void;
+  onUnlocked: () => void;
+  onSignOut: () => Promise<void>;
+}) {
+  const locked = session.state === "locked";
+  return (
+    <>
+      {session.me && (
+        <div hidden={locked} inert={locked} aria-hidden={locked || undefined}>
+          <Shell me={session.me} onSignedOut={() => void onSignOut()} />
+        </div>
+      )}
+      {locked && (
+        <InactivityLock
+          reason={session.reason}
+          onRetry={onRetry}
+          onUnlocked={onUnlocked}
+          onSignOut={onSignOut}
+        />
+      )}
+    </>
+  );
 }
 
 /**

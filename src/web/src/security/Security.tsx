@@ -162,6 +162,10 @@ export function Security() {
         </div>
       )}
 
+      {state && (
+        <InactivityLockSettings state={state} onRefused={setRefused} onChanged={read} />
+      )}
+
       <ChangePassword onRefused={setRefused} onChanged={read} />
 
       <div className="flex flex-col gap-3">
@@ -185,6 +189,153 @@ export function Security() {
         </ul>
       </div>
     </section>
+  );
+}
+
+function InactivityLockSettings({
+  state,
+  onRefused,
+  onChanged,
+}: {
+  state: SecurityState;
+  onRefused: (message?: string) => void;
+  onChanged: () => void;
+}) {
+  const [pin, setPin] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [minutes, setMinutes] = useState(String(state.inactivity_minutes));
+  const [passwords, setPasswords] = useState<Record<string, string>>({});
+  const [done, setDone] = useState(false);
+
+  async function change(event: FormEvent, action: "enable" | "duration" | "pin" | "disable") {
+    event.preventDefault();
+    onRefused(undefined);
+    setDone(false);
+
+    if ((action === "enable" || action === "pin") && pin !== confirmation) {
+      onRefused("The PIN and its confirmation do not match.");
+      return;
+    }
+
+    const answer = await api.PUT("/api/security/inactivity-lock", {
+      body: {
+        enabled: action !== "disable",
+        pin: action === "enable" || action === "pin" ? pin : null,
+        inactivity_minutes: action === "disable" ? null : Number(minutes),
+        current_password: passwords[action] ?? "",
+      },
+    });
+
+    setPasswords((current) => ({ ...current, [action]: "" }));
+    setPin("");
+    setConfirmation("");
+    if (answer.error) {
+      onRefused(refusal(answer.error, answer.response.status).message);
+      return;
+    }
+    setDone(true);
+    onChanged();
+  }
+
+  const passwordField = (action: "enable" | "duration" | "pin" | "disable") => (
+    <Field label="Your current password">
+      <Input
+        type="password"
+        name="current_password"
+        autoComplete="current-password"
+        required
+        value={passwords[action] ?? ""}
+        onChange={(event) => setPasswords((current) => ({ ...current, [action]: event.target.value }))}
+      />
+    </Field>
+  );
+  const minutesField = (
+    <Field label="Lock after this many inactive minutes">
+      <Input
+        type="number"
+        name="inactivity_minutes"
+        min={1}
+        max={1440}
+        required
+        value={minutes}
+        onChange={(event) => setMinutes(event.target.value)}
+      />
+    </Field>
+  );
+  const pinFields = (
+    <>
+      <Field label={state.inactivity_lock_enabled ? "New PIN" : "PIN"}>
+        <Input
+          type="password"
+          name="pin"
+          inputMode="numeric"
+          pattern="[0-9]{4,6}"
+          minLength={4}
+          maxLength={6}
+          autoComplete="off"
+          required
+          value={pin}
+          onChange={(event) => setPin(event.target.value)}
+        />
+      </Field>
+      <Field label="Confirm PIN">
+        <Input
+          type="password"
+          name="pin_confirmation"
+          inputMode="numeric"
+          pattern="[0-9]{4,6}"
+          minLength={4}
+          maxLength={6}
+          autoComplete="off"
+          required
+          value={confirmation}
+          onChange={(event) => setConfirmation(event.target.value)}
+        />
+      </Field>
+    </>
+  );
+
+  return (
+    <div className="border-border flex flex-col gap-5 rounded-lg border p-5">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-sm font-medium">Lock after inactivity</h3>
+        <p className="text-muted-foreground text-sm text-balance">
+          {state.inactivity_lock_enabled
+            ? `On. This browser locks after ${state.inactivity_minutes} inactive minutes.`
+            : "Off. A short PIN can protect a browser you walk away from; your password always remains a fallback."}
+        </p>
+        {done && <p role="status" className="text-sm">Changed.</p>}
+      </div>
+
+      {!state.inactivity_lock_enabled ? (
+        <form className="flex flex-col gap-3" onSubmit={(event) => void change(event, "enable")}>
+          {pinFields}
+          {minutesField}
+          {passwordField("enable")}
+          <div><Button type="submit" variant="outline">Enable inactivity lock</Button></div>
+        </form>
+      ) : (
+        <>
+          <form className="flex flex-col gap-3" onSubmit={(event) => void change(event, "duration")}>
+            <h4 className="text-sm font-medium">Change the timeout</h4>
+            {minutesField}
+            {passwordField("duration")}
+            <div><Button type="submit" variant="outline">Save timeout</Button></div>
+          </form>
+          <form className="flex flex-col gap-3" onSubmit={(event) => void change(event, "pin")}>
+            <h4 className="text-sm font-medium">Replace the PIN</h4>
+            {pinFields}
+            {passwordField("pin")}
+            <div><Button type="submit" variant="outline">Replace PIN</Button></div>
+          </form>
+          <form className="flex flex-col gap-3" onSubmit={(event) => void change(event, "disable")}>
+            <h4 className="text-sm font-medium">Turn the inactivity lock off</h4>
+            {passwordField("disable")}
+            <div><Button type="submit" variant="outline">Turn it off</Button></div>
+          </form>
+        </>
+      )}
+    </div>
   );
 }
 

@@ -14,7 +14,7 @@ import { AppearanceProvider } from "@/shell/AppearanceProvider";
  * only `fetch` is ours — so a route or a field that changed shape fails these
  * tests by not compiling.
  */
-export type Answer = { status?: number; body?: unknown; contentType?: string };
+export type Answer = { status?: number; body?: unknown; contentType?: string; headers?: HeadersInit };
 
 export type Asked = {
   method: string;
@@ -60,12 +60,14 @@ export function anInstance(answers: Record<string, Answer | Answer[]>) {
 
     const status = next.status ?? 200;
 
+    const headers = new Headers(next.headers);
+    headers.set(
+      "Content-Type",
+      next.contentType ?? (status >= 400 ? "application/problem+json" : "application/json"),
+    );
     return new Response(next.body === undefined ? null : JSON.stringify(next.body), {
       status: next.body === undefined ? 204 : status,
-      headers: {
-        "Content-Type":
-          next.contentType ?? (status >= 400 ? "application/problem+json" : "application/json"),
-      },
+      headers,
     });
   });
 

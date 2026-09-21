@@ -10,12 +10,16 @@ const off = {
   enrolled_at: null,
   recovery_codes_remaining: 0,
   recovered_at: null,
+  inactivity_lock_enabled: false,
+  inactivity_minutes: 5,
 };
 const on = {
   second_factor_enabled: true,
   enrolled_at: "2026-09-13T12:00:00.000000Z",
   recovery_codes_remaining: 10,
   recovered_at: null,
+  inactivity_lock_enabled: false,
+  inactivity_minutes: 5,
 };
 
 describe("how the owner signs in", () => {
@@ -155,5 +159,50 @@ describe("how the owner signs in", () => {
       current_password: "the old one at least twelve",
       password: "the new one at least twelve",
     });
+  });
+
+  it("turns on the inactivity lock with a confirmed numeric PIN", async () => {
+    const enabled = { ...off, inactivity_lock_enabled: true, inactivity_minutes: 15 };
+    const { asked } = anInstance({
+      "GET /api/security": [{ body: off }, { body: enabled }],
+      "GET /api/sessions": [{ body: [] }, { body: [] }],
+      "PUT /api/security/inactivity-lock": [{}],
+    });
+
+    render(<Security />);
+
+    const pin = await screen.findByLabelText("PIN");
+    expect(pin).toHaveAttribute("type", "password");
+    expect(pin).toHaveAttribute("inputmode", "numeric");
+    await userEvent.type(pin, "0042");
+    await userEvent.type(screen.getByLabelText("Confirm PIN"), "0042");
+    await userEvent.clear(screen.getByLabelText("Lock after this many inactive minutes"));
+    await userEvent.type(screen.getByLabelText("Lock after this many inactive minutes"), "15");
+    await userEvent.type(screen.getByLabelText("Your current password"), "the current password");
+    await userEvent.click(screen.getByRole("button", { name: "Enable inactivity lock" }));
+
+    expect(await screen.findByText("Changed.")).toBeInTheDocument();
+    expect(asked.find((request) => request.path === "/api/security/inactivity-lock")?.body).toEqual({
+      enabled: true,
+      pin: "0042",
+      inactivity_minutes: 15,
+      current_password: "the current password",
+    });
+  });
+
+  it("does not send PINs that do not match", async () => {
+    const { asked } = anInstance({
+      "GET /api/security": [{ body: off }],
+      "GET /api/sessions": [{ body: [] }],
+    });
+
+    render(<Security />);
+    await userEvent.type(await screen.findByLabelText("PIN"), "1234");
+    await userEvent.type(screen.getByLabelText("Confirm PIN"), "1235");
+    await userEvent.type(screen.getByLabelText("Your current password"), "the current password");
+    await userEvent.click(screen.getByRole("button", { name: "Enable inactivity lock" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("do not match");
+    expect(asked.some((request) => request.path === "/api/security/inactivity-lock")).toBe(false);
   });
 });

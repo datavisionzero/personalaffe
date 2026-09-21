@@ -1145,9 +1145,10 @@ authoritative; ordinary requests and status checks do not move `locks_at`.
 ### `POST /api/session/lock/activity`
 
 An empty object reports a deliberate keyboard, pointer or touch interaction and
-answers `204`. Reports are stored at most once every thirty seconds and extend
-the deadline only while the valid session is still unlocked. A report at or
-after the deadline answers `locked`; it cannot reopen the session.
+answers with the same state as `GET /api/session/lock`, including the new
+`locks_at`. Reports are stored at most once every thirty seconds and extend the
+deadline only while the valid session is still unlocked. A report at or after
+the deadline answers `locked`; it cannot reopen the session.
 
 ### `POST /api/session/lock/unlock`
 

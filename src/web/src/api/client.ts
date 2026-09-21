@@ -32,6 +32,40 @@ export const api = createClient<paths>({
   fetch: (request) => globalThis.fetch(request),
 });
 
+type DoorEvent = "locked" | "configuration";
+const doorListeners = new Set<(event: DoorEvent) => void>();
+const requestNumbers = new WeakMap<Request, number>();
+let nextRequestNumber = 0;
+let unlockedThrough = 0;
+
+// A lock refusal can arrive from any screen. Keep that fact beside the one API
+// client instead of asking every feature to remember a security boundary.
+api.use({
+  onRequest({ request }) {
+    requestNumbers.set(request, ++nextRequestNumber);
+    return request;
+  },
+  onResponse({ request, response }) {
+    const requestNumber = requestNumbers.get(request) ?? nextRequestNumber;
+    if (response.status === 423 && requestNumber > unlockedThrough) {
+      for (const listener of doorListeners) listener("locked");
+    } else if (response.ok && request.method === "PUT" && new URL(request.url).pathname === "/api/security/inactivity-lock") {
+      for (const listener of doorListeners) listener("configuration");
+    }
+    return response;
+  },
+});
+
+export function onDoorEvent(listener: (event: DoorEvent) => void): () => void {
+  doorListeners.add(listener);
+  return () => doorListeners.delete(listener);
+}
+
+/** Ignore lock refusals from requests that began before this successful proof. */
+export function confirmedUnlocked(): void {
+  unlockedThrough = nextRequestNumber;
+}
+
 export type Schemas = components["schemas"];
 export type Problem = Schemas["ProblemDetails"];
 

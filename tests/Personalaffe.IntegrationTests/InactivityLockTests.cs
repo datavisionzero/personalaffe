@@ -74,7 +74,10 @@ public sealed class InactivityLockTests(PostgresFixture postgres)
         using (var active = await client.PostAsJsonAsync(
             "/api/session/lock/activity", new { }, TestContext.Current.CancellationToken))
         {
-            Assert.Equal(HttpStatusCode.NoContent, active.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, active.StatusCode);
+            var state = await active.Content.ReadFromJsonAsync<JsonNode>(TestContext.Current.CancellationToken);
+            Assert.False(state!["locked"]!.GetValue<bool>());
+            Assert.Equal(Noon.AddMinutes(9), state["locks_at"]!.GetValue<DateTimeOffset>());
         }
 
         clock.Advance(TimeSpan.FromMinutes(4));
