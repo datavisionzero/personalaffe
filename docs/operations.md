@@ -132,6 +132,35 @@ It is optional, the recovery codes it gives you are shown once, and
 [When the owner is locked out](#when-the-owner-is-locked-out) is what stands
 behind both.
 
+#### Locking an inactive browser
+
+The Security screen can also put an optional PIN lock in front of a browser
+after 1 to 1440 minutes without deliberate keyboard, pointer or touch activity.
+It is **off by default**, including after an upgrade. Turning it on takes a
+four- to six-digit PIN, its confirmation, a duration and the current password.
+Leading zeroes are part of the PIN. The same screen changes the duration or
+PIN, or turns the feature off; each change asks for the current password.
+
+This is an extra boundary inside a still-valid browser session, not another
+account and not a replacement for normal sign-in. Background refreshes do not
+keep it open. Reloading, opening a direct link, suspending the computer or
+restarting the instance does not bypass it. Tabs sharing one browser session
+share its state, while another signed-in browser unlocks separately. If the
+underlying session expires or is revoked, the owner signs in normally again,
+including the second factor where one is enabled.
+
+The lock screen accepts the PIN or, if the PIN is forgotten, the current
+password. Password fallback unlocks only that browser session; it does not turn
+the feature off. Repeated wrong attempts are delayed. The PIN is checked on the
+server and is stored only as a slow salted hash. Its configuration and current
+session state are part of the database, so normal backup and restore carry them
+with the rest of the owner's security material.
+
+Agent access is deliberately separate. `pea` and other callers holding an
+agent token continue according to their per-application permissions and never
+receive a PIN prompt. They still cannot read or change Security settings or
+unlock an owner browser.
+
 ### 7. Switch the applications on, and let an agent in
 
 Four switches in Settings — Scratchpad, Files, Knowledge, Tasks — each of which

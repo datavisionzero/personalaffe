@@ -11,6 +11,7 @@ test("locks across browser sessions and preserves unsaved work after password re
   try {
     await signedIn(page);
     await signedIn(settings);
+    await configure(settings, false, null, null);
 
     // The settings form itself is part of the journey: a leading-zero PIN is
     // a string, masked, and accompanied by an explicit timeout and password.
@@ -30,13 +31,33 @@ test("locks across browser sessions and preserves unsaved work after password re
     const draft = `still here after locking ${Date.now()}`;
     await page.getByRole("textbox", { name: "New entry" }).fill(draft);
 
-    await configure(settings, true, "0055", 5);
+    await configure(settings, true, "00042", 5);
     await page.bringToFront();
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
 
     await expect(page.getByRole("heading", { name: "Workspace locked" })).toBeVisible();
     await expect(page).toHaveURL(/\/scratchpad$/);
     await expect(page.getByRole("heading", { name: "Scratchpad" })).toBeHidden();
+
+    // Five and six digits, including leading zeroes, travel through the real
+    // server unlock path. Each replacement locks the other browser session.
+    await page.getByLabel("PIN").fill("00042");
+    await page.getByRole("button", { name: "Unlock" }).click();
+    await expect(page.getByRole("heading", { name: "Scratchpad" })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "New entry" })).toHaveValue(draft);
+
+    await configure(page, true, "000042", 5);
+    await settings.bringToFront();
+    await settings.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(settings.getByRole("heading", { name: "Workspace locked" })).toBeVisible();
+    await settings.locator("main:visible").getByLabel("PIN", { exact: true }).fill("000042");
+    await settings.getByRole("button", { name: "Unlock" }).click();
+    await expect(settings.getByRole("heading", { name: "Settings" })).toBeVisible();
+
+    await configure(settings, true, "0055", 5);
+    await page.bringToFront();
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(page.getByRole("heading", { name: "Workspace locked" })).toBeVisible();
 
     // A failed PIN says when it may be tried again. The independent password
     // path remains available immediately and does not discard the mounted UI.
@@ -49,7 +70,18 @@ test("locks across browser sessions and preserves unsaved work after password re
 
     await expect(page.getByRole("heading", { name: "Scratchpad" })).toBeVisible();
     await expect(page.getByRole("textbox", { name: "New entry" })).toHaveValue(draft);
+
+    // Finish through the product UI and leave the shared browser-test instance
+    // in its default-off state for every check that follows.
+    await page.goto("/settings/security");
+    const disable = page.locator("form").filter({
+      has: page.getByRole("heading", { name: "Turn the inactivity lock off" }),
+    });
+    await disable.getByLabel("Your current password").fill(owner.password);
+    await disable.getByRole("button", { name: "Turn it off" }).click();
+    await expect(page.getByText(/Off\. A short PIN/)).toBeVisible();
   } finally {
+    await configure(page, false, null, null).catch(() => undefined);
     await configure(settings, false, null, null).catch(() => undefined);
     await first.close();
     await second.close();

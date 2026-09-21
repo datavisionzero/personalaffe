@@ -46,6 +46,37 @@ public sealed class InactivityLockTests(PostgresFixture postgres)
             Assert.Equal((HttpStatusCode)423, security.StatusCode);
         }
 
+        // Removing or manipulating the web lock screen changes none of this.
+        // Representative reads, writes, downloads, exports and security
+        // changes all meet the same server-side session boundary.
+        var blockedOperations = new Func<HttpRequestMessage>[]
+        {
+            () => new(HttpMethod.Get, "/api/files"),
+            () => new(HttpMethod.Get, $"/api/files/{Guid.CreateVersion7()}/content"),
+            () => new(HttpMethod.Get, "/api/knowledge/export"),
+            () => new(HttpMethod.Get, "/api/bookmarks/export"),
+            () => new(HttpMethod.Post, "/api/scratchpad/entries")
+            {
+                Content = JsonContent.Create(new { text = "must not be written" }),
+            },
+            () => new(HttpMethod.Put, "/api/security/inactivity-lock")
+            {
+                Content = JsonContent.Create(new
+                {
+                    enabled = false,
+                    current_password = AnOwner.Secret,
+                }),
+            },
+        };
+
+        foreach (var makeRequest in blockedOperations)
+        {
+            using var request = makeRequest();
+            using var refused = await client.SendAsync(request, TestContext.Current.CancellationToken);
+            Assert.Equal((HttpStatusCode)423, refused.StatusCode);
+            Assert.Equal("/problems/locked", await TypeAsync(refused));
+        }
+
         using (var publicVersion = await client.GetAsync("/api/version", TestContext.Current.CancellationToken))
         {
             Assert.Equal(HttpStatusCode.OK, publicVersion.StatusCode);

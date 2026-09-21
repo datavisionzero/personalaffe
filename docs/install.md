@@ -96,6 +96,12 @@ second factor and **write the recovery codes down** — and read
 [When the owner is locked out](operations.md#when-the-owner-is-locked-out)
 before you need it.
 
+The same Security screen can optionally lock an inactive browser with a
+four- to six-digit PIN. It starts off, and it affects owner browser sessions
+only — agent tokens and `pea` keep their existing application permissions. See
+[Locking an inactive browser](operations.md#locking-an-inactive-browser) for
+what counts as activity and how password fallback works.
+
 ## `pea`, on the machine you work from
 
 `pea` is a client of the public API and nothing else. It does not belong beside
