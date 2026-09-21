@@ -29,6 +29,8 @@ public static class Problems
     {
         RefusalCode.Validation or RefusalCode.UnknownField => StatusCodes.Status400BadRequest,
         RefusalCode.Unauthenticated or RefusalCode.SecondFactor => StatusCodes.Status401Unauthorized,
+        RefusalCode.Locked => StatusCodes.Status423Locked,
+        RefusalCode.Throttled => StatusCodes.Status429TooManyRequests,
         RefusalCode.Forbidden => StatusCodes.Status403Forbidden,
         RefusalCode.NotFound or RefusalCode.Deleted => StatusCodes.Status404NotFound,
         RefusalCode.Disabled or RefusalCode.Conflict => StatusCodes.Status409Conflict,
@@ -48,6 +50,8 @@ public static class Problems
         RefusalCode.UnknownField => "The request contains a field this object does not define",
         RefusalCode.Unauthenticated => "No credential, an unknown one, or a revoked one",
         RefusalCode.SecondFactor => "A code from the authenticator is wanted as well",
+        RefusalCode.Locked => "This browser session is locked after inactivity",
+        RefusalCode.Throttled => "Too many recent attempts",
         RefusalCode.Forbidden => "The caller may not do this",
         RefusalCode.NotFound => "Nothing at that address",
         RefusalCode.Deleted => "What was at that address is in the Trash",
@@ -201,6 +205,12 @@ public static class Problems
             }
 
             context.Response.StatusCode = document.Status!.Value;
+            if (exception is Refusal { Code: RefusalCode.Throttled } throttled
+                && throttled.Extensions.TryGetValue("retry_after_seconds", out var retryAfter))
+            {
+                context.Response.Headers.RetryAfter = Convert.ToString(
+                    retryAfter, System.Globalization.CultureInfo.InvariantCulture);
+            }
             await context.Response.WriteAsJsonAsync(document, options: null, ContentType, cancellationToken);
 
             return true;

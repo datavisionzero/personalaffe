@@ -118,6 +118,8 @@ for what that is about and where it is checked.
 | `unknown-field` | 400 | The request names a field the object does not define. |
 | `unauthenticated` | 401 | No credential, an unknown one, or a revoked one. |
 | `second-factor` | 401 | The password was right and the authenticator's code is wanted as well. |
+| `locked` | 423 | The browser session is signed in, but its inactivity lock is closed. |
+| `throttled` | 429 | Too many recent attempts used this proof. Carries `retry_at` and `retry_after_seconds`, and the response carries `Retry-After`. |
 | `forbidden` | 403 | The caller may not do this. |
 | `not-found` | 404 | Nothing at that address. |
 | `deleted` | 404 | What was at that address is in the Trash. Carries `deleted_at` and `expires_at`. |
@@ -1129,6 +1131,50 @@ somebody signed in over plain HTTP still has the other one in that browser.
 A caller holding a token has no session to end and is told so: a token is
 revoked where it was issued, and answering `204` would say something had been
 taken away that is still working.
+
+### `GET /api/session/lock`
+
+```json
+{ "enabled": true, "locked": false, "locks_at": "2026-09-21T12:05:00.000000Z" }
+```
+
+The state of this browser session's additional inactivity lock. It remains
+reachable while locked and carries no workspace content. The server's clock is
+authoritative; ordinary requests and status checks do not move `locks_at`.
+
+### `POST /api/session/lock/activity`
+
+An empty object reports a deliberate keyboard, pointer or touch interaction and
+answers `204`. Reports are stored at most once every thirty seconds and extend
+the deadline only while the valid session is still unlocked. A report at or
+after the deadline answers `locked`; it cannot reopen the session.
+
+### `POST /api/session/lock/unlock`
+
+Send exactly one of the two proofs:
+
+```json
+{ "pin": "0042" }
+```
+
+```json
+{ "password": "…" }
+```
+
+Either is checked only on the server. Success answers `204`, reopens only this
+still-valid browser session and starts its deadline again. Password fallback
+does not turn the PIN feature off. Wrong PIN and password attempts have
+separate, persistent, owner-wide delays, so distributed attempts across tabs or
+sessions do not gain a fresh budget and a guessed PIN cannot consume the
+password recovery path. `throttled` carries the next usable time and a
+`Retry-After` header. An expired or revoked base session is `unauthenticated`
+and must sign in normally, including the second factor where configured.
+
+While locked, all other protected operations — reads, writes, downloads,
+exports, search and settings included — answer `locked`. Only this status,
+activity (which remains locked), unlock and sign-out are admitted. Bearer agent
+tokens have no browser session and remain governed only by their application
+permissions; they cannot call these owner browser operations.
 
 ### `GET /api/me`
 

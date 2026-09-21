@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Personalaffe.Application.Acts;
 using Personalaffe.Application.Ports;
@@ -28,6 +29,25 @@ public sealed class Owners(PersonalaffeDbContext context) : IOwners
     public Task<Owner?> FindAsync(CancellationToken cancellationToken) =>
         context.Owners.SingleOrDefaultAsync(cancellationToken);
 
+    public async Task<IOwnerChange> BeginChangeAsync(CancellationToken cancellationToken) =>
+        new OwnerChange(await context.Database.BeginTransactionAsync(cancellationToken));
+
+    public async Task<Owner?> FindForUpdateAsync(CancellationToken cancellationToken)
+    {
+        // Authentication read the owner before this act. Detach that snapshot:
+        // after waiting for another attempt's row lock, the serialized decision
+        // must use what that attempt committed rather than the tracked value
+        // from before the wait.
+        foreach (var entry in context.ChangeTracker.Entries<Owner>())
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        return await context.Owners
+            .FromSqlRaw("select * from owner for update")
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Owner owner, CancellationToken cancellationToken)
     {
         context.Owners.Add(owner);
@@ -48,4 +68,12 @@ public sealed class Owners(PersonalaffeDbContext context) : IOwners
 
     public Task SaveAsync(CancellationToken cancellationToken) =>
         context.SaveChangesAsync(cancellationToken);
+
+    private sealed class OwnerChange(IDbContextTransaction transaction) : IOwnerChange
+    {
+        public Task CompleteAsync(CancellationToken cancellationToken) =>
+            transaction.CommitAsync(cancellationToken);
+
+        public ValueTask DisposeAsync() => transaction.DisposeAsync();
+    }
 }

@@ -36,6 +36,57 @@ public sealed class BrowserSessions(PersonalaffeDbContext context) : IBrowserSes
         return session;
     }
 
+    public async Task<BrowserSession?> FindAsync(
+        Guid id, Guid ownerId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var session = await context.BrowserSessions.SingleOrDefaultAsync(
+            candidate => candidate.Id == id && candidate.OwnerId == ownerId,
+            cancellationToken);
+
+        return session is not null && session.IsValid(now) ? session : null;
+    }
+
+    public Task SaveAsync(CancellationToken cancellationToken) =>
+        context.SaveChangesAsync(cancellationToken);
+
+    public async Task ApplyInactivityConfigurationAsync(
+        Guid ownerId,
+        long version,
+        DateTimeOffset now,
+        InactivityConfigurationEffect effect,
+        Guid? currentSession,
+        CancellationToken cancellationToken)
+    {
+        var sessions = await context.BrowserSessions
+            .Where(session => session.OwnerId == ownerId
+                && session.RevokedAt == null
+                && session.ExpiresAt > now
+                && session.LastUsedAt > now - BrowserSession.IdleLifetime)
+            .ToListAsync(cancellationToken);
+
+        foreach (var session in sessions)
+        {
+            var apply = effect != InactivityConfigurationEffect.PinChanged
+                || currentSession == session.Id;
+
+            if (!apply)
+            {
+                continue;
+            }
+
+            session.AdoptInactivityConfiguration(
+                version,
+                now,
+                restartDeadline: effect is InactivityConfigurationEffect.Activated
+                    or InactivityConfigurationEffect.PinChanged,
+                unlock: effect is InactivityConfigurationEffect.Activated
+                    or InactivityConfigurationEffect.PinChanged
+                    or InactivityConfigurationEffect.Disabled);
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<BrowserSession>> ListAsync(
         Guid ownerId, DateTimeOffset now, CancellationToken cancellationToken) =>
         await context.BrowserSessions

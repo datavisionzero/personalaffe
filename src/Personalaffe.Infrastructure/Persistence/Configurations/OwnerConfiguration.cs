@@ -63,6 +63,22 @@ public sealed class OwnerConfiguration : IEntityTypeConfiguration<Owner>
             .HasColumnName("inactivity_lock_version")
             .HasDefaultValue(0L)
             .IsRequired();
+        builder.Property(owner => owner.PinUnlockFailures)
+            .HasColumnName("pin_unlock_failures")
+            .HasDefaultValue(0)
+            .IsRequired();
+        builder.Property(owner => owner.PinUnlockWindowStartedAt)
+            .HasColumnName("pin_unlock_window_started_at");
+        builder.Property(owner => owner.PinUnlockBlockedUntil)
+            .HasColumnName("pin_unlock_blocked_until");
+        builder.Property(owner => owner.PasswordUnlockFailures)
+            .HasColumnName("password_unlock_failures")
+            .HasDefaultValue(0)
+            .IsRequired();
+        builder.Property(owner => owner.PasswordUnlockWindowStartedAt)
+            .HasColumnName("password_unlock_window_started_at");
+        builder.Property(owner => owner.PasswordUnlockBlockedUntil)
+            .HasColumnName("password_unlock_blocked_until");
 
         builder.Ignore(owner => owner.SecondFactorEnabled);
         builder.Ignore(owner => owner.InactivityLockEnabled);

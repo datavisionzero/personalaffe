@@ -86,6 +86,18 @@ public sealed class Refusal(
     /// <summary>The caller may not do this.</summary>
     public static Refusal Forbidden(string detail) => new(RefusalCode.Forbidden, detail);
 
+    public static Refusal Locked(string detail) => new(RefusalCode.Locked, detail);
+
+    public static Refusal Throttled(string detail, DateTimeOffset retryAt, DateTimeOffset now) =>
+        new(
+            RefusalCode.Throttled,
+            detail,
+            new Dictionary<string, object?>
+            {
+                ["retry_at"] = retryAt,
+                ["retry_after_seconds"] = Math.Max(1, (int)Math.Ceiling((retryAt - now).TotalSeconds)),
+            });
+
     /// <summary>
     /// The write is holding a version that is no longer the object's — or is
     /// holding none at all, which the product treats the same way, because the

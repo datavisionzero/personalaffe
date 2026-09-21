@@ -52,11 +52,23 @@ public sealed record Caller
     /// <summary>Explicit visibility context for this request only; never a permission grant.</summary>
     public bool PrivateBookmarks { get; init; }
 
+    public InactivityLockState? InactivityLock { get; init; }
+
     public bool IsOwner => Kind == CallerKind.Owner;
 
     /// <summary>The owner, in a browser.</summary>
-    public static Caller Owner(Guid id, Guid? sessionId = null) =>
-        new() { Kind = CallerKind.Owner, Id = id, SessionId = sessionId, Permissions = Permissions.Full };
+    public static Caller Owner(
+        Guid id,
+        Guid? sessionId = null,
+        InactivityLockState? inactivityLock = null) =>
+        new()
+        {
+            Kind = CallerKind.Owner,
+            Id = id,
+            SessionId = sessionId,
+            Permissions = Permissions.Full,
+            InactivityLock = inactivityLock,
+        };
 
     /// <summary>An agent, with exactly what it was granted.</summary>
     public static Caller Agent(AgentAccess access) =>

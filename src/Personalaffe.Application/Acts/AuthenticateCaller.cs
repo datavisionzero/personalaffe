@@ -21,7 +21,7 @@ namespace Personalaffe.Application.Acts;
 /// </para>
 /// </remarks>
 public sealed class AuthenticateCaller(
-    IBrowserSessions sessions, IAgentAccessStore agents, TimeProvider clock)
+    IBrowserSessions sessions, IOwners owners, IAgentAccessStore agents, TimeProvider clock)
 {
     private const string Scheme = "Bearer";
 
@@ -33,10 +33,24 @@ public sealed class AuthenticateCaller(
             return null;
         }
 
-        var session = await sessions.AdmitAsync(
-            BrowserSession.Hash(secret), clock.GetUtcNow(), cancellationToken);
+        var now = clock.GetUtcNow();
+        var session = await sessions.AdmitAsync(BrowserSession.Hash(secret), now, cancellationToken);
 
-        return session is null ? null : Caller.Owner(session.OwnerId, session.Id);
+        if (session is null)
+        {
+            return null;
+        }
+
+        var owner = await owners.FindAsync(cancellationToken)
+            ?? throw new InvalidOperationException("A valid browser session belongs to no owner.");
+        var inactivity = session.InactivityState(owner, now);
+
+        if (inactivity.Locked && session.MarkInactivityLocked(now))
+        {
+            await sessions.SaveAsync(cancellationToken);
+        }
+
+        return Caller.Owner(session.OwnerId, session.Id, inactivity);
     }
 
     /// <summary>

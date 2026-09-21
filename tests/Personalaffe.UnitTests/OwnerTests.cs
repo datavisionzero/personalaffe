@@ -145,4 +145,39 @@ public sealed class OwnerTests
         Assert.Null(owner.InactivityLockPinHash);
         Assert.Equal(3, owner.InactivityLockVersion);
     }
+
+    [Fact]
+    public void Wrong_pin_attempts_are_delayed_persistently_without_blocking_the_password_path()
+    {
+        var owner = Owner.Claim("owner@example.com", "$argon2id$password", Noon);
+
+        var first = owner.RecordFailedUnlock(UnlockCredential.Pin, Noon);
+
+        Assert.Equal(Noon.AddSeconds(1), first);
+        Assert.Equal(first, owner.UnlockBlockedUntil(UnlockCredential.Pin, Noon));
+        Assert.Null(owner.UnlockBlockedUntil(UnlockCredential.Password, Noon));
+
+        owner.RecordSuccessfulUnlock(UnlockCredential.Pin);
+
+        Assert.Null(owner.UnlockBlockedUntil(UnlockCredential.Pin, Noon));
+        Assert.Equal(0, owner.PinUnlockFailures);
+    }
+
+    [Fact]
+    public void The_fifth_wrong_proof_holds_only_that_proof_for_the_rest_of_the_window()
+    {
+        var owner = Owner.Claim("owner@example.com", "$argon2id$password", Noon);
+        var now = Noon;
+
+        for (var attempt = 0; attempt < Owner.UnlockAttemptLimit; attempt++)
+        {
+            owner.RecordFailedUnlock(UnlockCredential.Pin, now);
+            now = owner.PinUnlockBlockedUntil!.Value;
+        }
+
+        Assert.Equal(Noon.Add(Owner.UnlockAttemptWindow), owner.PinUnlockBlockedUntil);
+        Assert.Null(owner.PasswordUnlockBlockedUntil);
+        Assert.Null(owner.UnlockBlockedUntil(
+            UnlockCredential.Pin, Noon.Add(Owner.UnlockAttemptWindow)));
+    }
 }

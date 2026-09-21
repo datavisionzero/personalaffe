@@ -39,6 +39,10 @@ public sealed class Owner
 
     public const int DefaultInactivityLockMinutes = 5;
 
+    public const int UnlockAttemptLimit = 5;
+
+    public static readonly TimeSpan UnlockAttemptWindow = TimeSpan.FromMinutes(15);
+
     /// <summary>
     /// How long an offered second-factor secret can still be confirmed. Long
     /// enough to find the phone, short enough that a secret shown on a screen
@@ -136,6 +140,18 @@ public sealed class Owner
     public long InactivityLockVersion { get; private set; }
 
     public bool InactivityLockEnabled => InactivityLockPinHash is not null;
+
+    public int PinUnlockFailures { get; private set; }
+
+    public DateTimeOffset? PinUnlockWindowStartedAt { get; private set; }
+
+    public DateTimeOffset? PinUnlockBlockedUntil { get; private set; }
+
+    public int PasswordUnlockFailures { get; private set; }
+
+    public DateTimeOffset? PasswordUnlockWindowStartedAt { get; private set; }
+
+    public DateTimeOffset? PasswordUnlockBlockedUntil { get; private set; }
 
     /// <summary>
     /// The owner of an instance that had none, from an address and a hash that
@@ -251,6 +267,75 @@ public sealed class Owner
         InactivityLockPinHash = null;
         InactivityLockVersion = checked(InactivityLockVersion + 1);
         UpdatedAt = at;
+    }
+
+    /// <summary>Until when this proof is delayed after wrong attempts, if it is.</summary>
+    public DateTimeOffset? UnlockBlockedUntil(UnlockCredential credential, DateTimeOffset now)
+    {
+        var blocked = credential == UnlockCredential.Pin
+            ? PinUnlockBlockedUntil
+            : PasswordUnlockBlockedUntil;
+
+        return blocked > now ? blocked : null;
+    }
+
+    /// <summary>
+    /// Remembers one wrong proof across sessions and process restarts. Early
+    /// failures receive a short exponential delay; the fifth holds this proof
+    /// for the remainder of a fifteen-minute window. PIN and password have
+    /// separate budgets so the password remains a recovery path for a guessed PIN.
+    /// </summary>
+    public DateTimeOffset RecordFailedUnlock(UnlockCredential credential, DateTimeOffset now)
+    {
+        var window = credential == UnlockCredential.Pin
+            ? PinUnlockWindowStartedAt
+            : PasswordUnlockWindowStartedAt;
+        var failures = credential == UnlockCredential.Pin
+            ? PinUnlockFailures
+            : PasswordUnlockFailures;
+
+        if (window is null || now - window.Value >= UnlockAttemptWindow)
+        {
+            window = now;
+            failures = 0;
+        }
+
+        failures++;
+        var delay = failures >= UnlockAttemptLimit
+            ? UnlockAttemptWindow - (now - window.Value)
+            : TimeSpan.FromSeconds(Math.Pow(2, failures - 1));
+        var blockedUntil = now + (delay > TimeSpan.Zero ? delay : TimeSpan.FromSeconds(1));
+
+        if (credential == UnlockCredential.Pin)
+        {
+            PinUnlockFailures = failures;
+            PinUnlockWindowStartedAt = window;
+            PinUnlockBlockedUntil = blockedUntil;
+        }
+        else
+        {
+            PasswordUnlockFailures = failures;
+            PasswordUnlockWindowStartedAt = window;
+            PasswordUnlockBlockedUntil = blockedUntil;
+        }
+
+        return blockedUntil;
+    }
+
+    public void RecordSuccessfulUnlock(UnlockCredential credential)
+    {
+        if (credential == UnlockCredential.Pin)
+        {
+            PinUnlockFailures = 0;
+            PinUnlockWindowStartedAt = null;
+            PinUnlockBlockedUntil = null;
+        }
+        else
+        {
+            PasswordUnlockFailures = 0;
+            PasswordUnlockWindowStartedAt = null;
+            PasswordUnlockBlockedUntil = null;
+        }
     }
 
     /// <summary>The PIN exactly as accepted: four to six ASCII digits, including leading zeroes.</summary>

@@ -39,6 +39,9 @@ public sealed class BrowserSession
     /// <summary>How often being used is written down.</summary>
     public static readonly TimeSpan TouchInterval = TimeSpan.FromMinutes(5);
 
+    /// <summary>How often deliberate browser activity needs a database write.</summary>
+    public static readonly TimeSpan InteractionTouchInterval = TimeSpan.FromSeconds(30);
+
     /// <summary>The length of a SHA-256 digest.</summary>
     public const int SecretHashLength = 32;
 
@@ -50,7 +53,12 @@ public sealed class BrowserSession
         // EF Core materializes through this; every other route goes through Begin.
     }
 
-    private BrowserSession(Guid ownerId, byte[] secretHash, string? description, DateTimeOffset now)
+    private BrowserSession(
+        Guid ownerId,
+        byte[] secretHash,
+        string? description,
+        long inactivityLockVersion,
+        DateTimeOffset now)
     {
         Id = Guid.CreateVersion7(now);
         OwnerId = ownerId;
@@ -58,6 +66,8 @@ public sealed class BrowserSession
         Description = description;
         CreatedAt = now;
         LastUsedAt = now;
+        LastInteractionAt = now;
+        InactivityLockVersion = inactivityLockVersion;
         ExpiresAt = now.Add(AbsoluteLifetime);
     }
 
@@ -83,6 +93,18 @@ public sealed class BrowserSession
 
     public DateTimeOffset? RevokedAt { get; private set; }
 
+    /// <summary>
+    /// The last explicit user interaction reported by the browser. Ordinary
+    /// requests never move this clock.
+    /// </summary>
+    public DateTimeOffset LastInteractionAt { get; private set; }
+
+    /// <summary>The owner lock configuration this session was last admitted under.</summary>
+    public long InactivityLockVersion { get; private set; }
+
+    /// <summary>Persistent once reached; reloads and server restarts cannot clear it.</summary>
+    public DateTimeOffset? InactivityLockedAt { get; private set; }
+
     public bool Revoked => RevokedAt is not null;
 
     /// <summary>
@@ -90,14 +112,19 @@ public sealed class BrowserSession
     /// once, to be put in a cookie, and is never recoverable from the row.
     /// </summary>
     public static (BrowserSession Session, string Secret) Begin(
-        Guid ownerId, string? description, DateTimeOffset now)
+        Guid ownerId,
+        string? description,
+        DateTimeOffset now,
+        long inactivityLockVersion = 0)
     {
         // 256 bits, generated rather than chosen, which is why a plain digest
         // is the right thing to store it as: there is nothing here for a slow
         // hash to protect, and this is looked up on every request.
         var secret = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
 
-        return (new BrowserSession(ownerId, Hash(secret), Shortened(description), now), secret);
+        return (
+            new BrowserSession(ownerId, Hash(secret), Shortened(description), inactivityLockVersion, now),
+            secret);
     }
 
     /// <summary>What a presented secret is looked up by.</summary>
@@ -125,6 +152,81 @@ public sealed class BrowserSession
 
     /// <summary>Immediate, and revoking a revoked session changes nothing.</summary>
     public void Revoke(DateTimeOffset now) => RevokedAt ??= now;
+
+    public InactivityLockState InactivityState(Owner owner, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+
+        if (!owner.InactivityLockEnabled)
+        {
+            return new InactivityLockState(Enabled: false, Locked: false, LocksAt: null);
+        }
+
+        var locksAt = LastInteractionAt.AddMinutes(owner.InactivityLockMinutes);
+        var locked = InactivityLockedAt is not null
+            || InactivityLockVersion != owner.InactivityLockVersion
+            || now >= locksAt;
+
+        return new InactivityLockState(Enabled: true, locked, locksAt);
+    }
+
+    /// <summary>Persists the first moment the additional lock was observed closed.</summary>
+    public bool MarkInactivityLocked(DateTimeOffset now)
+    {
+        if (InactivityLockedAt is not null)
+        {
+            return false;
+        }
+
+        InactivityLockedAt = now;
+        return true;
+    }
+
+    /// <summary>
+    /// Extends the deadline only while this valid session is still open under
+    /// the current configuration. A late report can never reopen it.
+    /// </summary>
+    public bool RecordInteraction(Owner owner, DateTimeOffset now)
+    {
+        if (!IsValid(now) || InactivityState(owner, now).Locked)
+        {
+            return false;
+        }
+
+        if (now - LastInteractionAt < InteractionTouchInterval)
+        {
+            return true;
+        }
+
+        LastInteractionAt = now;
+        return true;
+    }
+
+    public void Unlock(long inactivityLockVersion, DateTimeOffset now)
+    {
+        InactivityLockVersion = inactivityLockVersion;
+        LastInteractionAt = now;
+        InactivityLockedAt = null;
+    }
+
+    public void AdoptInactivityConfiguration(
+        long inactivityLockVersion,
+        DateTimeOffset now,
+        bool restartDeadline,
+        bool unlock)
+    {
+        InactivityLockVersion = inactivityLockVersion;
+
+        if (restartDeadline)
+        {
+            LastInteractionAt = now;
+        }
+
+        if (unlock)
+        {
+            InactivityLockedAt = null;
+        }
+    }
 
     private static string? Shortened(string? description)
     {

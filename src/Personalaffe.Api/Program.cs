@@ -189,6 +189,9 @@ builder.Services.AddScoped<ReissueRecoveryCodes>();
 builder.Services.AddScoped<SetTheOwnersPassword>();
 builder.Services.AddScoped<ChangePassword>();
 builder.Services.AddScoped<ConfigureInactivityLock>();
+builder.Services.AddScoped<ReadInactivityLockStatus>();
+builder.Services.AddScoped<RecordInactivityLockActivity>();
+builder.Services.AddScoped<UnlockInactivityLock>();
 builder.Services.AddScoped<ListAgentAccess>();
 builder.Services.AddScoped<GrantAgentAccess>();
 builder.Services.AddScoped<ChangeAgentAccess>();
@@ -372,6 +375,11 @@ app.UseAuthentication();
 app.UseMiddleware<BrowserWriteGuard>();
 
 app.UseAuthorization();
+
+// A browser may remain authenticated while its additional inactivity lock is
+// closed. The server, not an overlay, limits it to status, unlock and sign-out.
+// Bearer-authenticated agents carry no browser lock and pass unchanged.
+app.UseMiddleware<InactivityLockGuard>();
 
 // And a write meets the backup, if one is holding this instance still: reads
 // pass, writes are told to come back in a moment (MaintenanceGuard). After
