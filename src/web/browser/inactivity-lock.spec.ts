@@ -41,7 +41,7 @@ test("locks across browser sessions and preserves unsaved work after password re
 
     // Five and six digits, including leading zeroes, travel through the real
     // server unlock path. Each replacement locks the other browser session.
-    await page.getByLabel("PIN").fill("00042");
+    await page.locator("main:visible").getByLabel("PIN", { exact: true }).fill("00042");
     await page.getByRole("button", { name: "Unlock" }).click();
     await expect(page.getByRole("heading", { name: "Scratchpad" })).toBeVisible();
     await expect(page.getByRole("textbox", { name: "New entry" })).toHaveValue(draft);
@@ -61,7 +61,7 @@ test("locks across browser sessions and preserves unsaved work after password re
 
     // A failed PIN says when it may be tried again. The independent password
     // path remains available immediately and does not discard the mounted UI.
-    await page.getByLabel("PIN").fill("9999");
+    await page.locator("main:visible").getByLabel("PIN", { exact: true }).fill("9999");
     await page.getByRole("button", { name: "Unlock" }).click();
     await expect(page.getByRole("alert")).toContainText("Try again in");
     await page.getByRole("button", { name: "Use my password" }).click();
