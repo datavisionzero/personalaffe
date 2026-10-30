@@ -28,50 +28,26 @@ test.describe("Knowledge", () => {
     await field.click();
     await page.keyboard.type("# Zuerst\n\nDas Wichtigste.");
 
-    // That the text is in the field before it is saved. Without it, a save
-    // button still disabled because CodeMirror never got the keystrokes reads
-    // as a timeout on the button rather than as what it is.
     await expect(field).toContainText("Das Wichtigste");
 
-    // Renamed in the same breath, because one write carries the title and the
-    // body: they are one row (`docs/api.md`, Knowledge). Renaming <em>after</em>
-    // a save would be typing into a screen that is reading itself again, which
-    // is a moment, not a workflow — and what it used to cost is PERSONAL-66's
-    // one-line guard in `change`.
     const renamed = page.getByLabel("Title");
 
     await expect(renamed).toHaveValue(title);
     await renamed.fill(`${title} (umbenannt)`);
 
-    // That the screen has taken both changes before it is asked to save them.
-    // A filled field is a value in the DOM; a Save that is alive is the screen
-    // having the draft — and a click that lands before it is a save of what was
-    // on the screen a moment earlier.
     await expect(renamed).toHaveValue(`${title} (umbenannt)`);
-    await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
 
     const saved = page.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/api/knowledge/pages/"));
-    await page.getByRole("button", { name: "Save" }).click();
     expect((await saved).ok()).toBeTruthy();
     await expect(page.getByText("Saved.")).toBeVisible();
 
-    // The same address still opens it: the id is the identity, and a rename
-    // does not move it.
     await page.goto("/");
     await page.goto(address);
-    await page.getByRole("button", { name: "Edit page" }).click();
 
     await expect(page.getByLabel("Title")).toHaveValue(`${title} (umbenannt)`);
 
-    // `toHaveValue` is for the title, which is an `<input>`. The field is
-    // CodeMirror, which writes on a `contenteditable`, so what it holds is
-    // text and not a value — which is the whole reason these checks exist in a
-    // browser at all.
     await expect(page.getByRole("textbox", { name: "The page" })).toContainText("Das Wichtigste");
 
-    // And a second write, from a screen that was opened rather than saved on:
-    // the guard takes the version this read carried, so writing twice to one
-    // page is a workflow and not a conflict.
     const opened = page.getByRole("textbox", { name: "The page" });
 
     await opened.click();
@@ -79,16 +55,13 @@ test.describe("Knowledge", () => {
     await page.keyboard.type("\n\nUnd noch etwas.");
 
     await expect(opened).toContainText("Und noch etwas.");
-    await expect(page.getByRole("button", { name: "Save" })).toBeEnabled();
 
     const savedAgain = page.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/api/knowledge/pages/"));
-    await page.getByRole("button", { name: "Save" }).click();
     expect((await savedAgain).ok()).toBeTruthy();
     await expect(page.getByText("Saved.")).toBeVisible();
 
     await page.goto("/");
     await page.goto(address);
-    await page.getByRole("button", { name: "Edit page" }).click();
 
     const both = page.getByRole("textbox", { name: "The page" });
 
@@ -106,16 +79,20 @@ test.describe("Knowledge", () => {
     await aPage(page, `Quelle ${Date.now()}`);
 
     await page.getByRole("textbox", { name: "The page" }).click();
-    await page.keyboard.type(`Siehe [das Ziel](page:${id}).`);
+    await page.getByRole("button", { name: "Link page", exact: true }).click();
+    await page.getByRole("textbox", { name: "Find a page by title" }).fill(target);
+    await page.getByRole("dialog").getByRole("button", { name: target }).click();
 
-    const preview = page.getByLabel("The page, preview");
-    const link = preview.getByRole("link", { name: "das Ziel" });
+    const preview = page.getByRole("textbox", { name: "The page" });
+    const link = preview.getByRole("link", { name: target });
 
     await expect(link).toHaveAttribute("href", `/knowledge/${id}`);
 
-    // No new tab: the frame stays where it is and the tree beside it does not
-    // flicker.
     await expect(link).not.toHaveAttribute("target", "_blank");
+    await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+    await link.click({ modifiers: ["ControlOrMeta"] });
+    await expect(page).toHaveURL(new RegExp(`/knowledge/${id}$`));
+    await expect(page.getByRole("textbox", { name: "Title" })).toHaveValue(target);
   });
 
   test("brings a page written elsewhere onto the tree without a reload", async ({ page }) => {
@@ -124,8 +101,6 @@ test.describe("Knowledge", () => {
     await page.goto("/knowledge");
     await expect(page.getByRole("heading", { name: "Knowledge", exact: true })).toBeVisible();
 
-    // Another device, or an agent: the same API, the same session, and nothing
-    // touching this page.
     const written = await page.request.post("/api/knowledge/pages", {
       headers: {
         "X-Personalaffe-CSRF": "1",
@@ -150,9 +125,8 @@ test.describe("Knowledge", () => {
     await page.getByRole("textbox", { name: "The page" }).click();
     await page.keyboard.type("was ich gerade schreibe");
 
-    await expect(page.getByText(/Draft saved in this tab/)).toBeVisible();
+    await expect(page.getByText(/Draft protected in this tab/)).toBeVisible();
 
-    // The same page, written by something else, while a person is mid-sentence.
     const read = await page.request.get(`/api/knowledge/pages/${id}`);
     const { updated_at: version } = (await read.json()) as { updated_at: string };
 
@@ -167,7 +141,6 @@ test.describe("Knowledge", () => {
 
     expect(elsewhere.ok(), await elsewhere.text()).toBeTruthy();
 
-    // Long enough for a refresh to have happened if the hold were not there.
     await page.waitForTimeout(20_000);
 
     await expect(page.getByRole("textbox", { name: "The page" })).toContainText(
@@ -189,19 +162,15 @@ test.describe("Knowledge", () => {
     await expect(page.getByText(title)).toBeVisible();
   });
 
-  test("recovers a draft, reads its outline and finds its content", async ({ page }) => {
+  test("recovers a draft and finds its autosaved content", async ({ page }) => {
     const title = `Knowledge workflow ${Date.now()}`;
     await aPage(page, title);
     await page.getByRole("textbox", { name: "The page" }).fill("## Checklist\n\nUniquequartzcontent");
     page.once("dialog", dialog => dialog.accept());
     await page.reload();
     await expect(page.getByRole("textbox", { name: "The page" })).toContainText("Uniquequartzcontent");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Saved.")).toBeVisible();
-    const contents = page.getByRole("navigation", { name: "On this page" });
-    await expect(contents.getByRole("link", { name: "Checklist" })).toBeVisible();
-    await contents.getByRole("link", { name: "Checklist" }).click();
-    await expect(page.getByRole("textbox", { name: "The page" })).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "The page" })).toBeVisible();
     await page.getByRole("searchbox", { name: "Search Knowledge" }).fill("Uniquequartzcontent");
     await page.getByRole("checkbox", { name: "Only this page and its subpages" }).check();
     await expect(page.getByRole("list", { name: "Knowledge search results" }).getByRole("link", { name: title })).toBeVisible();
@@ -211,6 +180,8 @@ test.describe("Knowledge", () => {
     const target = `Pinned target ${Date.now()}`;
     await aPage(page, target);
     const targetAddress = page.url();
+    await page.getByRole("textbox", { name: "The page" }).fill("A pinned document");
+    await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Pin page", exact: true }).click();
     await expect(page.getByRole("button", { name: "Unpin page", exact: true })).toBeVisible();
     await page.goto("/knowledge");
@@ -228,9 +199,13 @@ test.describe("Knowledge", () => {
     expect(uploaded.ok()).toBeTruthy();
     await page.getByRole("button", { name: "Insert file", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: imageName }).click();
-    await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Saved.")).toBeVisible();
     const image = page.getByRole("img", { name: imageName });
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBe(1);
+    const stored = await (await page.request.get(`/api/knowledge/pages/${page.url().split("/").pop()}`)).json();
+    expect(stored.markdown).toContain(`![${imageName}](file:`);
+    await page.reload();
     await expect(image).toBeVisible();
     await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBe(1);
     await page.goto(targetAddress);
@@ -241,6 +216,7 @@ test.describe("Knowledge", () => {
     await page.setViewportSize({ width: 400, height: 780 });
     await page.goto("/knowledge");
 
+    await page.getByRole("button", { name: "Pages", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Knowledge", exact: true })).toBeVisible();
 
     const overflow = await page.evaluate(

@@ -962,14 +962,35 @@ while the stable ID opens the editing view.
 
 ### Knowledge reading and editing workflow
 
-Knowledge opens in reading mode with an outline derived from rendered headings.
-Editing keeps a tab-local draft in session storage, including the server version
-it was based on. Drafts survive reloads and page navigation, remain hidden behind
+Knowledge opens directly as a writable document: the title is editable and
+`knowledge/PageEditor.tsx` lazily loads Milkdown/Crepe for the body. There is no
+edit mode, source pane or preview pane. A compact accessible formatting bar,
+selection toolbar and slash menu provide formatting; focus mode hides the page
+tree without mounting another editor. Other forms retain `MarkdownField`.
+
+Changes are saved after 900 ms without input. A successful response updates the
+acknowledged version in place, preserving the editor, cursor and undo history.
+Only one save runs at a time; edits made during a request are rebased onto its
+returned version and saved next. Failures stop automatic retries and expose
+Retry saving; reconnecting or correcting the draft also retries. Conflicts
+require explicit review before any further write.
+
+Each document transaction also keeps a tab-local draft in session storage,
+including the server version it was based on. Drafts survive reloads and page navigation, remain hidden behind
 the session lock, and are cleared on sign-out. The UI reports storage failures;
 these drafts are not server backups and closing the tab removes them.
 Stale writes retain the draft and offer a side-by-side comparison before the
 owner explicitly rebases their draft onto the current version. New edits made
-while a save is pending remain unsaved drafts rather than being discarded.
+while a save is pending remain protected and are queued for the next save.
+
+Markdown remains the API, storage and export format. Opening a document does
+not rewrite its source; editing serializes through Milkdown and can normalize
+Markdown syntax. Existing single line breaks render as breaks. Ordinary image
+nodes preserve alt text and titles (Crepe's optional image-block format uses
+alt text for dimensions and is deliberately excluded). Stable `page:` and
+`file:` references are resolved only for display, including HTML clipboard
+round trips. Raw HTML remains inert. Internal links can be followed through
+the link tooltip or with Ctrl/Command-click.
 
 The tree supports collapsed branches, breadcrumb navigation and moving pages
 through either a destination dialog or drag-and-drop followed by that dialog.
@@ -1002,7 +1023,7 @@ Knowledge can insert existing Files references and upload PNG, JPEG, GIF, WebP
 or AVIF images through paste/drop. The existing Files API enforces permissions,
 quotas and naming conflicts; the UI also checks advertised limits. Uploads are
 stored in Files even if the draft is later discarded. The page keeps only stable
-IDs. Missing or unreadable images display an explanatory placeholder. The future
+IDs. Missing or unreadable images display explanatory alternative text. The future
 Images application has no API in this version; existing Files provides media
 storage and selection. General Knowledge help uses native disclosures for
 keyboard and touch access.

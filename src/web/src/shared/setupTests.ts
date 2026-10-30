@@ -57,3 +57,6 @@ if (typeof window.localStorage === "undefined" || window.localStorage === null) 
  * here is CodeMirror itself — that is checked in a browser.
  */
 vi.mock("@/shared/Editor", () => import("./StandInEditor"));
+
+// Document layout and Markdown conversion are exercised in browser tests.
+vi.mock("@/knowledge/PageEditor", () => import("../knowledge/StandInPageEditor"));

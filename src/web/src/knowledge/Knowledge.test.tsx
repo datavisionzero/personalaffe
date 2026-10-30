@@ -91,10 +91,9 @@ describe("Knowledge", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Collapse Reisen" }));
     await userEvent.click(screen.getByRole("button", { name: "Collapse Other" }));
     await userEvent.click(within(screen.getByRole("navigation", { name: "The pages" })).getByRole("link", { name: "Other" }));
-    await screen.findByRole("heading", { name: "Other" });
+    await screen.findByDisplayValue("Other");
     expect(screen.getByRole("button", { name: "Expand Reisen" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Expand Other" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Add content" }));
     expect(await screen.findByRole("textbox", { name: "The page" })).toBeInTheDocument();
   });
 
@@ -120,9 +119,8 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
-    expect(await screen.findByRole("navigation", { name: "On this page" })).toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "The page" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Edit page" }));
+    expect(screen.queryByRole("button", { name: "Edit page" })).toBeNull();
+    expect(screen.queryByLabelText("The page, preview")).toBeNull();
     expect(await screen.findByRole("textbox", { name: "The page" })).toHaveValue(thePage.markdown);
     expect(screen.getByLabelText("Title")).toHaveValue("Bahn");
   });
@@ -136,12 +134,11 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Edit page" }));
     const field = await screen.findByRole("textbox", { name: "The page" });
 
     await userEvent.clear(field);
     await userEvent.type(field, "etwas anderes");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(asked.some(r => r.method === "PUT")).toBe(true), { timeout: 2000 });
 
     const write = await waitFor(() => {
       const one = asked.find((request) => request.method === "PUT");
@@ -168,27 +165,14 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Edit page" }));
     const field = await screen.findByRole("textbox", { name: "The page" });
 
     await userEvent.type(field, "noch ein Satz");
 
-    const before = asked.filter((one) => one.path === `/api/knowledge/pages/${bahn.id}`).length;
+    expect(screen.getByText(/Draft protected in this tab/)).toBeInTheDocument();
+    await waitFor(() => expect(asked.some(r => r.method === "PUT")).toBe(true), { timeout: 2000 });
 
-    // What is in the field is the newest version of it, and an answer landing
-    // on top is what would take it away.
-    expect(screen.getByText(/Draft saved in this tab/)).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() =>
-      expect(
-        asked.filter((one) => one.path === `/api/knowledge/pages/${bahn.id}` && one.method === "GET")
-          .length,
-      ).toBeGreaterThan(before - 1),
-    );
-
-    expect(screen.getByText("Saved.")).toBeInTheDocument();
+    expect(await screen.findByText("Saved.")).toBeInTheDocument();
   });
 
   it("keeps what somebody wrote when the write is refused", async () => {
@@ -204,12 +188,11 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Edit page" }));
     const field = await screen.findByRole("textbox", { name: "The page" });
 
     await userEvent.clear(field);
     await userEvent.type(field, "meine Fassung");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("alert", {}, { timeout: 2000 });
 
     // A draft dropped optimistically is a draft that loses what somebody wrote.
     expect(await screen.findByRole("alert")).toHaveTextContent("Your draft is preserved");
@@ -399,13 +382,12 @@ describe("Knowledge", () => {
       [`PUT /api/knowledge/pages/${bahn.id}`]: { body: thePage },
     });
     const view = knowledgeAt(`/knowledge/${bahn.id}`);
-    await userEvent.click(await screen.findByRole("button", { name: "Edit page" }));
     await userEvent.type(await screen.findByRole("textbox", { name: "The page" }), "Saved draft");
     expect(readDraft(bahn.id)?.markdown).toContain("Saved draft");
     view.unmount();
     knowledgeAt(`/knowledge/${bahn.id}`);
     expect(await screen.findByRole("textbox", { name: "The page" })).toHaveValue(thePage.markdown + "Saved draft");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(asked.some(r => r.method === "PUT")).toBe(true), { timeout: 2000 });
     await screen.findByText("Saved.");
     expect(readDraft(bahn.id)).toBeUndefined();
     expect(asked.find(r => r.method === "PUT")?.headers.get("If-Match")).toBe(`"${thePage.updated_at}"`);
@@ -416,7 +398,6 @@ describe("Knowledge", () => {
       [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage },
       [`GET /api/knowledge/pages/${reisen.id}`]: { body: { ...reisen, markdown: "" } } });
     knowledgeAt(`/knowledge/${bahn.id}`);
-    await userEvent.click(await screen.findByRole("button", { name: "Edit page" }));
     await userEvent.type(await screen.findByRole("textbox", { name: "The page" }), "draft");
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const tree = within(screen.getByRole("navigation", { name: "The pages" }));
@@ -424,7 +405,7 @@ describe("Knowledge", () => {
     expect(screen.getByRole("textbox", { name: "The page" })).toBeInTheDocument();
     confirm.mockReturnValue(true);
     await userEvent.click(tree.getByRole("link", { name: "Reisen" }));
-    await screen.findByRole("heading", { name: "Reisen" });
+    await screen.findByDisplayValue("Reisen");
     expect(readDraft(bahn.id)?.markdown).toContain("draft");
     confirm.mockRestore();
   });
@@ -473,6 +454,36 @@ describe("Knowledge", () => {
     expect(recent.getAllByRole("link")[0]).toHaveTextContent("Bahn");
     await userEvent.click(pinned.getByRole("button", { name: "Unpin Reisen" }));
     await waitFor(() => expect(asked.some(r => r.method === "PUT" && (r.body as { pinned: boolean }).pinned === false)).toBe(true));
+  });
+
+  it("does not write a page merely because it was opened", async () => {
+    const { asked } = anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn),
+      [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage } });
+    knowledgeAt(`/knowledge/${bahn.id}`);
+    await screen.findByRole("textbox", { name: "The page" });
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    expect(asked.some(request => request.method === "PUT")).toBe(false);
+  });
+
+  it("pauses autosaving a conflict until the user reviews it, then uses the new version", async () => {
+    const newer = { ...thePage, markdown: "From elsewhere", updated_at: "2026-09-14T09:00:00.000000Z" };
+    const { asked } = anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn),
+      [`GET /api/knowledge/pages/${bahn.id}`]: [{ body: thePage }, { body: newer }],
+      [`PUT /api/knowledge/pages/${bahn.id}`]: [refused("stale", 412), { body: { ...newer, markdown: "Mine" } }] });
+    knowledgeAt(`/knowledge/${bahn.id}`);
+    const field = await screen.findByRole("textbox", { name: "The page" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "Mine");
+    await screen.findByRole("region", { name: "Resolve changes" }, { timeout: 2000 });
+    await userEvent.type(field, " updated");
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    expect(asked.filter(request => request.method === "PUT")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "I reviewed the changes — keep my draft" }));
+    await screen.findByText("Saved.", {}, { timeout: 2000 });
+    const writes = asked.filter(request => request.method === "PUT");
+    expect(writes).toHaveLength(2);
+    expect(writes[1].headers.get("If-Match")).toBe(`"${newer.updated_at}"`);
+    expect(writes[1].body).toMatchObject({ markdown: "Mine updated" });
   });
 
 });
