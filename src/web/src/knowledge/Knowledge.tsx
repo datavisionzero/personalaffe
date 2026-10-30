@@ -1,3 +1,4 @@
+import { KnowledgeHelp } from "./KnowledgeHelp";
 import {
   ChevronRightIcon,
   DownloadIcon,
@@ -279,7 +280,7 @@ function KnowledgePage() {
       setDraft(undefined);
       setWrote({
         at: address,
-        said: "Put back. What the page said until now is a version of its own.",
+        said: "Version restored. The previous content remains in version history.",
       });
       page.again();
       tree.refresh();
@@ -337,11 +338,11 @@ function KnowledgePage() {
 
         <KnowledgeSearch page={open} />
 
-        {tree.asked.at === "asking" && <Busy title="Reading the pages…" />}
+        {tree.asked.at === "asking" && <Busy title="Loading pages…" />}
 
         {tree.asked.at === "known" && pages.length === 0 && (
           <p className="text-muted-foreground text-sm text-balance">
-            Nothing is written yet. The button above starts a page.
+            No pages yet. Select New page to get started.
           </p>
         )}
 
@@ -366,7 +367,7 @@ function KnowledgePage() {
           render={<a href="/api/knowledge/export" download />}
         >
           <DownloadIcon aria-hidden />
-          Export all of it
+          Export all pages
         </Button>
       </nav>
 
@@ -411,7 +412,7 @@ function KnowledgePage() {
                 {!editing && <Button size="sm" onClick={() => setEditing(true)}>Edit page</Button>}
                 <Button variant="outline" size="sm" disabled={!!draft || working} onClick={() => setHistory(true)}>
                   <HistoryIcon aria-hidden />
-                  History
+                  Version history
                 </Button>
                 <Button
                   variant="ghost"
@@ -427,13 +428,14 @@ function KnowledgePage() {
             </div>
 
             {editing ? <>
+            <KnowledgeHelp label="Editing help">Use Markdown formatting or the toolbar. ⌘/Ctrl + Enter saves. Drafts stay in this tab until saved or discarded; signing out clears them. Paste or drop images to upload them to Files.</KnowledgeHelp>
             <MarkdownField
               pages={pages}
               label="The page"
               value={markdown}
               onChange={(next) => change({ markdown: next })}
               onSubmit={() => void save()}
-              hint="⌘/Ctrl + Enter saves. Nothing is read from the instance while there is unsaved work."
+              hint="Write in Markdown…"
             />
 
             <div className="flex flex-wrap items-center gap-3">
@@ -451,7 +453,7 @@ function KnowledgePage() {
                     page.again();
                   }}
                 >
-                  Throw it away
+                  Discard changes
                 </Button>
               )}
               <span className="text-muted-foreground text-xs">
@@ -488,7 +490,7 @@ function KnowledgePage() {
 
         {page.unanswered && page.asked.at === "known" && (
           <p role="status" className="text-muted-foreground text-xs text-balance">
-            The instance stopped answering. This is what it last said.
+            Connection lost. Showing the last loaded version.
           </p>
         )}
       </section>
@@ -639,7 +641,8 @@ function WriteAPage({
             </DialogTitle>
           </DialogHeader>
 
-          <Field label="Title" hint="Titles in one place are one each, whatever their capitals.">
+          <KnowledgeHelp label="Page title help">Use a unique title within the same parent page. Titles are case-insensitive.</KnowledgeHelp>
+          <Field label="Title">
             <Input
               name="title"
               value={title}
@@ -655,7 +658,7 @@ function WriteAPage({
               Cancel
             </Button>
             <Button type="submit" disabled={title.trim() === "" || working}>
-              {working ? "Writing it…" : "Write it"}
+              {working ? "Creating…" : "Create page"}
             </Button>
           </DialogFooter>
         </form>
@@ -733,14 +736,14 @@ function TheHistory({
     >
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>What this page used to say</DialogTitle>
+          <DialogTitle>Version history</DialogTitle>
         </DialogHeader>
 
-        {history.asked.at === "asking" && <Busy title="Reading the history…" />}
+        {history.asked.at === "asking" && <Busy title="Loading history…" />}
 
         {history.asked.at === "known" && items.length === 0 && (
           <p className="text-muted-foreground text-sm text-balance">
-            This page has never been changed, so there is nothing behind it yet.
+            No previous versions yet.
           </p>
         )}
 
@@ -788,14 +791,11 @@ function TheHistory({
             disabled={showing === undefined || markdown === undefined || working}
             onClick={() => showing !== undefined && onRecover(showing)}
           >
-            Put this one back
+            Restore version
           </Button>
         </DialogFooter>
 
-        <p className="text-muted-foreground text-xs text-balance">
-          Putting a version back keeps what the page says now: it becomes a version of its own.
-          Nothing here ever throws work away.
-        </p>
+        <KnowledgeHelp label="Restoring versions help">Restoring a version keeps the current content in version history. You can restore it again later.</KnowledgeHelp>
       </DialogContent>
     </Dialog>
   );

@@ -57,7 +57,7 @@ describe("Knowledge", () => {
 
     knowledgeAt("/knowledge");
 
-    expect(await screen.findByText(/Nothing is written yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/No pages yet/)).toBeInTheDocument();
   });
 
   it("draws the tree from the flat list, with each page under the one it names", async () => {
@@ -201,7 +201,7 @@ describe("Knowledge", () => {
     const dialog = within(screen.getByRole("dialog"));
 
     await userEvent.type(dialog.getByLabelText("Title"), "Fahrplan");
-    await userEvent.click(dialog.getByRole("button", { name: "Write it" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Create page" }));
 
     const write = await waitFor(() => {
       const one = asked.find((request) => request.method === "POST");
@@ -226,7 +226,7 @@ describe("Knowledge", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "New page" }));
     await userEvent.type(screen.getByLabelText("Title"), "Reisen");
-    await userEvent.click(screen.getByRole("button", { name: "Write it" }));
+    await userEvent.click(screen.getByRole("button", { name: "Create page" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("already called");
   });
@@ -244,7 +244,7 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
-    await userEvent.click(await screen.findByRole("button", { name: "History" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Version history" }));
 
     const dialog = within(await screen.findByRole("dialog"));
 
@@ -254,11 +254,10 @@ describe("Knowledge", () => {
     expect(dialog.getByRole("region", { name: "Changes from selected version to current page" })).toHaveTextContent("Das Wichtigste zuerst.");
 
     // The fact that makes it safe, said on the screen where it is done.
-    expect(
-      dialog.getByText(/Putting a version back keeps what the page says now/),
-    ).toBeInTheDocument();
+    await userEvent.click(dialog.getByLabelText("Restoring versions help"));
+    expect(dialog.getByText(/Restoring a version keeps the current content/)).toBeVisible();
 
-    await userEvent.click(dialog.getByRole("button", { name: "Put this one back" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Restore version" }));
 
     const recovered = await waitFor(() => {
       const one = asked.find((request) => request.method === "POST");
@@ -268,7 +267,7 @@ describe("Knowledge", () => {
 
     // Guarded by the page's version and not the revision's.
     expect(recovered.headers.get("If-Match")).toBe(`"${thePage.updated_at}"`);
-    expect(await screen.findByText(/version of its own/)).toBeInTheDocument();
+    expect(await screen.findByText(/previous content remains/)).toBeInTheDocument();
   });
 
   it("says a page that has never been changed has nothing behind it", async () => {
@@ -280,9 +279,9 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
-    await userEvent.click(await screen.findByRole("button", { name: "History" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Version history" }));
 
-    expect(await screen.findByText(/never been changed/)).toBeInTheDocument();
+    expect(await screen.findByText(/No previous versions/)).toBeInTheDocument();
   });
 
   it("deletes a page and goes back to the tree", async () => {
@@ -306,7 +305,7 @@ describe("Knowledge", () => {
 
     knowledgeAt("/knowledge");
 
-    expect(await screen.findByRole("link", { name: "Export all of it" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "Export all pages" })).toHaveAttribute(
       "href",
       "/api/knowledge/export",
     );

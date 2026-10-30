@@ -87,7 +87,7 @@ export async function aPage(page: Page, title: string) {
   const dialog = page.getByRole("dialog");
 
   await dialog.getByRole("textbox", { name: "Title" }).fill(title);
-  await dialog.getByRole("button", { name: "Write it" }).click();
+  await dialog.getByRole("button", { name: "Create page" }).click();
 
   await expect(page).toHaveURL(/\/knowledge\/[0-9a-f-]{36}$/);
   await page.getByRole("button", { name: "Edit page" }).click();

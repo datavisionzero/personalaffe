@@ -973,3 +973,29 @@ Knowledge search uses the workspace search with `application=knowledge` and an
 optional `within` page ID. A recursive query restricts matches to that page and
 its non-deleted descendants before ranking and limiting. Other applications
 cannot use `within`. Results include snippets and an explicit truncation notice.
+
+### Knowledge links, start page, history and attachments
+
+The Markdown toolbar can select a live page by title and insert a stable
+`page:<id>` reference at the current selection. The protected backlinks endpoint
+returns live source pages containing these references; deleted sources and
+unreadable target pages are excluded. Page IDs continue to survive renames and
+moves.
+
+Pages can be pinned on the server. Pinning changes neither content, revisions,
+nor the last-edited timestamp. The Knowledge start page shows live pinned pages
+and the ten most recently edited pages. Pins are part of the database backup.
+
+History displays a line comparison from the selected revision to the current
+page, including title changes. Large replacements use a bounded block comparison
+instead of allocating a quadratic matrix. Restoring still uses the existing
+version guard and retains the replaced content.
+
+Knowledge can insert existing Files references and upload PNG, JPEG, GIF, WebP
+or AVIF images through paste/drop. The existing Files API enforces permissions,
+quotas and naming conflicts; the UI also checks advertised limits. Uploads are
+stored in Files even if the draft is later discarded. The page keeps only stable
+IDs. Missing or unreadable images display an explanatory placeholder. The future
+Images application has no API in this version; existing Files provides media
+storage and selection. General Knowledge help uses native disclosures for
+keyboard and touch access.

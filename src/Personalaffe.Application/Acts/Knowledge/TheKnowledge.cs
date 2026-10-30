@@ -113,8 +113,7 @@ internal static class TheKnowledge
         if (depth + depthBelow + 1 > Page.MaxDepth)
         {
             throw Refusal.Conflict(
-                $"This workspace's pages go {Page.MaxDepth} deep, and that would be deeper. A knowledge "
-                + "base nobody can find anything in is what the limit is for.");
+                $"Pages can be nested up to {Page.MaxDepth} levels. Choose a destination closer to the top level.");
         }
     }
 
@@ -132,8 +131,7 @@ internal static class TheKnowledge
         if (await pages.TitleIsTakenAsync(parent, title, itself, cancellationToken))
         {
             throw Refusal.Conflict(
-                $"A page there is already called `{title}`. Titles in one place are one each, whatever "
-                + "their capitals.");
+                $"A page named `{title}` already exists under this parent. Choose a different title; capitalization does not make titles unique.");
         }
     }
 
