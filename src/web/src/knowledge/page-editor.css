@@ -1,0 +1,39 @@
+.knowledge-document .milkdown {
+  --crepe-color-background: var(--color-background);
+  --crepe-color-on-background: var(--color-foreground);
+  --crepe-color-surface: var(--color-popover);
+  --crepe-color-surface-low: var(--color-muted);
+  --crepe-color-on-surface: var(--color-foreground);
+  --crepe-color-on-surface-variant: var(--color-muted-foreground);
+  --crepe-color-outline: var(--color-muted-foreground);
+  --crepe-color-primary: var(--color-brand);
+  --crepe-color-secondary: var(--color-accent);
+  --crepe-color-on-secondary: var(--color-accent-foreground);
+  --crepe-color-inverse: var(--color-foreground);
+  --crepe-color-on-inverse: var(--color-background);
+  --crepe-color-inline-code: var(--color-foreground);
+  --crepe-color-error: var(--color-destructive);
+  --crepe-color-hover: var(--color-accent);
+  --crepe-color-selected: var(--color-accent);
+  --crepe-color-inline-area: var(--color-muted);
+  --crepe-font-title: var(--font-sans);
+  --crepe-font-default: var(--font-sans);
+  --crepe-font-code: var(--font-mono);
+}
+.knowledge-document .milkdown .ProseMirror {
+  min-height: 55vh;
+  padding: 24px 32px 120px;
+  font-size: 1rem;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.knowledge-document .milkdown button:focus-visible,
+.knowledge-document .milkdown input:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+.knowledge-document .milkdown img { max-width: 100%; }
+.knowledge-document .milkdown pre { overflow-x: auto; }
+@media (max-width: 640px) {
+  .knowledge-document .milkdown .ProseMirror { padding: 16px 20px 80px; }
+}
+
+.knowledge-document .milkdown .ProseMirror img { max-height: 70vh; object-fit: contain; border-radius: 6px; }
+.knowledge-document .milkdown .ProseMirror h1 { font-size: 1.875rem; line-height: 1.3; }

@@ -1,108 +1,144 @@
 import { expect, test } from "@playwright/test";
-
 import { aPage, signedIn } from "./theInstance";
 
-/**
- * CodeMirror, in a browser, because there is nowhere else it can be checked.
- * It writes on a `contenteditable` and measures a selection it draws; jsdom
- * lays nothing out and answers every measurement with zero, so every jsdom test
- * of the field writes into `StandInEditor` instead. What that leaves unproven
- * is the editor itself, and this is where it is proven.
- *
- * <b>It is driven through Knowledge</b>, which is the screen that writes
- * Markdown. Until PERSONAL-E7 these checks drove `/editor`, a scaffold that
- * existed because the field had no screen yet and said so in its own text; it
- * is gone, and this is the real work it was standing in for.
- */
-test.describe("the shared editor", () => {
+test.describe("the Knowledge document", () => {
   test.beforeEach(async ({ page }) => {
     await signedIn(page);
     await aPage(page, `Editor ${Date.now()}`);
   });
 
-  test("takes typing, and shows it rendered beside the source", async ({ page }) => {
+  test("writes directly, formats inline, autosaves and keeps the same editor mounted", async ({ page }) => {
     const field = page.getByRole("textbox", { name: "The page" });
-    await expect(field).toBeVisible();
-
+    await expect(page.getByRole("button", { name: "Edit page" })).toHaveCount(0);
+    await expect(page.getByLabel("The page, preview")).toHaveCount(0);
+    await field.evaluate(element => element.setAttribute("data-original", "yes"));
     await field.click();
-    await page.keyboard.type("# A heading\n\nSomething **bold**, and `code`.");
-
-    const preview = page.getByLabel("The page, preview");
-
-    await expect(preview.getByText("A heading")).toBeVisible();
-    await expect(preview.locator("strong")).toHaveText("bold");
-    await expect(preview.locator("code")).toHaveText("code");
+    await page.keyboard.type("# A heading");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Something **bold** ");
+    await expect(field.getByRole("heading", { name: "A heading" })).toBeVisible();
+    await expect(field.locator("strong")).toHaveText("bold");
+    await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+    await expect(field).toHaveAttribute("data-original", "yes");
+    await expect(field).toBeFocused();
+    await page.keyboard.type("and more");
+    await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(field).toContainText("and more");
+    await expect(field.locator("strong")).toHaveText("bold");
   });
 
-  test("marks a selection from the toolbar", async ({ page }) => {
+  test("formats a selection using the keyboard-accessible toolbar", async ({ page }) => {
     const field = page.getByRole("textbox", { name: "The page" });
-
-    await field.click();
-    await page.keyboard.type("emphasis");
+    await field.fill("Emphasis");
     await page.keyboard.press("ControlOrMeta+a");
-
-    await page.getByRole("button", { name: "Bold" }).click();
-
-    await expect(page.getByLabel("The page, preview").locator("strong")).toHaveText("emphasis");
-  });
-
-  test("reaches the toolbar with the keyboard and moves inside it with the arrows", async ({
-    page,
-  }) => {
-    const toolbar = page.getByRole("toolbar", { name: "The page, formatting" });
-    const bold = toolbar.getByRole("button", { name: "Bold" });
-
-    // The marks are dead until the editor behind them is there, so this waits
-    // for the chunk rather than racing it.
-    await expect(bold).toBeEnabled();
-
-    // One tab stop, not nine: a toolbar in front of the text would otherwise
-    // put every mark between the keyboard and the field it acts on.
-    await expect(bold).toHaveAttribute("tabindex", "0");
-    await expect(toolbar.getByRole("button", { name: "Italic" })).toHaveAttribute("tabindex", "-1");
-
+    const bold = page.getByRole("group", { name: "Document formatting" }).getByRole("button", { name: "Bold", exact: true });
     await bold.focus();
-    await page.keyboard.press("ArrowRight");
-
-    await expect(toolbar.getByRole("button", { name: "Italic" })).toBeFocused();
-
-    await page.keyboard.press("ArrowLeft");
-    await expect(bold).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(field.locator("strong")).toHaveText("Emphasis");
+    await expect(field).toBeFocused();
+    await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
   });
 
-  test("never interprets HTML that arrives in a body", async ({ page }) => {
-    const field = page.getByRole("textbox", { name: "The page" });
-
-    await field.click();
-    await page.keyboard.type('before <img src=x onerror="window.__ran = true"> after');
-
-    const preview = page.getByLabel("The page, preview");
-    await expect(preview).toContainText("before");
-
-    expect(await preview.locator("img").count()).toBe(0);
-    expect(await page.evaluate(() => (window as { __ran?: boolean }).__ran)).toBeUndefined();
-  });
-
-  test("writes nothing until it is asked to, and then writes once", async ({ page }) => {
-    const writes: string[] = [];
-
-    page.on("request", (request) => {
-      if (request.method() !== "GET" && request.url().includes("/api/knowledge")) {
-        writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
-      }
+  test("preserves typing during a slow save and uses its returned version for the next save", async ({ page }) => {
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    let first = true;
+    await page.route("**/api/knowledge/pages/*", async route => {
+      if (route.request().method() !== "PUT" || !first) return route.continue();
+      first = false;
+      await held;
+      await route.continue();
     });
-
     const field = page.getByRole("textbox", { name: "The page" });
     await field.click();
-    await page.keyboard.type("nothing is kept until it is saved");
+    await page.keyboard.type("First sentence. ");
+    await expect(page.getByText("Saving…", { exact: true })).toBeVisible();
+    await page.keyboard.type("Second sentence.");
+    release();
+    await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+    await expect(field).toBeFocused();
+    const saved = await (await page.request.get(`/api/knowledge/pages/${page.url().split("/").pop()}`)).json();
+    expect(saved.markdown).toContain("First sentence. Second sentence.");
+    await expect(page.getByRole("region", { name: "Resolve changes" })).toHaveCount(0);
+  });
 
-    await page.waitForTimeout(1000);
-    expect(writes).toEqual([]);
+  test("keeps failed writes locally and retries without leaving the document", async ({ page }) => {
+    await page.route("**/api/knowledge/pages/*", route => route.request().method() === "PUT" ? route.abort() : route.continue());
+    const field = page.getByRole("textbox", { name: "The page" });
+    await field.fill("Keep this sentence");
+    await expect(page.getByText("Not saved", { exact: true })).toBeVisible();
+    await expect(field).toContainText("Keep this sentence");
+    await page.unroute("**/api/knowledge/pages/*");
+    await page.getByRole("button", { name: "Retry saving" }).click();
+    await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(field).toContainText("Keep this sentence");
+  });
 
-    // ⌘/Ctrl + Enter from inside the text is what the field's hint promises.
-    await page.keyboard.press("ControlOrMeta+Enter");
+  test("does not rewrite Markdown on opening and preserves tables, links, HTML and line breaks when edited", async ({ page }) => {
+    const endpoint = `/api/knowledge/pages/${page.url().split("/").pop()}`;
+    const current = await (await page.request.get(endpoint)).json();
+    const markdown = '# Existing\n\nFirst line\nSecond line\n\n| Name | Value |\n| --- | --- |\n| One | Two |\n\n- [x] Done\n\n[Internal](page:0199f0c6-0000-7000-8000-00000000000a)\n\n```js\nconst x = 1;\n```\n\n<span onclick="window.__ran=true">raw</span>\n';
+    const result = await page.request.put(endpoint, {
+      headers: { "If-Match": `"${current.updated_at}"`, "X-Personalaffe-CSRF": "1", Origin: new URL(page.url()).origin },
+      data: { title: current.title, parent: current.parent, markdown },
+    });
+    expect(result.ok()).toBeTruthy();
+    await page.reload();
+    const field = page.getByRole("textbox", { name: "The page" });
+    await expect(field.getByRole("heading", { name: "Existing" })).toBeVisible();
+    await expect(field.getByRole("table")).toContainText("Two");
+    await page.waitForTimeout(1500);
+    expect((await (await page.request.get(endpoint)).json()).markdown).toBe(markdown);
+    await field.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Added text");
+    await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+    const saved = (await (await page.request.get(endpoint)).json()).markdown;
+    expect(saved).toContain("page:0199f0c6-0000-7000-8000-00000000000a");
+    expect(saved).toContain("const x = 1;");
+    expect(saved).toContain("[x]");
+    expect(saved).toContain('<span onclick="window.__ran=true">');
+    expect(saved).toContain("Added text");
+    expect(await page.evaluate(() => (window as { __ran?: boolean }).__ran)).toBeUndefined();
+    await page.reload();
+    await expect(field.locator("p").filter({ hasText: "First line" }).locator("br")).toHaveCount(1);
+  });
 
-    await expect(page.getByText("Saved.")).toBeVisible();
-    expect(writes.filter((one) => one.startsWith("PUT"))).toHaveLength(1);
+  test("explains missing images without saving the error over their alt text", async ({ page }) => {
+    const endpoint = `/api/knowledge/pages/${page.url().split("/").pop()}`;
+    const current = await (await page.request.get(endpoint)).json();
+    const markdown = '![Original description](file:0199f0c6-0000-7000-8000-00000000000a "Original title")';
+    const result = await page.request.put(endpoint, {
+      headers: { "If-Match": `"${current.updated_at}"`, "X-Personalaffe-CSRF": "1", Origin: new URL(page.url()).origin },
+      data: { title: current.title, parent: current.parent, markdown },
+    });
+    expect(result.ok()).toBeTruthy();
+    await page.reload();
+    await expect(page.getByText("Image unavailable: Original description.", { exact: false })).toBeVisible();
+    const field = page.getByRole("textbox", { name: "The page" });
+    await field.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("Still editable");
+    await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+    const saved = (await (await page.request.get(endpoint)).json()).markdown;
+    expect(saved).toContain(markdown);
+    expect(saved).not.toContain("Image unavailable");
+  });
+
+  test("retains one usable document in focus mode and on a phone", async ({ page }) => {
+    const field = page.getByRole("textbox", { name: "The page" });
+    await field.fill("A focused document");
+    await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Focus", exact: true }).click();
+    await expect(page.getByRole("navigation", { name: "The pages" })).toBeHidden();
+    await expect(field).toHaveCount(1);
+    await page.getByRole("button", { name: "Show navigation" }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(field).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   });
 });

@@ -92,11 +92,7 @@ export async function aPage(page: Page, title: string) {
   await dialog.getByRole("button", { name: "Create page" }).click();
 
   await expect(page).toHaveURL(/\/knowledge\/[0-9a-f-]{36}$/);
-  await page.getByRole("button", { name: "Edit page" }).click();
   await expect(page.getByRole("textbox", { name: "The page" })).toBeVisible();
 
-  // The editor is a lazy chunk and the toolbar is dead until it is there, so
-  // waiting for a mark to come alive is waiting for CodeMirror rather than
-  // racing it. Typing before that goes to the page instead of into the field.
-  await expect(page.getByRole("button", { name: "Bold" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Link page", exact: true })).toBeEnabled();
 }
