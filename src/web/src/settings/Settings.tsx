@@ -34,7 +34,7 @@ export function Settings({ me, applications }: { me: Me; applications: TheApplic
   ];
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-5 md:p-8">
+    <main className="page-frame">
       <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
 
       <nav aria-label="Settings" className="flex flex-wrap gap-1 border-b">
@@ -56,24 +56,26 @@ export function Settings({ me, applications }: { me: Me; applications: TheApplic
         ))}
       </nav>
 
-      <Routes>
-        <Route index element={<Navigate to="/settings/applications" replace />} />
-        <Route
-          path="applications"
-          element={<ApplicationSwitches me={me} applications={applications} />}
-        />
-        <Route path="home" element={<HomeSettings owner={me.kind === "owner"} />} />
-        <Route path="appearance" element={<AppearanceSettings owner={me.kind === "owner"} />} />
-        <Route
-          path="security"
-          element={me.kind === "owner" ? <Security /> : <Denied what="Security" />}
-        />
-        <Route
-          path="agents"
-          element={me.kind === "owner" ? <Agents /> : <Denied what="Agent access" />}
-        />
-        <Route path="*" element={<Navigate to="/settings/applications" replace />} />
-      </Routes>
+      <div className="w-full min-w-0 max-w-3xl">
+        <Routes>
+          <Route index element={<Navigate to="/settings/applications" replace />} />
+          <Route
+            path="applications"
+            element={<ApplicationSwitches me={me} applications={applications} />}
+          />
+          <Route path="home" element={<HomeSettings owner={me.kind === "owner"} />} />
+          <Route path="appearance" element={<AppearanceSettings owner={me.kind === "owner"} />} />
+          <Route
+            path="security"
+            element={me.kind === "owner" ? <Security /> : <Denied what="Security" />}
+          />
+          <Route
+            path="agents"
+            element={me.kind === "owner" ? <Agents /> : <Denied what="Agent access" />}
+          />
+          <Route path="*" element={<Navigate to="/settings/applications" replace />} />
+        </Routes>
+      </div>
     </main>
   );
 }

@@ -281,3 +281,10 @@
     @apply bg-background text-foreground text-sm;
   }
 }
+
+/* Every application shares its outer edges; reading widths belong inside it. */
+@layer components {
+  .page-frame {
+    @apply flex w-full min-w-0 flex-col gap-6 p-4 md:p-8;
+  }
+}
