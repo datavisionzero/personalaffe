@@ -244,7 +244,7 @@ export function Knowledge() {
   const pages = tree.asked.at === "known" ? tree.asked.value.pages : [];
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-5 md:flex-row md:p-8">
+    <main className="page-frame md:flex-row">
       <nav
         aria-label="The pages"
         className="flex shrink-0 flex-col gap-2 md:w-64 md:border-r md:pr-4"

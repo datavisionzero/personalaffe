@@ -34,7 +34,7 @@ export function Search() {
   const { asked, again } = useFindings(settled, 50);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-5 md:p-8">
+    <main className="page-frame">
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold tracking-tight">Search</h1>
         <p className="text-muted-foreground text-sm text-balance">

@@ -115,7 +115,7 @@ export function BookmarkManagement() {
       setMessage(`${undo.length - failed.length} restored; ${failed.length} could not be restored.`); setUndo(failed); setError(reasons.join(" ")); refresh();
     } catch { setError("The instance did not answer. Check Trash before retrying."); } finally { setWorking(false); }
   }
-  return <main className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-5 p-4 md:p-8">
+  return <main className="page-frame">
     <header className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-xl font-semibold">Manage bookmarks</h1>
       <div className="flex flex-wrap gap-2"><PrivateSwitch /><Button variant="outline" render={<Link to={`/bookmarks?${params}`} />}>Dashboard</Button>
         <Button variant="outline" onClick={() => setEditor({ kind: "folder" })}>New folder</Button><Button onClick={() => setEditor({ kind: "bookmark" })}>Add bookmark</Button></div></header>

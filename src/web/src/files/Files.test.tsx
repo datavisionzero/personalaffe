@@ -65,6 +65,38 @@ function filesAt(path: string) {
 }
 
 describe("Files", () => {
+
+  it("switches actions with selection and clears them when walking to another folder", async () => {
+    anInstance({ "GET /api/files": [holding([reisen], [plan, bahn]), holding([], [bahn], [reisen])] });
+    filesAt("/files");
+    await userEvent.click(await screen.findByRole("button", { name: "plan.md" }));
+    expect(screen.getByRole("link", { name: "Download plan.md" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "bahn.pdf" }));
+    expect(screen.queryByRole("link", { name: "Download plan.md" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download bahn.pdf" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Reisen" }));
+    await screen.findByText("bahn.pdf");
+    expect(screen.queryByRole("region", { name: "Selected item actions" })).not.toBeInTheDocument();
+  });
+
+  it("uses refreshed metadata for the selected item's guarded write", async () => {
+    const updated = { ...plan, name: "new-plan.md", updated_at: "2026-10-30T12:00:00Z" };
+    const { asked } = anInstance({
+      "GET /api/files": [holding([], [plan]), holding([], [updated])],
+      [`PUT /api/files/${plan.id}`]: { body: updated },
+      [`DELETE /api/files/${plan.id}`]: { status: 204 },
+    });
+    filesAt("/files");
+    await userEvent.click(await screen.findByRole("button", { name: "plan.md" }));
+    await userEvent.click(screen.getByRole("button", { name: "Rename or move plan.md" }));
+    const dialog = within(screen.getByRole("dialog"));
+    await userEvent.clear(dialog.getByLabelText("Name"));
+    await userEvent.type(dialog.getByLabelText("Name"), updated.name);
+    await userEvent.click(dialog.getByRole("button", { name: "Save" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Delete new-plan.md" }));
+    await waitFor(() => expect(asked.find(request => request.method === "DELETE")?.headers.get("If-Match")).toBe(`"${updated.updated_at}"`));
+  });
+
   it("says the folder is empty rather than drawing a blank page", async () => {
     anInstance({ "GET /api/files": holding() });
 
@@ -73,13 +105,15 @@ describe("Files", () => {
     expect(await screen.findByText("Nothing in this folder.")).toBeInTheDocument();
   });
 
-  it("lists folders before files, with a size and a download for each file", async () => {
+  it("lists folders before files and offers a download for the selected file", async () => {
     anInstance({ "GET /api/files": holding([reisen], [plan], [], 12) });
 
     filesAt("/files");
 
     expect(await screen.findByRole("button", { name: "Reisen" })).toBeInTheDocument();
     expect(screen.getByText("plan.md")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "plan.md" }));
 
     // The download is a plain link to the instance's own address, so the
     // browser fetches it with the session it already has and nothing on this
@@ -226,6 +260,7 @@ describe("Files", () => {
 
     filesAt("/files");
 
+    await userEvent.click(await screen.findByRole("button", { name: "Actions for plan.md" }));
     await userEvent.click(await screen.findByRole("button", { name: "Rename or move plan.md" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -255,6 +290,7 @@ describe("Files", () => {
 
     filesAt("/files");
 
+    await userEvent.click(await screen.findByRole("button", { name: "Actions for plan.md" }));
     await userEvent.click(await screen.findByRole("button", { name: "Rename or move plan.md" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -278,6 +314,7 @@ describe("Files", () => {
 
     filesAt("/files");
 
+    await userEvent.click(await screen.findByRole("button", { name: "Actions for plan.md" }));
     await userEvent.click(await screen.findByRole("button", { name: "Rename or move plan.md" }));
 
     const dialog = within(screen.getByRole("dialog"));
@@ -297,6 +334,7 @@ describe("Files", () => {
 
     filesAt("/files");
 
+    await userEvent.click(await screen.findByRole("button", { name: "Actions for plan.md" }));
     await userEvent.click(await screen.findByRole("button", { name: "Delete plan.md" }));
 
     // The opposite of the Scratchpad's dialog: nothing was destroyed, so the
@@ -315,6 +353,7 @@ describe("Files", () => {
 
     filesAt("/files");
 
+    await userEvent.click(await screen.findByRole("button", { name: "Actions for Reisen" }));
     await userEvent.click(await screen.findByRole("button", { name: "Delete Reisen" }));
 
     expect(await screen.findByText(/everything in it are in the Trash/)).toBeInTheDocument();
