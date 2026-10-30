@@ -13,7 +13,7 @@ namespace Personalaffe.IntegrationTests;
 public sealed class InactivityLockTests(PostgresFixture postgres)
 {
     private static readonly DateTimeOffset Noon =
-        new(2026, 9, 21, 12, 0, 0, TimeSpan.Zero);
+        new(DateTime.UtcNow.Date.AddHours(12), TimeSpan.Zero);
 
     [Fact]
     public async Task Ordinary_requests_do_not_extend_the_deadline_and_only_lock_operations_remain()
