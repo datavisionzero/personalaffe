@@ -41,7 +41,7 @@ export function FileRow({ thing, selected, busy, mobile, size, onSelect, onOpen,
         onDoubleClick={() => { if (thing.kind === "file" && !mobile) onAction("details"); }}>
         <FileGlyph thing={thing} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate">{thing.it.name}</span>
+          <span className="block whitespace-normal wrap-anywhere md:truncate md:whitespace-nowrap">{thing.it.name}</span>
           <span className="text-muted-foreground mt-0.5 block text-xs md:hidden">
             {thing.kind === "file" ? `${size(thing.it.size)} · ` : ""}{date}
           </span>
