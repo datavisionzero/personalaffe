@@ -358,7 +358,7 @@ runs. Both are known, and both are covered somewhere the subject is real:
   backup and restore verbs shell out to them, so the integration tests hold
   every refusal and the whole file half without a PostgreSQL client anywhere,
   and `scripts/rehearse-a-restore.sh` runs the real tools against the real image
-  on every push. See [Backing it up](#backing-it-up).
+  nightly and on demand. See [Backing it up](#backing-it-up).
 
 ## The Trash empties itself
 
@@ -785,7 +785,7 @@ taking — and when the storage root is not where
 **A backup that has not been restored is not yet known to be a backup.** Read
 this before you need it, and better still, run it once against something you do
 not mind losing — `scripts/rehearse-a-restore.sh` does exactly that and is what
-CI runs on every push.
+CI runs nightly and on demand.
 
 ```sh
 scripts/restore.sh personalaffe-20260916-143237.tar
@@ -948,9 +948,9 @@ one it misunderstands, and serving it would be worse.
 scripts/rehearse-an-upgrade.sh
 ```
 
-Fifteen steps, against the images an operator installs, and CI runs it on every
-push. Every claim in this section was run rather than written: a life put into an
-earlier build through the API, upgraded with a second container starting beside
+Fifteen steps, against the images an operator installs, and CI runs it nightly
+and on demand. Every claim in this section was run rather than written: a life
+put into an earlier build through the API, upgraded with a second container starting beside
 it, read back out through the same browser session that was open before it — an
 upgrade does not sign anybody out, and that is the one place it differs from a
 restore — the earlier image put back in front of the new schema to earn the

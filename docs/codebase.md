@@ -725,10 +725,12 @@ its id, and `incoming/`, which holds only uploads still arriving.
 
 ## The gate
 
-`.github/workflows/ci.yml` runs on every push to `main`, every pull request and
-on demand. It is the only thing standing between a mistake and the trunk, and it
-runs the same commands a contributor runs — nine jobs: six beside each other,
-the image once they are all green, and two more on top of the image:
+`.github/workflows/ci.yml` runs fast checks on pushes to `main` and pull
+requests: unit tests, web, CLI, OpenAPI contract and image smoke. All five
+start independently. Integration, browser, restore, upgrade and compatibility
+checks run only on the daily 02:23 UTC schedule or manual dispatch. Restore and
+upgrade wait for the image; the other nightly jobs start independently.
+Pushes cannot cancel scheduled runs.
 
 | Job | What it runs | The same thing locally |
 | --- | --- | --- |
@@ -742,10 +744,14 @@ the image once they are all green, and two more on top of the image:
 | Backup and restore | puts a life into an instance, backs it up, destroys both volumes, puts the backup back, reads every bit of it out again | `scripts/rehearse-a-restore.sh` |
 | Upgrade and rollback | puts a life into an earlier build, upgrades it while a second container starts beside it, reads it out, then walks the way back from a failed upgrade | `scripts/rehearse-an-upgrade.sh` |
 
-**No job stands in for a toolchain.** There is no skip condition and no
-always-succeeding placeholder: every one of them builds or runs the thing it is
-named after, and a subject that stopped existing turns its job red rather than
-quiet.
+The compatibility job builds a numbered CLI and an incompatible server
+(`99.0.0`) and verifies refusal with exit code 9. This extra image build is
+outside the release path.
+
+The image cache retains intermediate dependency layers. CI cache exports have
+a 60-second timeout and are best-effort; releases import this cache without
+exporting their own tag-scoped cache. Version and revision arguments are
+introduced after dependency restore so they do not invalidate that layer.
 
 Three things it deliberately does not do: it publishes no image, it deploys
 nothing, and it holds no credential — `permissions: contents: read` is the whole
@@ -762,16 +768,13 @@ there is no other credential, here or anywhere.
 | Job | What it does |
 | --- | --- |
 | What is being released | The version out of the tag, whether it is a pre-release, and the refusal of a tag that is not on `main` |
-| `pea` | Four static binaries — `darwin/arm64`, `darwin/amd64`, `linux/amd64`, `linux/arm64` — each with the tag compiled in and the licence beside it, and one `SHA256SUMS` over the archives |
-| Image | `linux/amd64` and `linux/arm64`, pushed as `<version>` and, for a release that is not a pre-release, `latest` |
-| The two of them agree | The published image started the documented way, the binary from the archive talking to it, and an instance built a major ahead to prove the refusal is real |
+| `pea` | Two static binaries — `darwin/amd64`, `linux/amd64` — each with the tag compiled in and the licence beside it, and one `SHA256SUMS` over the archives |
+| Image | `linux/amd64`, built natively and pushed as `<version>` and, for a release that is not a pre-release, `latest` |
+| The two of them agree | The published image started the documented way, the binary from the archive talking to it, version checks and the served web application |
 | The release | The notes, the archives, the checksums, the Compose file, the example environment and the licence, under the tag |
 
-**The four platforms and the two architectures are decisions**, written down
-where they are made: a workspace is reached from the machine its owner sits at
-and from whatever a script runs on, and an instance runs on a small server
-somebody rents or a box at home. There is no Windows binary because nobody has
-asked for one.
+Release artifacts target AMD64 only: Linux for the server image, macOS and
+Linux for the CLI. ARM artifacts and QEMU emulation are not part of releases.
 
 A tag with a hyphen in it is a pre-release: published on purpose, marked as one,
 and `latest` does not move. That is what makes this workflow rehearsable without
@@ -900,7 +903,7 @@ is beside the product rather than in it. `Hosting/Backup.cs` and
 same reason recovery is — their authorization is that somebody is standing at
 the machine. `Http/MaintenanceGuard` is what a write meets while a backup holds
 the instance still, and `Http/BrowserSecurity` gained `SecurityHeaders`, in
-front of everything. `scripts/` holds the two rehearsals CI runs on every push,
+front of everything. `scripts/` holds the two rehearsals CI runs nightly and on demand,
 `.github/workflows/release.yml` cuts a release from a tag, and
 [`docs/install.md`](./install.md) is what somebody with no checkout follows
 ([ADR 0010](./adr/0010-the-pause-makes-two-stores-agree-and-the-way-back-is-the-backup.md)).
