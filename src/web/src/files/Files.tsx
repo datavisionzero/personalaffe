@@ -5,6 +5,7 @@ import {
   FolderPlusIcon,
   FileIcon,
   PencilIcon,
+  MoreHorizontalIcon,
   Trash2Icon,
   UploadIcon,
 } from "lucide-react";
@@ -39,8 +40,8 @@ type Thing =
 type Arriving = { name: string; refused?: string };
 
 /**
- * Files: a folder you can walk, something to drop into, and a download that is
- * one click (`docs/api.md`, Files).
+ * Files: a folder you can walk, a table to select from, and actions for the
+ * selected item (`docs/api.md`, Files).
  *
  * <b>The address is the folder.</b> `/files/<id>` is a real address, so a link
  * into a folder opens that folder — which is what VISION §6 means by navigation
@@ -70,6 +71,7 @@ export function Files() {
   const [over, setOver] = useState(false);
   const [making, setMaking] = useState(false);
   const [changing, setChanging] = useState<Thing>();
+  const [selection, setSelection] = useState<{ at: string; id: string }>();
 
   const picker = useRef<HTMLInputElement>(null);
 
@@ -236,10 +238,19 @@ export function Files() {
   }
 
   const listing = asked.at === "known" ? asked.value : undefined;
+  const things: Thing[] = listing ? [
+    ...listing.folders.map((it): Thing => ({ kind: "folder", it })),
+    ...listing.files.map((it): Thing => ({ kind: "file", it })),
+  ] : [];
+  // Resolve against the current listing so refreshes, moves and deletes cannot
+  // leave actions pointing at an old version or a different folder.
+  const selected = selection?.at === address
+    ? things.find((thing) => thing.it.id === selection.id)
+    : undefined;
 
   return (
     <main
-      className="mx-auto flex w-full max-w-4xl flex-col gap-5 p-5 md:p-8"
+      className="page-frame"
       onDragOver={(event) => {
         event.preventDefault();
         setOver(true);
@@ -251,13 +262,19 @@ export function Files() {
         void upload(event.dataTransfer.files);
       }}
     >
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">Files</h1>
-        <p className="text-muted-foreground text-sm text-balance">
-          Your own storage, on this instance's disk. Deleting puts something in the Trash, where it
-          stays until its retention runs out. A file's download link keeps working after you rename
-          it or move it.
-        </p>
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Files</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Everything in its place.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => setMaking(true)}>
+            <FolderPlusIcon aria-hidden />New folder
+          </Button>
+          <Button type="button" onClick={() => picker.current?.click()}>
+            <UploadIcon aria-hidden />Upload files
+          </Button>
+        </div>
       </header>
 
       <nav aria-label="Where you are" className="flex flex-wrap items-center gap-1 text-sm">
@@ -281,34 +298,18 @@ export function Files() {
         ))}
       </nav>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={() => picker.current?.click()}>
-          <UploadIcon aria-hidden />
-          Upload files
-        </Button>
-        <Button type="button" variant="outline" onClick={() => setMaking(true)}>
-          <FolderPlusIcon aria-hidden />
-          New folder
-        </Button>
-        <input
-          ref={picker}
-          type="file"
-          name="files"
-          multiple
-          className="sr-only"
-          aria-label="Files to upload"
-          onChange={(event) => {
-            void upload(event.target.files);
-            event.target.value = "";
-          }}
-        />
-        {listing !== undefined && (
-          <span className="text-muted-foreground ml-auto text-xs">
-            {size(listing.used_bytes)} of {size(listing.max_total_bytes)} used · at most{" "}
-            {size(listing.max_file_bytes)} per file
-          </span>
-        )}
-      </div>
+      <input
+        ref={picker}
+        type="file"
+        name="files"
+        multiple
+        className="sr-only"
+        aria-label="Files to upload"
+        onChange={(event) => {
+          void upload(event.target.files);
+          event.target.value = "";
+        }}
+      />
 
       {over && (
         <p role="status" className="border-brand text-brand rounded-lg border border-dashed p-4 text-sm">
@@ -347,46 +348,81 @@ export function Files() {
         </Empty>
       )}
 
-      {listing !== undefined && (listing.folders.length > 0 || listing.files.length > 0) && (
-        <ul className="flex flex-col divide-y rounded-lg border">
-          {listing.folders.map((it) => (
-            <li key={it.id} className="flex flex-wrap items-center gap-2 p-2.5">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="min-w-0 flex-1 justify-start gap-2"
-                onClick={() => void navigate(`/files/${it.id}`)}
-              >
-                <FolderIcon aria-hidden className="shrink-0" />
-                <span className="truncate">{it.name}</span>
-              </Button>
-              {actions({ kind: "folder", it })}
-            </li>
-          ))}
+      {things.length > 0 && (
+        <div>
+          <table className="w-full table-fixed text-sm" aria-label="Files and folders">
+            <thead>
+              <tr className="text-muted-foreground border-b text-left text-xs">
+                <th scope="col" className="px-2 py-3 font-medium">Name</th>
+                <th scope="col" className="w-20 px-2 py-3 text-right font-medium sm:w-24">Size</th>
+                <th scope="col" className="hidden w-32 px-2 py-3 font-medium md:table-cell">Modified</th>
+                <th scope="col" className="w-12"><span className="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {things.map((thing) => (
+                <tr key={thing.it.id} className={`border-b ${selected?.it.id === thing.it.id ? "bg-brand-soft" : "hover:bg-muted/50"}`}>
+                  <td className="min-w-0 px-2 py-2">
+                    <Button
+                      variant="ghost"
+                      className="h-auto min-h-10 w-full min-w-0 justify-start gap-2 px-0 text-left whitespace-normal"
+                      aria-pressed={thing.kind === "file" ? selected?.it.id === thing.it.id : undefined}
+                      onClick={() => thing.kind === "folder"
+                        ? void navigate(`/files/${thing.it.id}`)
+                        : setSelection({ at: address, id: thing.it.id })}
+                    >
+                      {thing.kind === "folder" ? <FolderIcon aria-hidden className="shrink-0" /> : <FileIcon aria-hidden className="text-muted-foreground shrink-0" />}
+                      <span className="min-w-0 wrap-anywhere">{thing.it.name}</span>
+                    </Button>
+                  </td>
+                  <td className="text-muted-foreground px-2 py-2 text-right text-xs tabular-nums">
+                    {thing.kind === "file" ? size(thing.it.size) : "—"}
+                  </td>
+                  <td className="text-muted-foreground hidden px-2 py-2 text-xs md:table-cell">
+                    <time dateTime={thing.it.updated_at}>{new Date(thing.it.updated_at).toLocaleDateString()}</time>
+                  </td>
+                  <td className="px-1 py-2">
+                    <Button variant="ghost" size="icon" aria-label={`Actions for ${thing.it.name}`}
+                      aria-pressed={selected?.it.id === thing.it.id}
+                      onClick={() => setSelection({ at: address, id: thing.it.id })}>
+                      <MoreHorizontalIcon aria-hidden />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="text-muted-foreground mt-3 flex flex-wrap justify-between gap-2 text-xs">
+            <span>{listing?.folders.length} folders · {listing?.files.length} files</span>
+            <span>Drop files anywhere to upload</span>
+          </div>
+        </div>
+      )}
 
-          {listing.files.map((it) => (
-            <li key={it.id} className="flex flex-wrap items-center gap-2 p-2.5">
-              <span className="flex min-w-0 flex-1 items-center gap-2 px-2 text-sm">
-                <FileIcon aria-hidden className="text-muted-foreground shrink-0 size-4" />
-                <span className="truncate">{it.name}</span>
-                <span className="text-muted-foreground shrink-0 text-xs">{size(it.size)}</span>
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                // A plain link to the instance's own address: the browser
-                // fetches it with the session it already has, and nothing on
-                // this page holds a file the instance can store.
-                render={<a href={`/api/files/${it.id}/content`} download={it.name} />}
-                aria-label={`Download ${it.name}`}
-              >
-                <DownloadIcon aria-hidden />
-                Download
+      {selected && (
+        <section aria-label="Selected item actions" className="flex flex-wrap items-center justify-between gap-3 border-y py-3">
+          <span className="min-w-0 wrap-anywhere text-sm font-medium">{selected.it.name}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {selected.kind === "file" && (
+              <Button variant="outline" size="sm"
+                render={<a href={`/api/files/${selected.it.id}/content`} download={selected.it.name} />}
+                aria-label={`Download ${selected.it.name}`}>
+                <DownloadIcon aria-hidden />Download
               </Button>
-              {actions({ kind: "file", it })}
-            </li>
-          ))}
-        </ul>
+            )}
+            {actions(selected)}
+          </div>
+        </section>
+      )}
+
+      {listing && (
+        <footer className="text-muted-foreground flex flex-wrap items-start justify-between gap-3 text-xs">
+          <span>{size(listing.used_bytes)} of {size(listing.max_total_bytes)} used · at most {size(listing.max_file_bytes)} per file</span>
+          <details className="max-w-prose">
+            <summary className="cursor-pointer">About file storage</summary>
+            <p className="mt-2">Files live on this instance's disk. Deleting puts them in the Trash until its retention runs out. Download links keep working after renaming or moving a file.</p>
+          </details>
+        </footer>
       )}
 
       <MakeAFolder
@@ -419,6 +455,7 @@ export function Files() {
           onClick={() => setChanging(thing)}
         >
           <PencilIcon aria-hidden />
+          Rename / move
         </Button>
         <Button
           variant="ghost"

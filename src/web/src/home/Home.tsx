@@ -32,7 +32,7 @@ export function Home({ me, applications: asked }: { me: Me; applications: TheApp
   const called = me.email ?? me.name ?? "this workspace";
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-5 md:p-8">
+    <main className="page-frame">
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold tracking-tight">What is useful or pending</h1>
         <p className="text-muted-foreground text-sm">{called}</p>

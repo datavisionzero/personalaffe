@@ -100,7 +100,7 @@ function Dashboard() {
         </ul>}
     </section>;
   }
-  return <main className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-7 p-4 md:p-8">
+  return <main className="page-frame">
     <header className="flex flex-wrap items-center justify-between gap-3">
       <div><h1 className="text-2xl font-semibold tracking-tight">Bookmarks</h1><p className="text-muted-foreground text-sm">Your links, close at hand.</p></div>
       <div className="flex flex-wrap gap-2"><PrivateSwitch /><Button variant="outline" render={<Link to={`/bookmarks/manage?${params}`} />}>Manage</Button>

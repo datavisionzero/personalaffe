@@ -52,8 +52,9 @@ public sealed class BookmarkActivityTests(PostgresFixture postgres)
     [Fact]
     public async Task Frequent_uses_thirty_utc_calendar_days_then_last_opening_then_id()
     {
-        // Keep the browser cookie valid against its real wall clock.
+        // Cookie handling uses wall time, so anchor calendar boundaries to today.
         var now = new DateTimeOffset(DateTime.UtcNow.Date.AddMinutes(30), TimeSpan.Zero);
+        var firstIncludedDay = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero).AddDays(-29);
         await using var links = await ABookmarkCollection.StartedAsync(postgres, new FixedClock(now));
         var one = await links.Link("One");
         var two = await links.Link("Two");
@@ -62,8 +63,8 @@ public sealed class BookmarkActivityTests(PostgresFixture postgres)
         {
             db.BookmarkOpenDays.Add(BookmarkOpenDay.First(one.Id, now.AddHours(-1)));
             db.BookmarkOpenDays.Add(BookmarkOpenDay.First(two.Id, now));
-            db.BookmarkOpenDays.Add(BookmarkOpenDay.First(one.Id, new DateTimeOffset(now.UtcDateTime.Date.AddDays(-29), TimeSpan.Zero)));
-            var expired = BookmarkOpenDay.First(old.Id, new DateTimeOffset(now.UtcDateTime.Date.AddDays(-29).AddSeconds(-1), TimeSpan.Zero).ToOffset(TimeSpan.FromHours(2)));
+            db.BookmarkOpenDays.Add(BookmarkOpenDay.First(one.Id, firstIncludedDay));
+            var expired = BookmarkOpenDay.First(old.Id, firstIncludedDay.AddSeconds(-1).ToOffset(TimeSpan.FromHours(2)));
             for (var i = 0; i < 10; i++) expired.Again(expired.LastOpenedAt);
             db.BookmarkOpenDays.Add(expired);
             await db.SaveChangesAsync(Token);

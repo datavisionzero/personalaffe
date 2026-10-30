@@ -33,13 +33,14 @@ test.describe("Files", () => {
       buffer: bytes,
     });
 
-    const row = page.getByRole("listitem").filter({ hasText: name });
+    const row = page.getByRole("row").filter({ hasText: name });
     await expect(row).toBeVisible();
+    await row.getByRole("button", { name: `Actions for ${name}` }).click();
 
     // The download is the instance's own address, fetched with the session the
     // browser already has. What comes back is compared byte for byte.
     const download = await page.request.get(
-      await row.getByRole("link", { name: `Download ${name}` }).getAttribute("href") ?? "",
+      await page.getByRole("link", { name: `Download ${name}` }).getAttribute("href") ?? "",
     );
 
     expect(download.ok(), await download.text()).toBeTruthy();
@@ -47,13 +48,13 @@ test.describe("Files", () => {
     expect(download.headers()["content-disposition"]).toContain("attachment");
 
     const address =
-      (await row.getByRole("link", { name: `Download ${name}` }).getAttribute("href")) ?? "";
+      (await page.getByRole("link", { name: `Download ${name}` }).getAttribute("href")) ?? "";
 
     // Renamed, and the same address still answers: the reference is the id
     // (`docs/mvp-plan.md`, PERSONAL-E6).
     const renamed = `renamed-${name}`;
 
-    await row.getByRole("button", { name: `Rename or move ${name}` }).click();
+    await page.getByRole("button", { name: `Rename or move ${name}` }).click();
 
     // Inside the dialog, because "Rename or move X" is what every row's own
     // button is called: `getByLabel` over the whole page would find those too.
@@ -62,7 +63,7 @@ test.describe("Files", () => {
     await dialog.getByRole("textbox", { name: "Name" }).fill(renamed);
     await dialog.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByRole("listitem").filter({ hasText: renamed })).toBeVisible();
+    await expect(page.getByRole("row").filter({ hasText: renamed })).toBeVisible();
 
     const again = await page.request.get(address);
 
@@ -118,7 +119,7 @@ test.describe("Files", () => {
 
     expect(stored.ok(), await stored.text()).toBeTruthy();
 
-    await expect(page.getByRole("listitem").filter({ hasText: name })).toBeVisible({
+    await expect(page.getByRole("row").filter({ hasText: name })).toBeVisible({
       timeout: 30_000,
     });
   });
@@ -157,10 +158,11 @@ test.describe("Files", () => {
       buffer: Buffer.from("into the Trash"),
     });
 
-    const row = page.getByRole("listitem").filter({ hasText: name });
+    const row = page.getByRole("row").filter({ hasText: name });
     await expect(row).toBeVisible();
+    await row.getByRole("button", { name: `Actions for ${name}` }).click();
 
-    await row.getByRole("button", { name: `Delete ${name}` }).click();
+    await page.getByRole("button", { name: `Delete ${name}` }).click();
 
     // Nothing asked, because nothing was destroyed — the opposite of the
     // Scratchpad's dialog, and the sentence says where it went.

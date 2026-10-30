@@ -162,7 +162,7 @@ export function Scratchpad() {
   const showing = asked.at === "known" ? asked.value.items : [];
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-5 md:p-8">
+    <main className="page-frame [&>form]:max-w-3xl [&>ul]:max-w-3xl [&>header>p]:max-w-prose">
       <header className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold tracking-tight">Scratchpad</h1>
         <p className="text-muted-foreground text-sm text-balance">

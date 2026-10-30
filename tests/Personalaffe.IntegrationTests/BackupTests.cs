@@ -219,7 +219,7 @@ public sealed class BackupTests(PostgresFixture postgres)
         await using var backing = await ABackup.OfAnInstanceAsync(postgres, clock);
 
         // What a backup killed between two of its steps leaves behind: a row
-        // saying "still until 10:05", and nothing that is ever coming back.
+        // saying "still for five minutes", and nothing that is ever coming back.
         await using (var scope = backing.Instance.Services.CreateAsyncScope())
         {
             var maintenance = scope.ServiceProvider.GetRequiredService<IMaintenance>();
