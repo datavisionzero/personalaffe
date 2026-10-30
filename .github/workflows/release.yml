@@ -97,13 +97,7 @@ jobs:
       # The client of the contract, which is not committed (docs/codebase.md).
       - run: go generate ./...
 
-      # **The four platforms are a decision, not an assumption.** A personal
-      # workspace is reached from the machine its owner sits at and from
-      # whatever a script runs on: macOS on both architectures, and Linux on
-      # both. There is no Windows build because nobody has asked for one and
-      # WSL answers the question meanwhile — it is one line here the day
-      # somebody does.
-      #
+      # Release binaries target macOS and Linux on AMD64.
       # Static, stripped and trimmed: `pea` speaks HTTP and reads files, so it
       # needs no libc of the machine that built it, and no path from a runner
       # belongs in something people download.
@@ -114,7 +108,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist
 
-          for platform in darwin/arm64 darwin/amd64 linux/amd64 linux/arm64; do
+          for platform in darwin/amd64 linux/amd64; do
             os="${platform%/*}"
             arch="${platform#*/}"
             out="dist/$os-$arch/pea"
@@ -137,7 +131,7 @@ jobs:
           cat SHA256SUMS
 
       # **A released binary must not say `dev`.** The runner is linux/amd64, so
-      # one of the four can be run right here — and what it prints is the whole
+      # one of the two can be run right here — and what it prints is the whole
       # of this check.
       - name: The one that runs here says what the tag says
         env:
@@ -158,7 +152,7 @@ jobs:
           path: src/cli/dist/
           if-no-files-found: error
 
-  # The image, for the two architectures anybody runs a server on.
+  # The server image is built natively for linux/amd64.
   image:
     name: Image
     needs: what
@@ -168,11 +162,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # **linux/amd64 and linux/arm64, and that is also a decision.** An
-      # instance runs on a small server somebody rents or on a box at home, and
-      # those two are what such machines are. arm64 is built under emulation
-      # here, which costs minutes on a release and nothing on any other day.
-      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
 
       - uses: docker/login-action@v4
@@ -202,7 +191,7 @@ jobs:
         with:
           context: .
           file: deploy/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.tags.outputs.tags }}
           build-args: |
@@ -210,8 +199,9 @@ jobs:
             REVISION=${{ github.sha }}
           provenance: true
           sbom: true
-          cache-from: type=gha,scope=release
-          cache-to: type=gha,mode=max,scope=release
+          # Reuse main's CI cache. Tag-scoped exports cannot warm the next tag
+          # and used to add several minutes after the image was already pushed.
+          cache-from: type=gha,scope=image
 
       - name: What was published
         run: docker buildx imagetools inspect "$IMAGE:${{ needs.what.outputs.version }}"
@@ -255,41 +245,19 @@ jobs:
 
           PERSONALAFFE_URL=http://127.0.0.1:8080 dist/pea version
 
-      # And the other half of the handshake: what either of them does when they
-      # do not match. An instance a major ahead is built here rather than
-      # imagined, because "the CLI would refuse it" is not a thing anybody has
-      # seen until somebody has seen it.
-      - name: An instance from another major is refused, and the message says which side moves
+      - name: The web application is served by the released image
         run: |
           set -euo pipefail
-
-          docker build -f deploy/Dockerfile -t personalaffe:from-the-future \
-            --build-arg VERSION=99.0.0 . > /dev/null
-
-          docker compose -f deploy/docker-compose.yml down -v
-
-          # Written rather than appended: two assignments of one variable in an
-          # env file is a thing to be sure about, and there is nothing to be
-          # sure about in a file with one of each.
-          {
-            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
-            echo "PERSONALAFFE_IMAGE=personalaffe:from-the-future"
-          } > deploy/.env
-
-          docker compose -f deploy/docker-compose.yml up -d --wait
-
-          set +e
-          said="$(PERSONALAFFE_URL=http://127.0.0.1:8080 dist/pea version 2>&1)"
-          code=$?
-          set -e
-
-          echo "$said"
-          test "$code" -eq 9 || { echo "it should have refused with exit 9, and it exited $code"; exit 1; }
-          echo "$said" | grep -q "Install the pea that matches the instance" \
-            || { echo "the refusal does not say what to do about it"; exit 1; }
+          kind=$(curl --fail --silent --show-error --output /tmp/index.html --write-out '%{content_type}' http://127.0.0.1:8080/)
+          case "$kind" in text/html*) ;; *) echo "/ answered $kind"; exit 1;; esac
+          grep -q '<div id="root">' /tmp/index.html
 
       - if: always()
         run: docker compose -f deploy/docker-compose.yml logs --tail 50
+
+      - name: Clean up
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v --remove-orphans
 
   # The release itself: the notes an operator reads, and the files they download.
   publish:
@@ -359,14 +327,14 @@ jobs:
 
           ## \`pea\`, on the machine you work from
 
-          Four platforms — macOS and Linux, on both architectures — and a
+          Two platforms — macOS and Linux, on AMD64 — and a
           checksum for each in \`SHA256SUMS\`:
 
           \`\`\`sh
-          curl -LO https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/pea_${VERSION}_darwin_arm64.tar.gz
+          curl -LO https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/pea_${VERSION}_darwin_amd64.tar.gz
           curl -LO https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/SHA256SUMS
           shasum -a 256 --check --ignore-missing SHA256SUMS
-          tar -xzf pea_${VERSION}_darwin_arm64.tar.gz && sudo mv pea /usr/local/bin/
+          tar -xzf pea_${VERSION}_darwin_amd64.tar.gz && sudo mv pea /usr/local/bin/
           \`\`\`
 
           \`pea\` talks to an instance of its own minor version and older, and

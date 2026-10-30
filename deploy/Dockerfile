@@ -29,16 +29,6 @@ RUN npm run build -- --outDir dist --emptyOutDir
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 
-# What this build calls itself. A release passes the tag; a build started by
-# hand keeps the default the props file gives, which says plainly that it is not
-# a release (Directory.Build.props).
-ARG VERSION=0.0.0-dev
-
-# Which commit it was built from, appended by the SDK to the informational
-# version behind a `+`. CI passes it, because this build has no repository to
-# read it out of — `Dockerfile.dockerignore` excludes `.git/`.
-ARG REVISION=
-
 # Restore against the manifests alone, so that a change to a source file does
 # not invalidate the package layer.
 COPY global.json Directory.Build.props Directory.Packages.props ./
@@ -52,7 +42,17 @@ COPY src/Personalaffe.Domain/ src/Personalaffe.Domain/
 COPY src/Personalaffe.Application/ src/Personalaffe.Application/
 COPY src/Personalaffe.Infrastructure/ src/Personalaffe.Infrastructure/
 COPY src/Personalaffe.Api/ src/Personalaffe.Api/
-RUN dotnet publish src/Personalaffe.Api/Personalaffe.Api.csproj -c Release -o /app \
+# What this build calls itself. A release passes the tag; a build started by
+# hand keeps the default the props file gives, which says plainly that it is not
+# a release (Directory.Build.props).
+ARG VERSION=0.0.0-dev
+
+# Which commit it was built from, appended by the SDK to the informational
+# version behind a `+`. CI passes it, because this build has no repository to
+# read it out of — `Dockerfile.dockerignore` excludes `.git/`.
+ARG REVISION=
+
+RUN dotnet publish src/Personalaffe.Api/Personalaffe.Api.csproj -c Release --no-restore -o /app \
     -p:Version=$VERSION -p:SourceRevisionId=$REVISION
 
 # A development connection string has no business in an image somebody runs in

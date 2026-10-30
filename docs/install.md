@@ -12,8 +12,8 @@ If you have a checkout and want to run it from source instead, that is the
 
 | | |
 | --- | --- |
-| **The image** | `ghcr.io/datavisionzero/personalaffe:<version>`, for `linux/amd64` and `linux/arm64`. It carries the API and the web application; one container serves both. |
-| **`pea`** | The console client, for macOS and Linux on both architectures, as `pea_<version>_<os>_<arch>.tar.gz` with the licence beside the binary. |
+| **The image** | `ghcr.io/datavisionzero/personalaffe:<version>`, for `linux/amd64`. It carries the API and the web application; one container serves both. |
+| **`pea`** | The console client, for macOS and Linux on AMD64, as `pea_<version>_<os>_<arch>.tar.gz` with the licence beside the binary. |
 | **`SHA256SUMS`** | One checksum per archive. |
 | **`docker-compose.yml`** and **`env.example`** | What an installation is made of, attached so that installing needs no checkout. |
 | **`restore.sh`** | The way back: it puts a backup into the installation it is run beside. |
@@ -109,7 +109,7 @@ the instance; it belongs where you are.
 
 ```sh
 version=0.1.0
-platform=darwin_arm64             # or darwin_amd64, linux_amd64, linux_arm64
+platform=darwin_amd64             # or linux_amd64
 base="https://github.com/datavisionzero/personalaffe/releases/download/v$version"
 
 curl -LO "$base/pea_${version}_${platform}.tar.gz"

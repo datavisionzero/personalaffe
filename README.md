@@ -412,8 +412,8 @@ nothing more.
   socket to anywhere.
 - **What is published is published by a tag, and by nothing else.**
   [`release.yml`](.github/workflows/release.yml) builds the image for
-  `linux/amd64` and `linux/arm64`, builds `pea` for macOS and Linux on both
-  architectures, checksums every asset, proves that the published image and the
+  `linux/amd64`, builds `pea` for macOS and Linux on AMD64, checksums every
+  asset, proves that the published image and the
   published binary agree about the version, and puts the lot under the tag with
   the notes an operator reads: how to install it, how to get `pea` and what an
   upgrade asks of them, over GitHub's generated list of what changed.
@@ -428,7 +428,7 @@ nothing more.
   interrupted, from a newer build, or pointed at an instance that has something
   in it ([`docs/operations.md`](docs/operations.md)). The whole circle — a life,
   a backup, both volumes destroyed, the backup put back, everything read out
-  again — is `scripts/rehearse-a-restore.sh`, and CI runs it on every push.
+  again — is `scripts/rehearse-a-restore.sh`, and CI runs it nightly and on demand.
 - **An upgrade is a pull and an up, and the way back is that backup.** Migrations
   apply themselves on start, only ever forward; two containers starting at once
   take an advisory lock rather than migrating against each other; and a build
@@ -436,7 +436,7 @@ nothing more.
   does not know. Rolling back is `scripts/restore.sh` with the earlier image
   named. All of it is walked rather than asserted, by
   `scripts/rehearse-an-upgrade.sh`, which builds an earlier build out of this
-  repository's history — and CI runs that on every push too.
+  repository's history — and CI runs that nightly and on demand too.
 
 Where each of those plugs in is written down in
 [`docs/codebase.md`](docs/codebase.md), under *What the next epics plug into*.
@@ -453,17 +453,23 @@ no cross-product library and no runtime dependency on another affe product.
 
 ## CI
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the commands above
-on every push and every pull request: the two .NET test projects, the web
-workspace, the CLI, the contract against a real PostgreSQL, and the image with a
-smoke test that starts it through the Compose file and checks that one container
-serves both halves. It publishes nothing and holds no credential.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the fast checks
+on pushes to main and pull requests: .NET unit tests, the web workspace, the
+CLI, the OpenAPI contract against PostgreSQL, and the image smoke test. The
+image builds in parallel with the other checks.
 
-[`.github/workflows/release.yml`](.github/workflows/release.yml) is the other
-one, and the only thing here that writes anywhere outside this repository. It
-runs on a tag, refuses one that is not on `main`, and publishes the image, the
-four `pea` binaries and their checksums under it.
-[`docs/codebase.md`](docs/codebase.md) has the job-by-job table for both.
+At 02:23 UTC daily (03:23 CET / 04:23 CEST), and on manual dispatch, the same
+workflow also runs integration tests, browser checks, backup/restore,
+upgrade/rollback and CLI/server incompatibility checks. Full-suite failures
+are therefore discovered overnight rather than blocking daytime releases.
+Scheduled runs have a separate concurrency group from pushes and PRs.
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) runs on a
+tag, refuses one that is not on `main`, and publishes an AMD64 image and two
+AMD64 `pea` binaries (macOS and Linux), with checksums. It reuses the CI image
+cache without exporting a tag-specific cache. Its short smoke test checks
+container readiness, server/CLI versions and the served web application.
+[`docs/codebase.md`](docs/codebase.md) has the job-by-job table.
 
 ## Security
 
