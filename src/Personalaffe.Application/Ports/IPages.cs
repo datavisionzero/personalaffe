@@ -32,6 +32,8 @@ public sealed record PageInTheTree(
 /// </remarks>
 public interface IPages
 {
+    Task<IReadOnlyList<PageInTheTree>> BacklinksAsync(Guid target, CancellationToken cancellationToken);
+
     /// <summary>The whole tree, deleted pages left out, by title within a parent.</summary>
     Task<IReadOnlyList<PageInTheTree>> TreeAsync(CancellationToken cancellationToken);
 

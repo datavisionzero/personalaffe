@@ -25,6 +25,13 @@ namespace Personalaffe.Infrastructure.Persistence;
 /// </remarks>
 public sealed class Pages(PersonalaffeDbContext context) : IPages
 {
+    public async Task<IReadOnlyList<PageInTheTree>> BacklinksAsync(Guid target, CancellationToken cancellationToken) =>
+        await context.Pages.AsNoTracking()
+            .Where(page => page.Id != target && EF.Functions.ILike(page.Markdown, "%](page:" + target.ToString() + ")%"))
+            .OrderBy(page => page.Title)
+            .Select(page => new PageInTheTree(page.Id, page.Title, page.ParentId, false, page.CreatedAt, page.UpdatedAt))
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<PageInTheTree>> TreeAsync(CancellationToken cancellationToken) =>
         await context.Pages
             .OrderBy(page => page.Title)

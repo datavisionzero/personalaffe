@@ -122,6 +122,9 @@ function KnowledgePage() {
   );
 
   const it = open !== undefined && page.asked.at === "known" ? page.asked.value : undefined;
+  const backlinks = useAsk<Tree>(`backlinks:${open ?? ""}`, signal => open
+    ? api.GET("/api/knowledge/pages/{id}/backlinks", { params: { path: { id: open } }, signal })
+    : Promise.resolve({ data: { pages: [] }, response: new Response() }), { every: open ? undefined : false });
   const title = draft?.title ?? it?.title ?? "";
   const markdown = draft?.markdown ?? it?.markdown ?? "";
 
@@ -406,6 +409,7 @@ function KnowledgePage() {
 
             {editing ? <>
             <MarkdownField
+              pages={pages}
               label="The page"
               value={markdown}
               onChange={(next) => change({ markdown: next })}
@@ -438,6 +442,10 @@ function KnowledgePage() {
               </span>
             </div>
             </> : <ReadingPage markdown={markdown} />}
+            {backlinks.asked.at === "known" && <section aria-label="Linked from" className="border-t pt-3">
+              <h3 className="font-medium">Linked from</h3>
+              {backlinks.asked.value.pages.length === 0 ? <p className="text-sm text-muted-foreground">No pages link here yet.</p> : <ul>{backlinks.asked.value.pages.map(source => <li key={source.id}><Link className="text-brand" to={`/knowledge/${source.id}`}>{source.title}</Link></li>)}</ul>}
+            </section>}
           </>
         )}
 

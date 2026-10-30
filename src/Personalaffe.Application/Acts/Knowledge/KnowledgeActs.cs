@@ -248,3 +248,14 @@ public sealed class RecoverARevision(
         return ThePage.Of(page);
     }
 }
+
+/// <summary>Live pages linking to a readable target using stable page references.</summary>
+public sealed class ReadPageBacklinks(ReachingAnApplication reaching, IPages pages, RetentionSettings retention)
+{
+    public async Task<TheTree> ExecuteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        await reaching.ToReadAsync(WorkspaceApplication.Knowledge, cancellationToken);
+        await TheKnowledge.PageAsync(pages, retention, id, cancellationToken);
+        return new TheTree([.. (await pages.BacklinksAsync(id, cancellationToken)).Select(TheOutline.Of)]);
+    }
+}

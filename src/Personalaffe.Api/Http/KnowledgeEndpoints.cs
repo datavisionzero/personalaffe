@@ -111,6 +111,19 @@ public static class KnowledgeEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        endpoints.MapGet($"{Pages}/{{id:guid}}/backlinks", async (
+                Guid id, ReadPageBacklinks act, CancellationToken cancellationToken) =>
+            {
+                var tree = await act.ExecuteAsync(id, cancellationToken);
+                return Results.Ok(new TreeResponse([.. tree.Pages.Select(OutlineResponse.Of)]));
+            })
+            .WithName("ReadPageBacklinks")
+            .WithSummary("Live pages linking to this page.")
+            .Produces<TreeResponse>()
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         endpoints.MapGet($"{Pages}/{{id:guid}}", async (
                 Guid id,
                 HttpResponse response,
