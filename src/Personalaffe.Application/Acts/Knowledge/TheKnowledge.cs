@@ -11,24 +11,24 @@ public sealed record ThePage(
     Guid? Parent,
     string Markdown,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset UpdatedAt, bool Pinned = false)
 {
     /// <summary>The version a guarded write has to be holding.</summary>
     public ContentVersion Version => ContentVersion.Of(UpdatedAt);
 
     internal static ThePage Of(Page page) => new(
-        page.Id, page.Title, page.ParentId, page.Markdown, page.CreatedAt, page.UpdatedAt);
+        page.Id, page.Title, page.ParentId, page.Markdown, page.CreatedAt, page.UpdatedAt, page.Pinned);
 }
 
 /// <summary>One page as the tree knows it: a title and a place, and no body.</summary>
 public sealed record TheOutline(
-    Guid Id, string Title, Guid? Parent, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
+    Guid Id, string Title, Guid? Parent, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, bool Pinned = false)
 {
     /// <summary>The version a guarded write has to be holding.</summary>
     public ContentVersion Version => ContentVersion.Of(UpdatedAt);
 
     internal static TheOutline Of(PageInTheTree page) => new(
-        page.Id, page.Title, page.ParentId, page.CreatedAt, page.UpdatedAt);
+        page.Id, page.Title, page.ParentId, page.CreatedAt, page.UpdatedAt, page.Pinned);
 }
 
 /// <summary>
@@ -113,8 +113,7 @@ internal static class TheKnowledge
         if (depth + depthBelow + 1 > Page.MaxDepth)
         {
             throw Refusal.Conflict(
-                $"This workspace's pages go {Page.MaxDepth} deep, and that would be deeper. A knowledge "
-                + "base nobody can find anything in is what the limit is for.");
+                $"Pages can be nested up to {Page.MaxDepth} levels. Choose a destination closer to the top level.");
         }
     }
 
@@ -132,8 +131,7 @@ internal static class TheKnowledge
         if (await pages.TitleIsTakenAsync(parent, title, itself, cancellationToken))
         {
             throw Refusal.Conflict(
-                $"A page there is already called `{title}`. Titles in one place are one each, whatever "
-                + "their capitals.");
+                $"A page named `{title}` already exists under this parent. Choose a different title; capitalization does not make titles unique.");
         }
     }
 

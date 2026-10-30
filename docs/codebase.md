@@ -952,3 +952,50 @@ current folder path. Global search and the bookmark list use the same statement
 and recursive visibility predicate; no path cache can outlive a rename or a
 privacy change. The URL in a finding is optional and used for direct navigation,
 while the stable ID opens the editing view.
+
+### Knowledge reading and editing workflow
+
+Knowledge opens in reading mode with an outline derived from rendered headings.
+Editing keeps a tab-local draft in session storage, including the server version
+it was based on. Drafts survive reloads and page navigation, remain hidden behind
+the session lock, and are cleared on sign-out. The UI reports storage failures;
+these drafts are not server backups and closing the tab removes them.
+Stale writes retain the draft and offer a side-by-side comparison before the
+owner explicitly rebases their draft onto the current version. New edits made
+while a save is pending remain unsaved drafts rather than being discarded.
+
+The tree supports collapsed branches, breadcrumb navigation and moving pages
+through either a destination dialog or drag-and-drop followed by that dialog.
+Moves read the current page and use its version guard, preserving the body.
+The existing server hierarchy constraints remain authoritative.
+
+Knowledge search uses the workspace search with `application=knowledge` and an
+optional `within` page ID. A recursive query restricts matches to that page and
+its non-deleted descendants before ranking and limiting. Other applications
+cannot use `within`. Results include snippets and an explicit truncation notice.
+
+### Knowledge links, start page, history and attachments
+
+The Markdown toolbar can select a live page by title and insert a stable
+`page:<id>` reference at the current selection. The protected backlinks endpoint
+returns live source pages containing these references; deleted sources and
+unreadable target pages are excluded. Page IDs continue to survive renames and
+moves.
+
+Pages can be pinned on the server. Pinning changes neither content, revisions,
+nor the last-edited timestamp. The Knowledge start page shows live pinned pages
+and the ten most recently edited pages. Pins are part of the database backup.
+
+History displays a line comparison from the selected revision to the current
+page, including title changes. Large replacements use a bounded block comparison
+instead of allocating a quadratic matrix. Restoring still uses the existing
+version guard and retains the replaced content.
+
+Knowledge can insert existing Files references and upload PNG, JPEG, GIF, WebP
+or AVIF images through paste/drop. The existing Files API enforces permissions,
+quotas and naming conflicts; the UI also checks advertised limits. Uploads are
+stored in Files even if the draft is later discarded. The page keeps only stable
+IDs. Missing or unreadable images display an explanatory placeholder. The future
+Images application has no API in this version; existing Files provides media
+storage and selection. General Knowledge help uses native disclosures for
+keyboard and touch access.

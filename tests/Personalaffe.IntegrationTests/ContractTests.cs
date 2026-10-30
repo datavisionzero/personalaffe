@@ -75,6 +75,8 @@ public sealed class ContractTests(PostgresFixture postgres)
                 "/api/knowledge/export",
                 "/api/knowledge/pages",
                 "/api/knowledge/pages/{id}",
+                "/api/knowledge/pages/{id}/backlinks",
+                "/api/knowledge/pages/{id}/pin",
                 "/api/knowledge/pages/{id}/revisions",
                 "/api/knowledge/pages/{id}/revisions/{revision}",
                 "/api/me",

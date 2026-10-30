@@ -62,6 +62,11 @@ public sealed class Search(PersonalaffeDbContext context, BookmarkSearch bookmar
         "StartSel=\"\",StopSel=\"\",MaxWords=24,MinWords=8,ShortWord=2,MaxFragments=1";
 
     private const string Pages = $$"""
+        WITH RECURSIVE subtree AS (
+            SELECT id FROM pages WHERE id = {2} AND deleted_at IS NULL
+            UNION
+            SELECT p.id FROM pages p JOIN subtree s ON p.parent_id = s.id WHERE p.deleted_at IS NULL
+        )
         SELECT p.id AS id,
                p.title AS title,
                nullif(ts_headline('simple', p.markdown, q.query, '{{Headline}}'), '') AS snippet,
@@ -70,6 +75,7 @@ public sealed class Search(PersonalaffeDbContext context, BookmarkSearch bookmar
                ts_rank(p.search_vector, q.query) AS rank
         FROM pages AS p, to_tsquery('simple', {0}) AS q(query)
         WHERE p.deleted_at IS NULL AND p.search_vector @@ q.query
+          AND ({2} = '00000000-0000-0000-0000-000000000000'::uuid OR p.id IN (SELECT id FROM subtree))
         ORDER BY rank DESC, p.updated_at DESC
         LIMIT {1}
         """;
@@ -128,7 +134,7 @@ public sealed class Search(PersonalaffeDbContext context, BookmarkSearch bookmar
         WorkspaceApplication application,
         Needle needle,
         int limit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Guid? within = null)
     {
         ArgumentNullException.ThrowIfNull(needle);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
@@ -152,7 +158,7 @@ public sealed class Search(PersonalaffeDbContext context, BookmarkSearch bookmar
         };
 
         var rows = await context.Set<FoundRow>()
-            .FromSqlRaw(statement, Query(needle), limit)
+            .FromSqlRaw(statement, Query(needle), limit, within ?? Guid.Empty)
             .ToListAsync(cancellationToken);
 
         return

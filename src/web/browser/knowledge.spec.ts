@@ -59,6 +59,7 @@ test.describe("Knowledge", () => {
     // does not move it.
     await page.goto("/");
     await page.goto(address);
+    await page.getByRole("button", { name: "Edit page" }).click();
 
     await expect(page.getByLabel("Title")).toHaveValue(`${title} (umbenannt)`);
 
@@ -87,6 +88,7 @@ test.describe("Knowledge", () => {
 
     await page.goto("/");
     await page.goto(address);
+    await page.getByRole("button", { name: "Edit page" }).click();
 
     const both = page.getByRole("textbox", { name: "The page" });
 
@@ -120,7 +122,7 @@ test.describe("Knowledge", () => {
     const title = `Von woanders ${Date.now()}`;
 
     await page.goto("/knowledge");
-    await expect(page.getByRole("heading", { name: "Knowledge" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Knowledge", exact: true })).toBeVisible();
 
     // Another device, or an agent: the same API, the same session, and nothing
     // touching this page.
@@ -148,7 +150,7 @@ test.describe("Knowledge", () => {
     await page.getByRole("textbox", { name: "The page" }).click();
     await page.keyboard.type("was ich gerade schreibe");
 
-    await expect(page.getByText("Unsaved.")).toBeVisible();
+    await expect(page.getByText(/Draft saved in this tab/)).toBeVisible();
 
     // The same page, written by something else, while a person is mid-sentence.
     const read = await page.request.get(`/api/knowledge/pages/${id}`);
@@ -180,17 +182,65 @@ test.describe("Knowledge", () => {
 
     await page.getByRole("button", { name: `Delete ${title}` }).click();
 
-    await expect(page.getByText("Pick a page, or write one.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your knowledge" })).toBeVisible();
 
     await page.goto("/trash");
     await expect(page.getByText(title)).toBeVisible();
+  });
+
+  test("recovers a draft, reads its outline and finds its content", async ({ page }) => {
+    const title = `Knowledge workflow ${Date.now()}`;
+    await aPage(page, title);
+    await page.getByRole("textbox", { name: "The page" }).fill("## Checklist\n\nUniquequartzcontent");
+    page.once("dialog", dialog => dialog.accept());
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "The page" })).toContainText("Uniquequartzcontent");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Saved.")).toBeVisible();
+    const contents = page.getByRole("navigation", { name: "On this page" });
+    await expect(contents.getByRole("link", { name: "Checklist" })).toBeVisible();
+    await contents.getByRole("link", { name: "Checklist" }).click();
+    await expect(page.getByRole("textbox", { name: "The page" })).toHaveCount(0);
+    await page.getByRole("searchbox", { name: "Search Knowledge" }).fill("Uniquequartzcontent");
+    await page.getByRole("checkbox", { name: "Only this page and its subpages" }).check();
+    await expect(page.getByRole("list", { name: "Knowledge search results" }).getByRole("link", { name: title })).toBeVisible();
+  });
+
+  test("pins pages, links them and displays stored images", async ({ page }) => {
+    const target = `Pinned target ${Date.now()}`;
+    await aPage(page, target);
+    const targetAddress = page.url();
+    await page.getByRole("button", { name: "Pin page", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Unpin page", exact: true })).toBeVisible();
+    await page.goto("/knowledge");
+    await expect(page.getByRole("region", { name: "Pinned pages" }).getByRole("link", { name: target })).toBeVisible();
+    const source = `Linked source ${Date.now()}`;
+    await aPage(page, source);
+    await page.getByRole("button", { name: "Link page", exact: true }).click();
+    await page.getByRole("textbox", { name: "Find a page by title" }).fill(target);
+    await page.getByRole("dialog").getByRole("button", { name: target }).click();
+    const imageName = `pixel-${Date.now()}.png`;
+    const uploaded = await page.request.post(`/api/files/content?name=${imageName}`, {
+      headers: { "Content-Type": "image/png", "X-Personalaffe-CSRF": "1", Origin: new URL(page.url()).origin },
+      data: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64"),
+    });
+    expect(uploaded.ok()).toBeTruthy();
+    await page.getByRole("button", { name: "Insert file", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: imageName }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Saved.")).toBeVisible();
+    const image = page.getByRole("img", { name: imageName });
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBe(1);
+    await page.goto(targetAddress);
+    await expect(page.getByRole("region", { name: "Linked from" }).getByRole("link", { name: source })).toBeVisible();
   });
 
   test("is usable at a phone's width", async ({ page }) => {
     await page.setViewportSize({ width: 400, height: 780 });
     await page.goto("/knowledge");
 
-    await expect(page.getByRole("heading", { name: "Knowledge" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Knowledge", exact: true })).toBeVisible();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

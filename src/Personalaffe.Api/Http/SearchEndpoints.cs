@@ -84,11 +84,12 @@ public static class SearchEndpoints
                 string? q,
                 string? application,
                 int? limit,
+                Guid? within,
                 SearchTheWorkspace act,
                 CancellationToken cancellationToken) =>
             {
                 var findings = await act.ExecuteAsync(
-                    q, Applications.Chosen(application), limit, cancellationToken);
+                    q, Applications.Chosen(application), limit, cancellationToken, within);
 
                 return Results.Ok(new FindingsResponse(
                     findings.Needle,

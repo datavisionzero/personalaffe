@@ -71,6 +71,10 @@ public sealed class Page : IRecoverable
     /// <summary>The Markdown source, as it was written.</summary>
     public string Markdown { get; private set; } = string.Empty;
 
+    public bool Pinned { get; private set; }
+
+    public void SetPinned(bool pinned) => Pinned = pinned;
+
     public DateTimeOffset CreatedAt { get; private init; }
 
     /// <summary>When it was last changed, and the version a write replaces.</summary>

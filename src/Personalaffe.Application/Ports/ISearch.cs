@@ -75,5 +75,5 @@ public interface ISearch
         WorkspaceApplication application,
         Needle needle,
         int limit,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken, Guid? within = null);
 }

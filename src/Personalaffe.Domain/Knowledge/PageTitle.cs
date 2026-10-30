@@ -87,7 +87,7 @@ public static class PageTitle
             if (char.IsControl(character))
             {
                 throw Refusal.Validation(
-                    field, "A title is one line. A newline in it is a title nobody can read back.");
+                    field, "Use a single line for the title.");
             }
         }
 

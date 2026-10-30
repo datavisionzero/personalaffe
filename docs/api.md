@@ -1727,3 +1727,16 @@ The keeper is untouched; no metadata or statistics are merged. Each deleted
 copy retains its own data for restoration; its statistics disappear only upon
 expiry or permanent deletion. Hidden copies do not influence public group
 counts or hints. A conflict requires reviewing the selection again.
+
+Knowledge search can be scoped with `GET /api/search?q=...&application=knowledge&within=<page-id>`.
+The optional `within` includes the named page and its non-deleted descendants;
+filtering happens before ranking and the result limit. Using `within` without
+`application=knowledge` returns validation status 400. An absent or deleted
+root yields no matches. Existing application permissions and switches apply.
+
+`GET /api/knowledge/pages/{id}/backlinks` returns a `TreeResponse` containing live
+pages with stable Markdown links to the target. It requires Knowledge read
+access and a live target. `PUT /api/knowledge/pages/{id}/pin` accepts
+`{"pinned":true}` (or false), requires Knowledge write access, and returns the
+page with its persisted `pinned` flag. Pinning does not change the content version
+or create a revision. Page and tree responses include `pinned`.

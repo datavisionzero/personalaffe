@@ -1,3 +1,4 @@
+import { MarkdownImage } from "./MarkdownImage";
 import { Children, isValidElement, type ComponentProps, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { Link } from "react-router";
@@ -24,6 +25,7 @@ import { admitUrl, insidePath } from "./links";
  * as everything else.
  */
 const components: Components = {
+  img: ({ src, alt }) => <MarkdownImage key={src} src={typeof src === "string" ? src : undefined} alt={alt} />,
   h1: ({ className, ...props }) => <h2 className={cn("mt-6 mb-2 text-base font-semibold first:mt-0", className)} {...props} />,
   h2: ({ className, ...props }) => <h3 className={cn("mt-5 mb-2 text-sm font-semibold first:mt-0", className)} {...props} />,
   h3: ({ className, ...props }) => <h4 className={cn("mt-4 mb-1 text-sm font-medium first:mt-0", className)} {...props} />,
