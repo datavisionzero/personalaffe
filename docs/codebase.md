@@ -748,10 +748,14 @@ The compatibility job builds a numbered CLI and an incompatible server
 (`99.0.0`) and verifies refusal with exit code 9. This extra image build is
 outside the release path.
 
-The image cache retains intermediate dependency layers. CI cache exports have
-a 60-second timeout and are best-effort; releases import this cache without
-exporting their own tag-scoped cache. Version and revision arguments are
-introduced after dependency restore so they do not invalidate that layer.
+The image cache retains intermediate dependency layers. Only scheduled and
+manual full runs on `main` export it, best-effort. Pushes, pull requests and
+releases only import the cache; they never wait for a cache upload. The previous
+exporter timeout did not bound total export time, so it is not used as a latency
+guarantee. A missing or stale cache causes a normal build; dependency changes
+may therefore cost more until the next full run refreshes it. Version and
+revision arguments are introduced after dependency restore so they do not
+invalidate that layer.
 
 Three things it deliberately does not do: it publishes no image, it deploys
 nothing, and it holds no credential — `permissions: contents: read` is the whole

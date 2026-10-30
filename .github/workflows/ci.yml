@@ -283,9 +283,10 @@ jobs:
           build-args: |
             REVISION=${{ github.sha }}
           cache-from: type=gha,scope=image
-          # Keep intermediate dependency layers for subsequent builds. Cache writes
-          # are best-effort and must not add minutes to the fast path.
-          cache-to: type=gha,mode=max,scope=image,timeout=60s,ignore-error=true
+          # Upload only during full runs on main. The exporter timeout did not
+          # bound total upload time, so pushes and PRs must not export at all.
+          # An empty input omits --cache-to; cache misses still build normally.
+          cache-to: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'type=gha,mode=max,scope=image,ignore-error=true' || '' }}
 
       # Generated rather than written down: a password in this file would be a
       # string every secret scanner has to be told to ignore, for a database
@@ -397,10 +398,9 @@ jobs:
   # back it up, destroy both volumes, put it back, and then read every bit of it
   # out again through the API.
   #
-  # `needs: image`, so the layers are already in the cache and this build is a
-  # cache hit rather than a second three-minute build. It is a separate job all
-  # the same: the smoke test's subject is an instance nobody has claimed, and
-  # this one has to claim it before it can prove anything.
+  # Full runs on main warm the cache in the image job before this starts.
+  # Cache export is best-effort; a miss simply rebuilds the image. This job
+  # claims its instance, while the smoke test needs an unclaimed one.
   restore:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     name: Backup and restore

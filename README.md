@@ -463,6 +463,9 @@ workflow also runs integration tests, browser checks, backup/restore,
 upgrade/rollback and CLI/server incompatibility checks. Full-suite failures
 are therefore discovered overnight rather than blocking daytime releases.
 Scheduled runs have a separate concurrency group from pushes and PRs.
+Only scheduled and manual full runs on `main` update the Docker build cache.
+Pushes, PRs and releases read it without uploading; a cache miss rebuilds the
+affected layers normally.
 
 [`.github/workflows/release.yml`](.github/workflows/release.yml) runs on a
 tag, refuses one that is not on `main`, and publishes an AMD64 image and two
