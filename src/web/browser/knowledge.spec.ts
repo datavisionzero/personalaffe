@@ -122,7 +122,7 @@ test.describe("Knowledge", () => {
     const title = `Von woanders ${Date.now()}`;
 
     await page.goto("/knowledge");
-    await expect(page.getByRole("heading", { name: "Knowledge" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Knowledge", exact: true })).toBeVisible();
 
     // Another device, or an agent: the same API, the same session, and nothing
     // touching this page.
@@ -206,11 +206,41 @@ test.describe("Knowledge", () => {
     await expect(page.getByRole("list", { name: "Knowledge search results" }).getByRole("link", { name: title })).toBeVisible();
   });
 
+  test("pins pages, links them and displays stored images", async ({ page }) => {
+    const target = `Pinned target ${Date.now()}`;
+    await aPage(page, target);
+    const targetAddress = page.url();
+    await page.getByRole("button", { name: "Pin page", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Unpin page", exact: true })).toBeVisible();
+    await page.goto("/knowledge");
+    await expect(page.getByRole("region", { name: "Pinned pages" }).getByRole("link", { name: target })).toBeVisible();
+    const source = `Linked source ${Date.now()}`;
+    await aPage(page, source);
+    await page.getByRole("button", { name: "Link page", exact: true }).click();
+    await page.getByRole("textbox", { name: "Find a page by title" }).fill(target);
+    await page.getByRole("dialog").getByRole("button", { name: target }).click();
+    const imageName = `pixel-${Date.now()}.png`;
+    const uploaded = await page.request.post(`/api/files/content?name=${imageName}`, {
+      headers: { "Content-Type": "image/png", "X-Personalaffe-CSRF": "1", Origin: new URL(page.url()).origin },
+      data: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64"),
+    });
+    expect(uploaded.ok()).toBeTruthy();
+    await page.getByRole("button", { name: "Insert file", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: imageName }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Saved.")).toBeVisible();
+    const image = page.getByRole("img", { name: imageName });
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBe(1);
+    await page.goto(targetAddress);
+    await expect(page.getByRole("region", { name: "Linked from" }).getByRole("link", { name: source })).toBeVisible();
+  });
+
   test("is usable at a phone's width", async ({ page }) => {
     await page.setViewportSize({ width: 400, height: 780 });
     await page.goto("/knowledge");
 
-    await expect(page.getByRole("heading", { name: "Knowledge" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Knowledge", exact: true })).toBeVisible();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

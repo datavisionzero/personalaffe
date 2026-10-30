@@ -80,7 +80,7 @@ export async function switchApplication(page: Page, application: string, enabled
  */
 export async function aPage(page: Page, title: string) {
   await page.goto("/knowledge");
-  await expect(page.getByRole("heading", { name: "Knowledge" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Knowledge", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "New page", exact: true }).click();
 
