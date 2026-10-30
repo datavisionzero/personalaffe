@@ -12,8 +12,10 @@ namespace Personalaffe.IntegrationTests;
 [Collection(nameof(PostgresCollection))]
 public sealed class InactivityLockTests(PostgresFixture postgres)
 {
+    // The HTTP cookie jar uses wall time, even when the server clock is injected.
+    // Keep its session cookie current while advancing server time within each test.
     private static readonly DateTimeOffset Noon =
-        new(2026, 9, 21, 12, 0, 0, TimeSpan.Zero);
+        new(DateTime.UtcNow.Date.AddHours(12), TimeSpan.Zero);
 
     [Fact]
     public async Task Ordinary_requests_do_not_extend_the_deadline_and_only_lock_operations_remain()
