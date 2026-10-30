@@ -25,6 +25,7 @@ import { MarkdownField } from "@/shared/MarkdownField";
 import { Markdown } from "@/shared/Markdown";
 import { readDraft, storeDraft, type Draft } from "./drafts";
 import { KnowledgeSearch } from "./KnowledgeSearch";
+import { RevisionDiff } from "./RevisionDiff";
 import { ReadingPage } from "./ReadingPage";
 import { useAsk } from "@/shared/ask";
 import { Busy, Denied, Disabled, Empty, Failed } from "@/shell/States";
@@ -688,6 +689,8 @@ function TheHistory({
 }) {
   const [showing, setShowing] = useState<Revision>();
   const [markdown, setMarkdown] = useState<string>();
+  const [loadError, setLoadError] = useState<string>();
+  const request = useRef(0);
 
   const history = useAsk<Schemas["HistoryResponse"]>(
     `/api/knowledge/pages/${page.id}/revisions`,
@@ -701,16 +704,18 @@ function TheHistory({
   );
 
   async function look(revision: Revision) {
+    const current = ++request.current;
     setShowing(revision);
     setMarkdown(undefined);
-
-    const answer = await api.GET("/api/knowledge/pages/{id}/revisions/{revision}", {
-      params: { path: { id: page.id, revision: revision.id } },
-    });
-
-    if (!answer.error) {
-      setMarkdown(answer.data.markdown);
-    }
+    setLoadError(undefined);
+    try {
+      const answer = await api.GET("/api/knowledge/pages/{id}/revisions/{revision}", {
+        params: { path: { id: page.id, revision: revision.id } },
+      });
+      if (current !== request.current) return;
+      if (answer.data) setMarkdown(answer.data.markdown);
+      else setLoadError("Could not load this version. Select it to try again.");
+    } catch { if (current === request.current) setLoadError("Could not load this version. Select it to try again."); }
   }
 
   const items = history.asked.at === "known" ? history.asked.value.items : [];
@@ -762,11 +767,13 @@ function TheHistory({
 
         {showing !== undefined && (
           <div className="bg-muted/50 max-h-56 overflow-y-auto rounded-lg p-3 text-sm">
-            {markdown === undefined ? (
-              <Busy title="Reading it…" />
-            ) : (
+            {loadError ? <Refused>{loadError}</Refused> : markdown === undefined ? (
+              <Busy title="Loading version…" />
+            ) : <>
+              <h4 className="font-medium">Selected version</h4>
               <Markdown>{markdown}</Markdown>
-            )}
+              <RevisionDiff before={`${showing.title}\n\n${markdown}`} after={`${page.title}\n\n${page.markdown}`} />
+            </>}
           </div>
         )}
 
@@ -778,7 +785,7 @@ function TheHistory({
           </Button>
           <Button
             type="button"
-            disabled={showing === undefined || working}
+            disabled={showing === undefined || markdown === undefined || working}
             onClick={() => showing !== undefined && onRecover(showing)}
           >
             Put this one back
