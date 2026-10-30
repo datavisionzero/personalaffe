@@ -215,11 +215,11 @@ public sealed class BackupTests(PostgresFixture postgres)
     [Fact]
     public async Task A_pause_nothing_ever_ended_lapses_by_itself()
     {
-        var clock = new Moving(new DateTimeOffset(2026, 9, 16, 10, 0, 0, TimeSpan.Zero));
+        var clock = new Moving(DateTimeOffset.UtcNow);
         await using var backing = await ABackup.OfAnInstanceAsync(postgres, clock);
 
         // What a backup killed between two of its steps leaves behind: a row
-        // saying "still until 10:05", and nothing that is ever coming back.
+        // saying "still for five minutes", and nothing that is ever coming back.
         await using (var scope = backing.Instance.Services.CreateAsyncScope())
         {
             var maintenance = scope.ServiceProvider.GetRequiredService<IMaintenance>();
