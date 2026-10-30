@@ -1,3 +1,4 @@
+import { useMedia } from "@/knowledge/useMedia";
 import { PageLinkPicker, type LinkablePage } from "@/knowledge/PageLinkPicker";
 import {
   BoldIcon,
@@ -139,6 +140,7 @@ function Surface({
   // Where there is room for both, the preview stands beside the text; where
   // there is not, it takes its place and a switch says which is showing. A
   // comment is narrow work and keeps the switch at every width.
+  const media = useMedia(editor, pages !== undefined);
   const beside = size !== "compact";
   const heights = {
     roomy: { min: "40vh", max: "60vh" },
@@ -152,7 +154,7 @@ function Surface({
   }
 
   return (
-    <div className={cn("grid gap-1 text-sm font-medium", size === "full" && "min-h-0 grid-rows-[auto_1fr]")}>
+    <div onPasteCapture={media.onPaste} onDropCapture={media.onDrop} onDragOver={media.onDragOver} className={cn("grid gap-1 text-sm font-medium", size === "full" && "min-h-0 grid-rows-[auto_1fr]")}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span id={`${id}-label`}>{label}</span>
         {/* One tab stop, not nine. A toolbar in front of the text would
@@ -162,6 +164,7 @@ function Surface({
           <Mark first disabled={editor === null} what="Bold" icon={BoldIcon} onClick={() => apply((at) => wrapped(at, "**"))} />
           <Mark disabled={editor === null} what="Italic" icon={ItalicIcon} onClick={() => apply((at) => wrapped(at, "_"))} />
           <Mark disabled={editor === null} what="Code" icon={CodeIcon} onClick={() => apply((at) => wrapped(at, "`"))} />
+          {media.controls}
           {pages && <PageLinkPicker pages={pages} disabled={editor === null} onPick={page => apply(at => {
             const title = (at.text.slice(at.from, at.to) || page.title).replace(/[\\[\]]/g, "\\$&");
             const link = `[${title}](page:${page.id})`;
@@ -191,6 +194,7 @@ function Surface({
         </div>
       </div>
 
+      {media.feedback}
       <div className={cn("grid min-h-0 gap-3", beside && "md:grid-cols-2")}>
         <div
           className={cn(
