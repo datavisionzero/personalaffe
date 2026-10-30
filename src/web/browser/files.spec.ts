@@ -40,7 +40,7 @@ test.describe("Files", () => {
     // The download is the instance's own address, fetched with the session the
     // browser already has. What comes back is compared byte for byte.
     const download = await page.request.get(
-      await page.getByRole("link", { name: `Download ${name}` }).getAttribute("href") ?? "",
+      await page.getByRole("menuitem", { name: `Download ${name}` }).getAttribute("href") ?? "",
     );
 
     expect(download.ok(), await download.text()).toBeTruthy();
@@ -48,13 +48,13 @@ test.describe("Files", () => {
     expect(download.headers()["content-disposition"]).toContain("attachment");
 
     const address =
-      (await page.getByRole("link", { name: `Download ${name}` }).getAttribute("href")) ?? "";
+      (await page.getByRole("menuitem", { name: `Download ${name}` }).getAttribute("href")) ?? "";
 
     // Renamed, and the same address still answers: the reference is the id
     // (`docs/mvp-plan.md`, PERSONAL-E6).
     const renamed = `renamed-${name}`;
 
-    await page.getByRole("button", { name: `Rename or move ${name}` }).click();
+    await page.getByRole("menuitem", { name: "Rename", exact: true }).click();
 
     // Inside the dialog, because "Rename or move X" is what every row's own
     // button is called: `getByLabel` over the whole page would find those too.
@@ -162,7 +162,7 @@ test.describe("Files", () => {
     await expect(row).toBeVisible();
     await row.getByRole("button", { name: `Actions for ${name}` }).click();
 
-    await page.getByRole("button", { name: `Delete ${name}` }).click();
+    await page.getByRole("menuitem", { name: `Delete ${name}` }).click();
 
     // Nothing asked, because nothing was destroyed — the opposite of the
     // Scratchpad's dialog, and the sentence says where it went.
