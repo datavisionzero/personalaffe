@@ -952,3 +952,24 @@ current folder path. Global search and the bookmark list use the same statement
 and recursive visibility predicate; no path cache can outlive a rename or a
 privacy change. The URL in a finding is optional and used for direct navigation,
 while the stable ID opens the editing view.
+
+### Knowledge reading and editing workflow
+
+Knowledge opens in reading mode with an outline derived from rendered headings.
+Editing keeps a tab-local draft in session storage, including the server version
+it was based on. Drafts survive reloads and page navigation, remain hidden behind
+the session lock, and are cleared on sign-out. The UI reports storage failures;
+these drafts are not server backups and closing the tab removes them.
+Stale writes retain the draft and offer a side-by-side comparison before the
+owner explicitly rebases their draft onto the current version. New edits made
+while a save is pending remain unsaved drafts rather than being discarded.
+
+The tree supports collapsed branches, breadcrumb navigation and moving pages
+through either a destination dialog or drag-and-drop followed by that dialog.
+Moves read the current page and use its version guard, preserving the body.
+The existing server hierarchy constraints remain authoritative.
+
+Knowledge search uses the workspace search with `application=knowledge` and an
+optional `within` page ID. A recursive query restricts matches to that page and
+its non-deleted descendants before ranking and limiting. Other applications
+cannot use `within`. Results include snippets and an explicit truncation notice.

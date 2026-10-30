@@ -59,6 +59,7 @@ test.describe("Knowledge", () => {
     // does not move it.
     await page.goto("/");
     await page.goto(address);
+    await page.getByRole("button", { name: "Edit page" }).click();
 
     await expect(page.getByLabel("Title")).toHaveValue(`${title} (umbenannt)`);
 
@@ -87,6 +88,7 @@ test.describe("Knowledge", () => {
 
     await page.goto("/");
     await page.goto(address);
+    await page.getByRole("button", { name: "Edit page" }).click();
 
     const both = page.getByRole("textbox", { name: "The page" });
 
@@ -148,7 +150,7 @@ test.describe("Knowledge", () => {
     await page.getByRole("textbox", { name: "The page" }).click();
     await page.keyboard.type("was ich gerade schreibe");
 
-    await expect(page.getByText("Unsaved.")).toBeVisible();
+    await expect(page.getByText(/Draft saved in this tab/)).toBeVisible();
 
     // The same page, written by something else, while a person is mid-sentence.
     const read = await page.request.get(`/api/knowledge/pages/${id}`);
@@ -184,6 +186,24 @@ test.describe("Knowledge", () => {
 
     await page.goto("/trash");
     await expect(page.getByText(title)).toBeVisible();
+  });
+
+  test("recovers a draft, reads its outline and finds its content", async ({ page }) => {
+    const title = `Knowledge workflow ${Date.now()}`;
+    await aPage(page, title);
+    await page.getByRole("textbox", { name: "The page" }).fill("## Checklist\n\nUniquequartzcontent");
+    page.once("dialog", dialog => dialog.accept());
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "The page" })).toContainText("Uniquequartzcontent");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Saved.")).toBeVisible();
+    const contents = page.getByRole("navigation", { name: "On this page" });
+    await expect(contents.getByRole("link", { name: "Checklist" })).toBeVisible();
+    await contents.getByRole("link", { name: "Checklist" }).click();
+    await expect(page.getByRole("textbox", { name: "The page" })).toHaveCount(0);
+    await page.getByRole("searchbox", { name: "Search Knowledge" }).fill("Uniquequartzcontent");
+    await page.getByRole("checkbox", { name: "Only this page and its subpages" }).check();
+    await expect(page.getByRole("list", { name: "Knowledge search results" }).getByRole("link", { name: title })).toBeVisible();
   });
 
   test("is usable at a phone's width", async ({ page }) => {

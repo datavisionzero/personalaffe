@@ -1,8 +1,9 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router";
 
+import { readDraft } from "./drafts";
 import { Knowledge } from "@/knowledge/Knowledge";
 import { anInstance, refused, renderAt } from "@/shared/anInstance";
 
@@ -50,6 +51,7 @@ function knowledgeAt(path: string) {
 }
 
 describe("Knowledge", () => {
+  beforeEach(() => sessionStorage.clear());
   it("says nothing is written rather than drawing a blank page", async () => {
     anInstance({ "GET /api/knowledge/pages": aTree() });
 
@@ -87,6 +89,9 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
+    expect(await screen.findByRole("navigation", { name: "On this page" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "The page" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Edit page" }));
     expect(await screen.findByRole("textbox", { name: "The page" })).toHaveValue(thePage.markdown);
     expect(screen.getByLabelText("Title")).toHaveValue("Bahn");
   });
@@ -100,6 +105,7 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
+    await userEvent.click(await screen.findByRole("button", { name: "Edit page" }));
     const field = await screen.findByRole("textbox", { name: "The page" });
 
     await userEvent.clear(field);
@@ -131,6 +137,7 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
+    await userEvent.click(await screen.findByRole("button", { name: "Edit page" }));
     const field = await screen.findByRole("textbox", { name: "The page" });
 
     await userEvent.type(field, "noch ein Satz");
@@ -139,7 +146,7 @@ describe("Knowledge", () => {
 
     // What is in the field is the newest version of it, and an answer landing
     // on top is what would take it away.
-    expect(screen.getByText("Unsaved.")).toBeInTheDocument();
+    expect(screen.getByText(/Draft saved in this tab/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
@@ -166,6 +173,7 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
+    await userEvent.click(await screen.findByRole("button", { name: "Edit page" }));
     const field = await screen.findByRole("textbox", { name: "The page" });
 
     await userEvent.clear(field);
@@ -173,7 +181,7 @@ describe("Knowledge", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     // A draft dropped optimistically is a draft that loses what somebody wrote.
-    expect(await screen.findByRole("alert")).toHaveTextContent("Your text is still here");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Your draft is preserved");
     expect(screen.getByRole("textbox", { name: "The page" })).toHaveValue("meine Fassung");
   });
 
@@ -348,4 +356,69 @@ describe("Knowledge", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Trash");
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
+  it("restores a draft after remount and guards its original version", async () => {
+    const { asked } = anInstance({
+      "GET /api/knowledge/pages": aTree(reisen, bahn),
+      [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage },
+      [`PUT /api/knowledge/pages/${bahn.id}`]: { body: thePage },
+    });
+    const view = knowledgeAt(`/knowledge/${bahn.id}`);
+    await userEvent.click(await screen.findByRole("button", { name: "Edit page" }));
+    await userEvent.type(await screen.findByRole("textbox", { name: "The page" }), "Saved draft");
+    expect(readDraft(bahn.id)?.markdown).toContain("Saved draft");
+    view.unmount();
+    knowledgeAt(`/knowledge/${bahn.id}`);
+    expect(await screen.findByRole("textbox", { name: "The page" })).toHaveValue(thePage.markdown + "Saved draft");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Saved.");
+    expect(readDraft(bahn.id)).toBeUndefined();
+    expect(asked.find(r => r.method === "PUT")?.headers.get("If-Match")).toBe(`"${thePage.updated_at}"`);
+  });
+
+  it("confirms leaving unsaved work and keeps the draft when leaving", async () => {
+    anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn),
+      [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage },
+      [`GET /api/knowledge/pages/${reisen.id}`]: { body: { ...reisen, markdown: "" } } });
+    knowledgeAt(`/knowledge/${bahn.id}`);
+    await userEvent.click(await screen.findByRole("button", { name: "Edit page" }));
+    await userEvent.type(await screen.findByRole("textbox", { name: "The page" }), "draft");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const tree = within(screen.getByRole("navigation", { name: "The pages" }));
+    await userEvent.click(tree.getByRole("link", { name: "Reisen" }));
+    expect(screen.getByRole("textbox", { name: "The page" })).toBeInTheDocument();
+    confirm.mockReturnValue(true);
+    await userEvent.click(tree.getByRole("link", { name: "Reisen" }));
+    await screen.findByRole("heading", { name: "Reisen" });
+    expect(readDraft(bahn.id)?.markdown).toContain("draft");
+    confirm.mockRestore();
+  });
+
+  it("collapses branches and moves a page with a guarded current body", async () => {
+    const { asked } = anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn),
+      [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage },
+      [`PUT /api/knowledge/pages/${bahn.id}`]: { body: { ...thePage, parent: null } } });
+    knowledgeAt(`/knowledge/${bahn.id}`);
+    await userEvent.click(await screen.findByRole("button", { name: "Collapse Reisen" }));
+    expect(within(screen.getByRole("navigation", { name: "The pages" })).queryByRole("link", { name: "Bahn" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Expand Reisen" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Move page" }));
+    expect(screen.queryByRole("option", { name: "Reisen / Bahn" })).toBeNull();
+    await userEvent.selectOptions(screen.getByLabelText("Destination"), "");
+    await userEvent.click(screen.getByRole("button", { name: /^Move$/ }));
+    await screen.findByText("Page moved.");
+    expect(asked.find(r => r.method === "PUT")?.body).toEqual({ title: "Bahn", markdown: thePage.markdown, parent: null });
+  });
+
+  it("searches content with snippets and sends the selected subtree", async () => {
+    const { asked } = anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn),
+      [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage },
+      "GET /api/search": { body: { query: "station", has_more: false, items: [{ application: "knowledge", id: bahn.id, title: "Bahn", snippet: "The station entrance", rank: 1, updated_at: bahn.updated_at }] } } });
+    knowledgeAt(`/knowledge/${bahn.id}`);
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search Knowledge" }), "station");
+    expect(await screen.findByRole("list", { name: "Knowledge search results" })).toHaveTextContent("The station entrance");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Only this page and its subpages" }));
+    await waitFor(() => expect(asked.some(r => new URLSearchParams(r.query).get("within") === bahn.id)).toBe(true));
+    expect(new URLSearchParams(asked.filter(r => r.path === "/api/search").at(-1)!.query).get("application")).toBe("knowledge");
+  });
+
 });

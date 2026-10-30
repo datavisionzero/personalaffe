@@ -13,6 +13,30 @@ namespace Personalaffe.IntegrationTests;
 public sealed class SearchTests(PostgresFixture postgres)
 {
     [Fact]
+    public async Task Knowledge_subtree_is_filtered_before_the_limit_and_excludes_deleted_pages()
+    {
+        var token = TestContext.Current.CancellationToken;
+        await using var workspace = await AWorkspace.StartedAsync(postgres, token);
+        var root = await workspace.PageAsync("Travel", "Planning", token);
+        await workspace.PageAsync("Architecture outside", "architecture", token);
+        using var created = await workspace.Owner.PostAsJsonAsync("/api/knowledge/pages",
+            new { title = "Rail", parent = root, markdown = "Station architecture notes" }, token);
+        created.EnsureSuccessStatusCode();
+        var child = (await created.Content.ReadFromJsonAsync<JsonObject>(token))!["id"]!.GetValue<Guid>();
+        var result = await workspace.Owner.GetFromJsonAsync<JsonObject>(
+            $"/api/search?q=architecture&application=knowledge&within={root}&limit=1", token);
+        Assert.Equal(child, result!["items"]!.AsArray().Single()!["id"]!.GetValue<Guid>());
+        Assert.False(result["has_more"]!.GetValue<bool>());
+        Assert.Contains("architecture", result["items"]![0]!["snippet"]!.GetValue<string>());
+        await workspace.DeleteAsync($"/api/knowledge/pages/{child}", token);
+        result = await workspace.Owner.GetFromJsonAsync<JsonObject>(
+            $"/api/search?q=architecture&application=knowledge&within={root}", token);
+        Assert.Empty(result!["items"]!.AsArray());
+        using var invalid = await workspace.Owner.GetAsync($"/api/search?q=architecture&within={root}", token);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+    }
+
+    [Fact]
     public async Task One_question_finds_something_in_every_application()
     {
         await using var workspace = await AWorkspace.StartedAsync(

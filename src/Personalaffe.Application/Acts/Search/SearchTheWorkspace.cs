@@ -58,8 +58,10 @@ public sealed class SearchTheWorkspace(
         string? typed,
         WorkspaceApplication? only,
         int? limit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Guid? within = null)
     {
+        if (within is not null && only != WorkspaceApplication.Knowledge)
+            throw Refusal.Validation("within", "A subtree requires application=knowledge.");
         var needle = Needle.Of(typed);
         var wanted = Limit(limit);
         var who = caller.Caller;
@@ -85,7 +87,7 @@ public sealed class SearchTheWorkspace(
 
         foreach (var application in asked)
         {
-            gathered.AddRange(await search.FindAsync(application, needle, wanted + 1, cancellationToken));
+            gathered.AddRange(await search.FindAsync(application, needle, wanted + 1, cancellationToken, within));
         }
 
         var ordered = gathered

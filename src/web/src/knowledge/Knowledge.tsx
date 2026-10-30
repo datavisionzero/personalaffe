@@ -23,6 +23,9 @@ import { refusal } from "@/session/useSession";
 import { Field, Refused } from "@/shared/Form";
 import { MarkdownField } from "@/shared/MarkdownField";
 import { Markdown } from "@/shared/Markdown";
+import { readDraft, storeDraft, type Draft } from "./drafts";
+import { KnowledgeSearch } from "./KnowledgeSearch";
+import { ReadingPage } from "./ReadingPage";
 import { useAsk } from "@/shared/ask";
 import { Busy, Denied, Disabled, Empty, Failed } from "@/shell/States";
 
@@ -30,9 +33,6 @@ type Tree = Schemas["TreeResponse"];
 type Outline = Schemas["OutlineResponse"];
 type Page = Schemas["PageResponse"];
 type Revision = Schemas["RevisionResponse"];
-
-/** What somebody has typed and not yet saved. */
-type Draft = { title: string; markdown: string };
 
 /**
  * Knowledge: the tree beside the page, in the editor PERSONAL-E4 built for
@@ -51,16 +51,46 @@ type Draft = { title: string; markdown: string };
  */
 export function Knowledge() {
   const params = useParams();
+  return <KnowledgePage key={params["*"] ?? ""} />;
+}
+
+function KnowledgePage() {
+  const params = useParams();
   const navigate = useNavigate();
 
   const at = (params["*"] ?? "").replace(/\/+$/, "");
   const open = at === "" ? undefined : at;
 
-  const [draft, setDraft] = useState<Draft>();
+  const [draft, setDraftState] = useState<Draft | undefined>(() => readDraft(open ?? ""));
+  const [editing, setEditing] = useState(() => readDraft(open ?? "") !== undefined);
+  const draftRef = useRef(draft);
+  const [secured, setSecured] = useState(true);
+  const [conflict, setConflict] = useState<Page>();
+  function setDraft(next: Draft | undefined) {
+    draftRef.current = next;
+    setSecured(storeDraft(open ?? "", next));
+    setDraftState(next);
+  }
+  useEffect(() => {
+    if (!draft) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    const leave = (event: MouseEvent) => {
+      const link = (event.target as Element).closest?.("a[href]");
+      if (link && !link.getAttribute("href")?.startsWith("#") && !window.confirm("Leave this page? Your draft will remain in this tab. Unsaved changes have not been sent to the server.")) {
+        event.preventDefault(); event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", warn);
+    document.addEventListener("click", leave, true);
+    return () => { window.removeEventListener("beforeunload", warn); document.removeEventListener("click", leave, true); };
+  }, [draft]);
   const [wrote, setWrote] = useState<{ at: string; refused?: string; said?: string }>();
   const [working, setWorking] = useState(false);
   const [writing, setWriting] = useState(false);
   const [history, setHistory] = useState(false);
+  const [moving, setMoving] = useState<Outline>();
+  const [destination, setDestination] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const address = open === undefined ? "/knowledge" : `/knowledge/${open}`;
   const refused = wrote?.at === address ? wrote.refused : undefined;
@@ -121,14 +151,15 @@ export function Knowledge() {
       return;
     }
 
-    setDraft((before) => ({
-      title: next.title ?? before?.title ?? base.title,
-      markdown: next.markdown ?? before?.markdown ?? base.markdown,
-    }));
+    setDraft({
+      title: next.title ?? draft?.title ?? base.title,
+      markdown: next.markdown ?? draft?.markdown ?? base.markdown,
+      base: draft?.base ?? base,
+    });
   }
 
   async function save() {
-    if (it === undefined || draft === undefined) {
+    if (working || it === undefined || draft === undefined) {
       return;
     }
 
@@ -137,23 +168,35 @@ export function Knowledge() {
 
     try {
       const answer = await api.PUT("/api/knowledge/pages/{id}", {
-        params: { path: { id: it.id }, ...guardedBy(versionOf(it.updated_at)) },
+        params: { path: { id: it.id }, ...guardedBy(versionOf(draft.base.updated_at)) },
         // One write carries the title, the place and the body, because all
         // three are the same row. The place is not this screen's to change.
-        body: { title: draft.title, parent: it.parent, markdown: draft.markdown },
+        body: { title: draft.title, parent: draft.base.parent, markdown: draft.markdown },
       });
 
       if (answer.error) {
         setWrote({ at: address, refused: said_(answer.error, answer.response.status) });
+        if (refusal(answer.error, answer.response.status).code === "stale") {
+          const latest = await api.GET("/api/knowledge/pages/{id}", { params: { path: { id: it.id } } });
+          if (latest.data) setConflict(latest.data);
+        }
         return;
       }
 
       // Cleared only once the instance has it. A draft dropped optimistically
       // is a draft that loses what somebody wrote when the write is refused.
-      setDraft(undefined);
-      setWrote({ at: address, said: "Saved." });
+      if (draftRef.current !== draft && draftRef.current && answer.data) {
+        setDraft({ ...draftRef.current, base: answer.data });
+        setWrote({ at: address, said: "Earlier changes saved. Your newer edits remain in the draft." });
+      } else {
+        setDraft(undefined);
+        setEditing(false);
+        setWrote({ at: address, said: "Saved." });
+      }
       page.again();
       tree.refresh();
+    } catch {
+      setWrote({ at: address, refused: "Could not save. Your draft is still here. Try again when connected." });
     } finally {
       setWorking(false);
     }
@@ -241,6 +284,23 @@ export function Knowledge() {
     }
   }
 
+  async function move(source: Outline, parent: string | null) {
+    if (draft) { setWrote({ at: address, refused: "Save or discard your draft before moving pages." }); return; }
+    setWorking(true);
+    try {
+      const current = await api.GET("/api/knowledge/pages/{id}", { params: { path: { id: source.id } } });
+      if (!current.data) { setWrote({ at: address, refused: "Could not read the page to move it." }); return; }
+      const answer = await api.PUT("/api/knowledge/pages/{id}", {
+        params: { path: { id: source.id }, ...guardedBy(versionOf(current.data.updated_at)) },
+        body: { title: current.data.title, markdown: current.data.markdown, parent },
+      });
+      if (answer.error) { setWrote({ at: address, refused: said_(answer.error, answer.response.status) }); return; }
+      setMoving(undefined); tree.refresh(); page.refresh();
+      setWrote({ at: address, said: "Page moved." });
+    } catch { setWrote({ at: address, refused: "Could not move the page. Try again." }); }
+    finally { setWorking(false); }
+  }
+
   const pages = tree.asked.at === "known" ? tree.asked.value.pages : [];
 
   return (
@@ -261,6 +321,8 @@ export function Knowledge() {
           </Button>
         </div>
 
+        <KnowledgeSearch page={open} />
+
         {tree.asked.at === "asking" && <Busy title="Reading the pages…" />}
 
         {tree.asked.at === "known" && pages.length === 0 && (
@@ -269,7 +331,13 @@ export function Knowledge() {
           </p>
         )}
 
-        <Branch pages={pages} under={null} open={open} depth={0} />
+        <div onDragOver={event => event.preventDefault()} onDrop={event => {
+          event.preventDefault(); const source = pages.find(p => p.id === event.dataTransfer.getData("application/personalaffe-page"));
+          if (source) { setMoving(source); setDestination(""); }
+        }} className="rounded border border-dashed p-2 text-xs">Drop here to move to the top level</div>
+        <Branch pages={pages} under={null} open={open} depth={0} collapsed={collapsed}
+          toggle={id => setCollapsed(previous => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; })}
+          onMove={(source, parent) => { setMoving(source); setDestination(parent ?? ""); }} />
 
         <Button
           variant="ghost"
@@ -289,6 +357,10 @@ export function Knowledge() {
       </nav>
 
       <section className="flex min-w-0 flex-1 flex-col gap-4">
+        {open && <nav aria-label="Page path" className="flex flex-wrap gap-2 text-sm">
+          <Link to="/knowledge">Knowledge</Link>
+          {ancestors(pages, open).map(p => <span key={p.id}> / <Link to={`/knowledge/${p.id}`}>{p.title}</Link></span>)}
+        </nav>}
         {open === undefined && (
           <Empty title="Pick a page, or write one.">
             Knowledge is Markdown in a tree. A page keeps its address when you rename it or move it,
@@ -303,24 +375,26 @@ export function Knowledge() {
         {it !== undefined && (
           <>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <Field label="Title">
+              {editing ? <Field label="Title">
                 <Input
                   name="title"
                   value={title}
                   className="md:w-80"
                   onChange={(event) => change({ title: event.target.value })}
                 />
-              </Field>
+              </Field> : <h2 className="text-2xl font-semibold">{title}</h2>}
 
               <div className="flex items-center gap-1 self-end">
-                <Button variant="outline" size="sm" onClick={() => setHistory(true)}>
+                <Button variant="outline" size="sm" disabled={working || !!draft} onClick={() => { setMoving(it); setDestination(it.parent ?? ""); }}>Move page</Button>
+                {!editing && <Button size="sm" onClick={() => setEditing(true)}>Edit page</Button>}
+                <Button variant="outline" size="sm" disabled={!!draft || working} onClick={() => setHistory(true)}>
                   <HistoryIcon aria-hidden />
                   History
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={working}
+                  disabled={working || !!draft}
                   aria-label={`Delete ${it.title}`}
                   onClick={() => void discard()}
                 >
@@ -330,6 +404,7 @@ export function Knowledge() {
               </div>
             </div>
 
+            {editing ? <>
             <MarkdownField
               label="The page"
               value={markdown}
@@ -346,7 +421,9 @@ export function Knowledge() {
                 <Button
                   type="button"
                   variant="ghost"
+                  disabled={working}
                   onClick={() => {
+                    setConflict(undefined);
                     setDraft(undefined);
                     page.again();
                   }}
@@ -357,12 +434,23 @@ export function Knowledge() {
               <span className="text-muted-foreground text-xs">
                 {draft === undefined
                   ? `Last changed ${new Date(it.updated_at).toLocaleString()}`
-                  : "Unsaved."}
+                  : secured ? "Draft saved in this tab · not yet saved to the server." : "Draft could not be stored. Keep this tab open and save your changes."}
               </span>
             </div>
+            </> : <ReadingPage markdown={markdown} />}
           </>
         )}
 
+        {conflict && draft && <section aria-label="Resolve changes" className="rounded-lg border p-4">
+          <h3 className="font-semibold">This page changed elsewhere</h3>
+          <p>Compare the current server version with your draft. Edit your draft above to combine the changes.</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div><h4>Current server version: {conflict.title}</h4><pre className="whitespace-pre-wrap">{conflict.markdown}</pre></div>
+            <div><h4>Your draft: {draft.title}</h4><pre className="whitespace-pre-wrap">{draft.markdown}</pre></div>
+          </div>
+          <Button onClick={() => { setDraft({ ...draft, base: conflict }); setConflict(undefined); setWrote({ at: address }); }}>I reviewed the changes — keep my draft</Button>
+          <Button variant="ghost" onClick={() => { setDraft(undefined); setConflict(undefined); page.again(); }}>Use server version</Button>
+        </section>}
         <Refused>{refused}</Refused>
 
         {said !== undefined && (
@@ -378,6 +466,18 @@ export function Knowledge() {
         )}
       </section>
 
+      <Dialog open={moving !== undefined} onOpenChange={next => { if (!next) setMoving(undefined); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Move {moving?.title}</DialogTitle></DialogHeader>
+          <label htmlFor="knowledge-destination">Destination</label>
+          <select id="knowledge-destination" value={destination} onChange={event => setDestination(event.target.value)} className="rounded border bg-background p-2">
+            <option value="">Top level</option>
+            {pages.filter(p => !ancestors(pages, p.id).some(a => a.id === moving?.id)).map(p => <option key={p.id} value={p.id}>{ancestors(pages, p.id).map(a => a.title).join(" / ")}</option>)}
+          </select>
+          <Refused>{refused}</Refused>
+          <DialogFooter><Button variant="outline" onClick={() => setMoving(undefined)}>Cancel</Button><Button disabled={working || !!draft || !moving || ancestors(pages, destination).some(a => a.id === moving.id)} onClick={() => moving && void move(moving, destination || null)}>Move</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
       <WriteAPage
         open={writing}
         under={pages.find((one) => one.id === open)}
@@ -424,12 +524,15 @@ function Branch({
   pages,
   under,
   open,
-  depth,
+  depth, collapsed, toggle, onMove,
 }: {
   pages: Outline[];
   under: string | null;
   open: string | undefined;
   depth: number;
+  collapsed: Set<string>;
+  toggle: (id: string) => void;
+  onMove: (source: Outline, parent: string | null) => void;
 }) {
   const here = pages.filter((page) => (page.parent ?? null) === under);
 
@@ -441,6 +544,9 @@ function Branch({
     <ul className="flex flex-col gap-0.5">
       {here.map((page) => (
         <li key={page.id}>
+          <div className="flex items-center" draggable onDragStart={event => event.dataTransfer.setData("application/personalaffe-page", page.id)}
+            onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); event.stopPropagation(); const source = pages.find(p => p.id === event.dataTransfer.getData("application/personalaffe-page")); if (source) onMove(source, page.id); }}>
+          {pages.some(p => p.parent === page.id) && <button type="button" aria-label={`${collapsed.has(page.id) ? "Expand" : "Collapse"} ${page.title}`} aria-expanded={!collapsed.has(page.id)} onClick={() => toggle(page.id)} className="p-1">{collapsed.has(page.id) ? "▸" : "▾"}</button>}
           <Link
             to={`/knowledge/${page.id}`}
             aria-current={page.id === open ? "page" : undefined}
@@ -456,7 +562,8 @@ function Branch({
             )}
             <span className="truncate">{page.title}</span>
           </Link>
-          <Branch pages={pages} under={page.id} open={open} depth={depth + 1} />
+          </div>
+          {!collapsed.has(page.id) && <Branch pages={pages} under={page.id} open={open} depth={depth + 1} collapsed={collapsed} toggle={toggle} onMove={onMove} />}
         </li>
       ))}
     </ul>
@@ -669,6 +776,17 @@ function said_(error: unknown, status: number): string {
   const { message, code } = refusal(error, status);
 
   return code === "stale"
-    ? "This page changed somewhere else while you were writing. Your text is still here — open the page again in another tab to see what it says now."
+    ? "This page changed somewhere else while you were writing. Your draft is preserved. Compare the versions below before saving again."
     : message;
+}
+
+function ancestors(pages: Outline[], id: string): Outline[] {
+  const path: Outline[] = [];
+  let current = pages.find(p => p.id === id);
+  const seen = new Set<string>();
+  while (current && !seen.has(current.id)) {
+    path.unshift(current); seen.add(current.id);
+    current = pages.find(p => p.id === current?.parent);
+  }
+  return path;
 }

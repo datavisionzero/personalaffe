@@ -6893,6 +6893,14 @@
             }
           },
           {
+            "name": "within",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
             "name": "Personalaffe-Private",
             "in": "header",
             "description": "Only the exact value true includes private bookmarks for this request. Application permission is still required. Responses are private, no-store.",

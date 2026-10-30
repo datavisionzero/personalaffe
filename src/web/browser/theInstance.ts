@@ -90,6 +90,7 @@ export async function aPage(page: Page, title: string) {
   await dialog.getByRole("button", { name: "Write it" }).click();
 
   await expect(page).toHaveURL(/\/knowledge\/[0-9a-f-]{36}$/);
+  await page.getByRole("button", { name: "Edit page" }).click();
   await expect(page.getByRole("textbox", { name: "The page" })).toBeVisible();
 
   // The editor is a lazy chunk and the toolbar is dead until it is there, so
