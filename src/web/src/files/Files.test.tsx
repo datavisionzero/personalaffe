@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router";
 
 import { Files } from "@/files/Files";
@@ -64,7 +64,64 @@ function filesAt(path: string) {
   );
 }
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("Files", () => {
+
+  it("opens download beside the row and restores focus when the menu closes", async () => {
+    anInstance({ "GET /api/files": holding([], [plan]) });
+    filesAt("/files");
+    const trigger = await screen.findByRole("button", { name: "Actions for plan.md" });
+    await userEvent.click(trigger);
+    expect(screen.getByRole("menuitem", { name: "Download plan.md" })).toHaveAttribute("href", `/api/files/${plan.id}/content`);
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("moves a file without renaming it", async () => {
+    const { asked } = anInstance({ "GET /api/files": holding([reisen], [plan]), [`PUT /api/files/${plan.id}`]: { body: plan } });
+    filesAt("/files");
+    await userEvent.click(await screen.findByRole("button", { name: "Actions for plan.md" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Move to folder" }));
+    const dialog = within(screen.getByRole("dialog"));
+    expect(dialog.queryByLabelText("Name")).not.toBeInTheDocument();
+    await userEvent.selectOptions(dialog.getByLabelText("Where"), reisen.id);
+    await userEvent.click(dialog.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(asked.find(request => request.method === "PUT")?.body).toEqual({ name: plan.name, folder: reisen.id }));
+  });
+
+  it("sorts files naturally and keeps folders first", async () => {
+    anInstance({ "GET /api/files": holding([reisen], [plan, { ...bahn, name: "2.pdf" }]) });
+    filesAt("/files");
+    const table = await screen.findByRole("table");
+    await screen.findByRole("button", { name: "plan.md" });
+    expect(within(table).getAllByRole("row").slice(1).map(row => row.textContent)).toEqual([
+      expect.stringContaining("Reisen"), expect.stringContaining("2.pdf"), expect.stringContaining("plan.md"),
+    ]);
+    await userEvent.click(screen.getByRole("button", { name: "Name" }));
+    expect(within(table).getAllByRole("row")[1]).toHaveTextContent("Reisen");
+    expect(within(table).getAllByRole("row")[2]).toHaveTextContent("plan.md");
+  });
+
+  it("opens a mobile action sheet and edits in the same dialog", async () => {
+    const match = window.matchMedia;
+    vi.spyOn(window, "matchMedia").mockImplementation(query => ({ ...match(query), matches: true }));
+    anInstance({ "GET /api/files": holding([], [plan]) });
+    filesAt("/files");
+    const trigger = await screen.findByRole("button", { name: "Actions for plan.md" });
+    await userEvent.click(trigger);
+    const dialog = within(screen.getByRole("dialog", { name: "plan.md" }));
+    expect(dialog.getByRole("link", { name: "Download plan.md" })).toHaveAttribute("download", plan.name);
+    await userEvent.click(dialog.getByRole("button", { name: "Rename" }));
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(dialog.getByLabelText("Name")).toHaveValue(plan.name);
+    await userEvent.click(dialog.getByRole("button", { name: "Back to file actions" }));
+    expect(dialog.getByRole("link", { name: "Download plan.md" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
 
   it("switches actions with selection and clears them when walking to another folder", async () => {
     anInstance({ "GET /api/files": [holding([reisen], [plan, bahn]), holding([], [bahn], [reisen])] });
@@ -88,7 +145,7 @@ describe("Files", () => {
     });
     filesAt("/files");
     await userEvent.click(await screen.findByRole("button", { name: "plan.md" }));
-    await userEvent.click(screen.getByRole("button", { name: "Rename or move plan.md" }));
+    await userEvent.click(screen.getByRole("button", { name: "Rename plan.md" }));
     const dialog = within(screen.getByRole("dialog"));
     await userEvent.clear(dialog.getByLabelText("Name"));
     await userEvent.type(dialog.getByLabelText("Name"), updated.name);
@@ -252,7 +309,7 @@ describe("Files", () => {
     expect(await screen.findByRole("button", { name: "Reisen" })).toBeInTheDocument();
   });
 
-  it("carries the name and the place in one guarded write", async () => {
+  it("renames with a guarded write while preserving the current folder", async () => {
     const { asked } = anInstance({
       "GET /api/files": holding([reisen], [plan]),
       [`PUT /api/files/${plan.id}`]: { body: plan },
@@ -261,13 +318,12 @@ describe("Files", () => {
     filesAt("/files");
 
     await userEvent.click(await screen.findByRole("button", { name: "Actions for plan.md" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Rename or move plan.md" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Rename" }));
 
     const dialog = within(screen.getByRole("dialog"));
 
     await userEvent.clear(dialog.getByLabelText("Name"));
     await userEvent.type(dialog.getByLabelText("Name"), "der Plan.md");
-    await userEvent.selectOptions(dialog.getByLabelText("Where"), reisen.id);
     await userEvent.click(dialog.getByRole("button", { name: "Save" }));
 
     const write = await waitFor(() => {
@@ -276,7 +332,7 @@ describe("Files", () => {
       return one!;
     });
 
-    expect(write.body).toEqual({ name: "der Plan.md", folder: reisen.id });
+    expect(write.body).toEqual({ name: "der Plan.md", folder: null });
 
     // Every write says which version it replaces (`docs/api.md`).
     expect(write.headers.get("If-Match")).toBe(`"${plan.updated_at}"`);
@@ -291,7 +347,7 @@ describe("Files", () => {
     filesAt("/files");
 
     await userEvent.click(await screen.findByRole("button", { name: "Actions for plan.md" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Rename or move plan.md" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Rename" }));
 
     const dialog = within(screen.getByRole("dialog"));
 
@@ -315,7 +371,7 @@ describe("Files", () => {
     filesAt("/files");
 
     await userEvent.click(await screen.findByRole("button", { name: "Actions for plan.md" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Rename or move plan.md" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Rename" }));
 
     const dialog = within(screen.getByRole("dialog"));
 
@@ -335,7 +391,7 @@ describe("Files", () => {
     filesAt("/files");
 
     await userEvent.click(await screen.findByRole("button", { name: "Actions for plan.md" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Delete plan.md" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Delete plan.md" }));
 
     // The opposite of the Scratchpad's dialog: nothing was destroyed, so the
     // screen says what is true instead of asking whether to make it true.
@@ -354,7 +410,7 @@ describe("Files", () => {
     filesAt("/files");
 
     await userEvent.click(await screen.findByRole("button", { name: "Actions for Reisen" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Delete Reisen" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Delete Reisen" }));
 
     expect(await screen.findByText(/everything in it are in the Trash/)).toBeInTheDocument();
   });

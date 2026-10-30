@@ -3,9 +3,13 @@ import {
   DownloadIcon,
   FolderIcon,
   FolderPlusIcon,
-  FileIcon,
   PencilIcon,
-  MoreHorizontalIcon,
+  FolderInputIcon,
+  InfoIcon,
+  ArrowLeftIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
+  XIcon,
   Trash2Icon,
   UploadIcon,
 } from "lucide-react";
@@ -17,10 +21,14 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogClose,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FileGlyph, FileRow, type Thing, type FileAction } from "./FileListing";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
 import { refusal } from "@/session/useSession";
 import { Field, Refused, selectClass } from "@/shared/Form";
@@ -28,13 +36,6 @@ import { useAsk } from "@/shared/ask";
 import { Busy, Denied, Disabled, Empty, Failed } from "@/shell/States";
 
 type Listing = Schemas["FilesResponse"];
-type Folder = Schemas["FolderResponse"];
-type StoredFile = Schemas["FileResponse"];
-
-/** One thing in the listing, whichever kind it is. */
-type Thing =
-  | { kind: "folder"; it: Folder }
-  | { kind: "file"; it: StoredFile };
 
 /** What an upload in flight looks like on the screen. */
 type Arriving = { name: string; refused?: string };
@@ -70,7 +71,10 @@ export function Files() {
   const [arriving, setArriving] = useState<Arriving[]>([]);
   const [over, setOver] = useState(false);
   const [making, setMaking] = useState(false);
-  const [changing, setChanging] = useState<Thing>();
+  const mobile = useIsMobile();
+  const [panel, setPanel] = useState<{ at: string; id: string; view: Exclude<FileAction, "trash"> }>();
+  const [sort, setSort] = useState<{ by: "name" | "updated" | "size"; descending: boolean }>({ by: "name", descending: false });
+  const actionOrigin = useRef<HTMLElement | null>(null);
   const [selection, setSelection] = useState<{ at: string; id: string }>();
 
   const picker = useRef<HTMLInputElement>(null);
@@ -191,7 +195,7 @@ export function Files() {
         return;
       }
 
-      setChanging(undefined);
+      setPanel(undefined);
       refresh();
     } finally {
       setWorking(undefined);
@@ -226,6 +230,7 @@ export function Files() {
 
       // The opposite of the Scratchpad's dialog: nothing was destroyed, and
       // saying where it went is more use than asking whether to send it there.
+      setPanel(undefined);
       setSaid(
         thing.kind === "folder"
           ? `${thing.it.name} and everything in it are in the Trash.`
@@ -247,10 +252,33 @@ export function Files() {
   const selected = selection?.at === address
     ? things.find((thing) => thing.it.id === selection.id)
     : undefined;
+  const focused = panel?.at === address ? things.find((thing) => thing.it.id === panel.id) : undefined;
+  const ordered = [...things].sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1;
+    const comparison = sort.by === "updated" ? Date.parse(a.it.updated_at) - Date.parse(b.it.updated_at)
+      : sort.by === "size" ? (a.kind === "file" ? a.it.size : 0) - (b.kind === "file" ? b.it.size : 0)
+      : a.it.name.localeCompare(b.it.name, undefined, { numeric: true, sensitivity: "base" });
+    return (sort.descending ? -comparison : comparison) || a.it.name.localeCompare(b.it.name);
+  });
+  function act(thing: Thing, action: FileAction) {
+    setRefused(undefined);
+    actionOrigin.current = Array.from(document.querySelectorAll<HTMLElement>("[data-file-actions]")).find((button) => button.dataset.fileActions === thing.it.id) ?? null;
+    setSelection({ at: address, id: thing.it.id });
+    if (action === "trash") void discard(thing);
+    else setPanel({ at: address, id: thing.it.id, view: action });
+  }
+  function sortBy(by: typeof sort.by) {
+    setSort({ by, descending: sort.by === by ? !sort.descending : false });
+  }
+  function sortHeading(by: typeof sort.by, title: string) {
+    return <button type="button" className="inline-flex items-center gap-2 py-3 hover:text-foreground" onClick={() => sortBy(by)}>
+      {title}{sort.by === by && (sort.descending ? <ArrowDownIcon aria-hidden className="size-3.5" /> : <ArrowUpIcon aria-hidden className="size-3.5" />)}
+    </button>;
+  }
 
   return (
     <main
-      className="page-frame"
+      className="page-frame gap-4"
       onDragOver={(event) => {
         event.preventDefault();
         setOver(true);
@@ -264,8 +292,7 @@ export function Files() {
     >
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Files</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Everything in its place.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Files</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" onClick={() => setMaking(true)}>
@@ -349,71 +376,84 @@ export function Files() {
       )}
 
       {things.length > 0 && (
-        <div>
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 md:px-4">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="text-muted-foreground text-sm">{selected ? "1 selected" : `${things.length} items`}</span>
+              {selected && <Button size="icon-sm" variant="ghost" aria-label="Clear selection" onClick={() => setSelection(undefined)}><XIcon /></Button>}
+            </div>
+            {selected && !mobile ? <div className="flex items-center gap-1" aria-label="Selected item actions">
+              {selected.kind === "file" && <Button variant="ghost" size="sm" render={<a href={`/api/files/${selected.it.id}/content`} download={selected.it.name} />} aria-label={`Download ${selected.it.name}`}><DownloadIcon />Download</Button>}
+              <Button variant="ghost" size="icon" aria-label={`Move ${selected.it.name}`} onClick={() => act(selected, "move")} disabled={working !== undefined}><FolderInputIcon /></Button>
+              <Button variant="ghost" size="icon" aria-label={`Rename ${selected.it.name}`} onClick={() => act(selected, "rename")} disabled={working !== undefined}><PencilIcon /></Button>
+              <Button variant="ghost" size="icon" aria-label={`Details for ${selected.it.name}`} onClick={() => act(selected, "details")}><InfoIcon /></Button>
+              <Button variant="ghost" size="icon" aria-label={`Delete ${selected.it.name}`} onClick={() => act(selected, "trash")} disabled={working !== undefined}><Trash2Icon /></Button>
+            </div> : <div className="flex items-center gap-1">
+              <select name="file-sort" aria-label="Sort files" className="rounded-md bg-transparent px-2 py-1 text-sm" value={sort.by} onChange={(event) => setSort({ by: event.target.value as typeof sort.by, descending: false })}>
+                <option value="name">Name</option><option value="updated">Last modified</option><option value="size">Size</option>
+              </select>
+              <Button variant="ghost" size="icon" aria-label={sort.descending ? "Sort ascending" : "Sort descending"} onClick={() => setSort({ ...sort, descending: !sort.descending })}>{sort.descending ? <ArrowDownIcon /> : <ArrowUpIcon />}</Button>
+            </div>}
+          </div>
           <table className="w-full table-fixed text-sm" aria-label="Files and folders">
-            <thead>
+            <thead className="hidden md:table-header-group">
               <tr className="text-muted-foreground border-b text-left text-xs">
-                <th scope="col" className="px-2 py-3 font-medium">Name</th>
-                <th scope="col" className="w-20 px-2 py-3 text-right font-medium sm:w-24">Size</th>
-                <th scope="col" className="hidden w-32 px-2 py-3 font-medium md:table-cell">Modified</th>
-                <th scope="col" className="w-12"><span className="sr-only">Actions</span></th>
+                <th scope="col" className="px-4 font-medium" aria-sort={sort.by === "name" ? sort.descending ? "descending" : "ascending" : "none"}>{sortHeading("name", "Name")}</th>
+                <th scope="col" className="w-40 px-4 font-medium" aria-sort={sort.by === "updated" ? sort.descending ? "descending" : "ascending" : "none"}>{sortHeading("updated", "Last modified")}</th>
+                <th scope="col" className="w-28 px-4 text-right font-medium" aria-sort={sort.by === "size" ? sort.descending ? "descending" : "ascending" : "none"}>{sortHeading("size", "Size")}</th>
+                <th scope="col" className="w-14"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
-              {things.map((thing) => (
-                <tr key={thing.it.id} className={`border-b ${selected?.it.id === thing.it.id ? "bg-brand-soft" : "hover:bg-muted/50"}`}>
-                  <td className="min-w-0 px-2 py-2">
-                    <Button
-                      variant="ghost"
-                      className="h-auto min-h-10 w-full min-w-0 justify-start gap-2 px-0 text-left whitespace-normal"
-                      aria-pressed={thing.kind === "file" ? selected?.it.id === thing.it.id : undefined}
-                      onClick={() => thing.kind === "folder"
-                        ? void navigate(`/files/${thing.it.id}`)
-                        : setSelection({ at: address, id: thing.it.id })}
-                    >
-                      {thing.kind === "folder" ? <FolderIcon aria-hidden className="shrink-0" /> : <FileIcon aria-hidden className="text-muted-foreground shrink-0" />}
-                      <span className="min-w-0 wrap-anywhere">{thing.it.name}</span>
-                    </Button>
-                  </td>
-                  <td className="text-muted-foreground px-2 py-2 text-right text-xs tabular-nums">
-                    {thing.kind === "file" ? size(thing.it.size) : "—"}
-                  </td>
-                  <td className="text-muted-foreground hidden px-2 py-2 text-xs md:table-cell">
-                    <time dateTime={thing.it.updated_at}>{new Date(thing.it.updated_at).toLocaleDateString()}</time>
-                  </td>
-                  <td className="px-1 py-2">
-                    <Button variant="ghost" size="icon" aria-label={`Actions for ${thing.it.name}`}
-                      aria-pressed={selected?.it.id === thing.it.id}
-                      onClick={() => setSelection({ at: address, id: thing.it.id })}>
-                      <MoreHorizontalIcon aria-hidden />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {ordered.map((thing) => <FileRow key={thing.it.id} thing={thing} selected={selected?.it.id === thing.it.id} busy={working !== undefined} mobile={mobile} size={size}
+                onSelect={() => setSelection({ at: address, id: thing.it.id })}
+                onOpen={() => void navigate(`/files/${thing.it.id}`)}
+                onAction={(action) => act(thing, action)} />)}
             </tbody>
           </table>
-          <div className="text-muted-foreground mt-3 flex flex-wrap justify-between gap-2 text-xs">
+          <div className="text-muted-foreground flex flex-wrap justify-between gap-2 px-4 py-3 text-xs">
             <span>{listing?.folders.length} folders · {listing?.files.length} files</span>
-            <span>Drop files anywhere to upload</span>
+            <span>Drop files here to upload</span>
           </div>
         </div>
       )}
 
-      {selected && (
-        <section aria-label="Selected item actions" className="flex flex-wrap items-center justify-between gap-3 border-y py-3">
-          <span className="min-w-0 wrap-anywhere text-sm font-medium">{selected.it.name}</span>
-          <div className="flex flex-wrap items-center gap-2">
-            {selected.kind === "file" && (
-              <Button variant="outline" size="sm"
-                render={<a href={`/api/files/${selected.it.id}/content`} download={selected.it.name} />}
-                aria-label={`Download ${selected.it.name}`}>
-                <DownloadIcon aria-hidden />Download
-              </Button>
-            )}
-            {actions(selected)}
-          </div>
-        </section>
-      )}
+      <Dialog open={focused !== undefined} onOpenChange={(open) => { if (!open && !working) setPanel(undefined); }}>
+        <DialogContent showCloseButton={false}
+          finalFocus={() => actionOrigin.current?.isConnected ? actionOrigin.current : picker.current?.parentElement?.querySelector<HTMLButtonElement>('button') ?? null}
+          className="bottom-0 left-0 top-auto max-h-[92dvh] max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-t-2xl rounded-b-none p-0 md:bottom-auto md:left-1/2 md:top-1/2 md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl">
+          {focused && panel && <>
+            <div className="flex items-start gap-3 border-b p-5 pr-3">
+              {panel.view !== "actions" && mobile && <Button variant="ghost" size="icon" aria-label="Back to file actions" disabled={working !== undefined} onClick={() => setPanel({ ...panel, view: "actions" })}><ArrowLeftIcon /></Button>}
+              <div className="mt-1"><FileGlyph thing={focused} /></div>
+              <DialogHeader className="min-w-0 flex-1 gap-1">
+                <DialogTitle className="pr-2 text-base leading-snug wrap-anywhere">{focused.it.name}</DialogTitle>
+                <DialogDescription>{focused.kind === "file" ? size(focused.it.size) : "Folder"} · {listing?.chain.at(-1)?.name ?? "All files"}</DialogDescription>
+              </DialogHeader>
+              <DialogClose render={<Button size="icon" variant="ghost" className="size-11 shrink-0 md:size-8" disabled={working !== undefined} aria-label="Close file actions" />}><XIcon /></DialogClose>
+            </div>
+            {panel.view === "rename" || panel.view === "move" ? <div className="p-5"><ChangeForm key={`${focused.it.id}-${panel.view}`} thing={focused} mode={panel.view} working={working !== undefined} here={listing} refused={refused}
+              onClose={() => setPanel(undefined)} onChange={(name, into) => void change(focused, name, into)} /></div>
+              : panel.view === "details" ? <div className="space-y-6 p-5">
+                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-4 text-sm">
+                  <dt className="text-muted-foreground">Type</dt><dd className="wrap-anywhere">{focused.kind === "file" ? focused.it.media_type : "Folder"}</dd>
+                  <dt className="text-muted-foreground">Created</dt><dd>{new Date(focused.it.created_at).toLocaleString()}</dd>
+                  <dt className="text-muted-foreground">Modified</dt><dd>{new Date(focused.it.updated_at).toLocaleString()}</dd>
+                </dl>
+                {focused.kind === "file" && <Button className="min-h-11 w-full md:min-h-8" render={<a href={`/api/files/${focused.it.id}/content`} download={focused.it.name} />} aria-label={`Download ${focused.it.name}`}><DownloadIcon />Download</Button>}
+              </div> : <div className="flex min-h-[55dvh] flex-col p-2 pb-6 md:min-h-0 md:pb-2">
+                {focused.kind === "file" && <Button variant="ghost" className="h-14 justify-start gap-4 px-4 font-normal md:h-11" render={<a href={`/api/files/${focused.it.id}/content`} download={focused.it.name} />} aria-label={`Download ${focused.it.name}`}><DownloadIcon />Download</Button>}
+                <div className="my-2 border-t" />
+                <Button variant="ghost" className="h-14 justify-start gap-4 px-4 font-normal md:h-11" disabled={working !== undefined} onClick={() => setPanel({ ...panel, view: "move" })}><FolderInputIcon />Move to folder</Button>
+                <Button variant="ghost" className="h-14 justify-start gap-4 px-4 font-normal md:h-11" disabled={working !== undefined} onClick={() => setPanel({ ...panel, view: "rename" })}><PencilIcon />Rename</Button>
+                <Button variant="ghost" className="h-14 justify-start gap-4 px-4 font-normal md:h-11" disabled={working !== undefined} onClick={() => setPanel({ ...panel, view: "details" })}><InfoIcon />Details</Button>
+                <div className="my-2 border-t" />
+                <Button variant="ghost" className="text-destructive h-14 justify-start gap-4 px-4 font-normal md:h-11" aria-label={`Delete ${focused.it.name}`} disabled={working !== undefined} onClick={() => void discard(focused)}><Trash2Icon />Move to Trash</Button>
+                <Refused>{refused}</Refused>
+              </div>}
+          </>}
+        </DialogContent>
+      </Dialog>
 
       {listing && (
         <footer className="text-muted-foreground flex flex-wrap items-start justify-between gap-3 text-xs">
@@ -433,42 +473,8 @@ export function Files() {
         onMake={(name) => void makeFolder(name)}
       />
 
-      <ChangeIt
-        thing={changing}
-        working={changing !== undefined && working === changing.it.id}
-        here={listing}
-        refused={refused}
-        onClose={() => setChanging(undefined)}
-        onChange={(name, into) => changing !== undefined && void change(changing, name, into)}
-      />
     </main>
   );
-
-  function actions(thing: Thing) {
-    return (
-      <span className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={working === thing.it.id}
-          aria-label={`Rename or move ${thing.it.name}`}
-          onClick={() => setChanging(thing)}
-        >
-          <PencilIcon aria-hidden />
-          Rename / move
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={working === thing.it.id}
-          aria-label={`Delete ${thing.it.name}`}
-          onClick={() => void discard(thing)}
-        >
-          <Trash2Icon aria-hidden />
-        </Button>
-      </span>
-    );
-  }
 
   function whyItFailed(sentence: string) {
     // The switch can be thrown, and access revoked, while this screen is open.
@@ -561,46 +567,9 @@ function MakeAFolder({
  * whole tree would be a second navigation to build and to make work on a phone,
  * and moving something two branches away is two moves.
  */
-function ChangeIt({
-  thing,
-  working,
-  here,
-  refused,
-  onClose,
-  onChange,
-}: {
-  thing: Thing | undefined;
-  working: boolean;
-  here: Listing | undefined;
-  refused: string | undefined;
-  onClose: () => void;
-  onChange: (name: string, into: string | null) => void;
-}) {
-  return (
-    <Dialog open={thing !== undefined} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent>
-        {thing !== undefined && (
-          // Keyed by what is being changed, so the form is a new one for each
-          // and its fields start out as that thing's rather than as the last
-          // one's. A dialog that filled itself in an effect would be a dialog
-          // that renders once with somebody else's name in it.
-          <ChangeForm
-            key={thing.it.id}
-            thing={thing}
-            working={working}
-            here={here}
-            refused={refused}
-            onClose={onClose}
-            onChange={onChange}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function ChangeForm({
   thing,
+  mode,
   working,
   here,
   refused,
@@ -608,6 +577,7 @@ function ChangeForm({
   onChange,
 }: {
   thing: Thing;
+  mode: "rename" | "move";
   working: boolean;
   here: Listing | undefined;
   refused: string | undefined;
@@ -630,25 +600,26 @@ function ChangeForm({
       }}
     >
       <DialogHeader>
-        <DialogTitle>Rename or move</DialogTitle>
+        <h2 className="font-medium">{mode === "rename" ? "Rename" : "Move to folder"}</h2>
       </DialogHeader>
 
-      <Field label="Name" hint="Names in one folder are one each, whatever their capitals.">
+      {mode === "rename" && <Field label="Name" hint="Names in one folder are one each, whatever their capitals.">
         <Input
           name="name"
           value={name}
           autoFocus
           onChange={(event) => setName(event.target.value)}
         />
-      </Field>
+      </Field>}
 
-      <div className="flex flex-col gap-1.5">
+      {mode === "move" && <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium" htmlFor={where}>
           Where
         </label>
         <select
           id={where}
           name="where"
+          autoFocus
           className={selectClass}
           value={into}
           onChange={(event) => setInto(event.target.value)}
@@ -665,18 +636,18 @@ function ChangeForm({
             </option>
           ))}
         </select>
-      </div>
+      </div>}
 
       <Refused>{refused}</Refused>
 
-      <DialogFooter>
+      <div className="mt-2 flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onClose}>
           Cancel
         </Button>
         <Button type="submit" disabled={name.trim() === "" || working}>
           {working ? "Saving…" : "Save"}
         </Button>
-      </DialogFooter>
+      </div>
     </form>
   );
 }
