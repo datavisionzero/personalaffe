@@ -176,9 +176,12 @@ public sealed class MigrationTests(PostgresFixture postgres)
         Assert.Equal(
             "Ünïcödé, and\ntwo lines.",
             (await afterwards.ScratchpadEntries.SingleAsync(TestContext.Current.CancellationToken)).Text);
-        Assert.Equal(
-            page.Id,
-            (await afterwards.Pages.SingleAsync(TestContext.Current.CancellationToken)).Id);
+        var existingPage = await afterwards.Pages.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(page.Id, existingPage.Id);
+        Assert.Equal(page.Title, existingPage.Title);
+        Assert.Equal(page.Markdown, existingPage.Markdown);
+        Assert.Equal(written, existingPage.UpdatedAt);
+        Assert.False(existingPage.Pinned);
 
         var existingOwner = await afterwards.Owners.SingleAsync(TestContext.Current.CancellationToken);
         Assert.False(existingOwner.InactivityLockEnabled);
@@ -190,7 +193,7 @@ public sealed class MigrationTests(PostgresFixture postgres)
 
         var existingSession = await afterwards.BrowserSessions.SingleAsync(
             TestContext.Current.CancellationToken);
-        Assert.Equal(DateTimeOffset.UnixEpoch, existingSession.LastInteractionAt);
+        Assert.Equal(written, existingSession.LastInteractionAt);
         Assert.Equal(0, existingSession.InactivityLockVersion);
         Assert.Null(existingSession.InactivityLockedAt);
     }
