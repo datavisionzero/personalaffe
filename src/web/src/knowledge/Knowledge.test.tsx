@@ -81,6 +81,37 @@ describe("Knowledge", () => {
     );
   });
 
+  it("keeps branches collapsed across page navigation and offers an empty-page editor", async () => {
+    const other = { ...reisen, id: "other", title: "Other" };
+    const nested = { ...bahn, id: "nested", parent: other.id, title: "Nested" };
+    anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn, other, nested),
+      [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage },
+      [`GET /api/knowledge/pages/${other.id}`]: { body: { ...other, markdown: "" } } });
+    knowledgeAt("/knowledge");
+    await userEvent.click(await screen.findByRole("button", { name: "Collapse Reisen" }));
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Other" }));
+    await userEvent.click(within(screen.getByRole("navigation", { name: "The pages" })).getByRole("link", { name: "Other" }));
+    await screen.findByRole("heading", { name: "Other" });
+    expect(screen.getByRole("button", { name: "Expand Reisen" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand Other" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Add content" }));
+    expect(await screen.findByRole("textbox", { name: "The page" })).toBeInTheDocument();
+  });
+
+  it("offers a top-level page even while reading a nested page", async () => {
+    const { asked } = anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn),
+      [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage },
+      "POST /api/knowledge/pages": { body: { ...reisen, markdown: "" } },
+      [`GET /api/knowledge/pages/${reisen.id}`]: { body: { ...reisen, markdown: "" } } });
+    knowledgeAt(`/knowledge/${bahn.id}`);
+    await userEvent.click(await screen.findByRole("button", { name: "Create page" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "New page" }));
+    const dialog = within(screen.getByRole("dialog"));
+    await userEvent.type(dialog.getByRole("textbox", { name: "Title" }), "New root");
+    await userEvent.click(dialog.getByRole("button", { name: "Create page" }));
+    await waitFor(() => expect(asked.find(r => r.method === "POST")?.body).toEqual({ title: "New root", parent: null, markdown: "" }));
+  });
+
   it("opens the page a pasted address names, with its Markdown in the field", async () => {
     anInstance({
       "GET /api/knowledge/pages": aTree(reisen, bahn),
@@ -194,7 +225,8 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
-    await userEvent.click(await screen.findByRole("button", { name: "New page under this one" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Create page" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "New subpage" }));
 
     // Inside the dialog: the page that is open has a Title field of its own,
     // and a modal one hides it rather than replacing it.
@@ -224,7 +256,8 @@ describe("Knowledge", () => {
 
     knowledgeAt("/knowledge");
 
-    await userEvent.click(await screen.findByRole("button", { name: "New page" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Create page" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "New page" }));
     await userEvent.type(screen.getByLabelText("Title"), "Reisen");
     await userEvent.click(screen.getByRole("button", { name: "Create page" }));
 
@@ -244,7 +277,8 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Version history" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Page actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Version history" }));
 
     const dialog = within(await screen.findByRole("dialog"));
 
@@ -279,7 +313,8 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Version history" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Page actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Version history" }));
 
     expect(await screen.findByText(/No previous versions/)).toBeInTheDocument();
   });
@@ -293,7 +328,8 @@ describe("Knowledge", () => {
 
     knowledgeAt(`/knowledge/${bahn.id}`);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Delete Bahn" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Page actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Delete Bahn" }));
 
     await waitFor(() => expect(asked.some((one) => one.method === "DELETE")).toBe(true));
 
@@ -401,7 +437,8 @@ describe("Knowledge", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Collapse Reisen" }));
     expect(within(screen.getByRole("navigation", { name: "The pages" })).queryByRole("link", { name: "Bahn" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Expand Reisen" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Move page" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Page actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Move page" }));
     expect(screen.queryByRole("option", { name: "Reisen / Bahn" })).toBeNull();
     await userEvent.selectOptions(screen.getByLabelText("Destination"), "");
     await userEvent.click(screen.getByRole("button", { name: /^Move$/ }));
@@ -419,6 +456,11 @@ describe("Knowledge", () => {
     await userEvent.click(screen.getByRole("checkbox", { name: "Only this page and its subpages" }));
     await waitFor(() => expect(asked.some(r => new URLSearchParams(r.query).get("within") === bahn.id)).toBe(true));
     expect(new URLSearchParams(asked.filter(r => r.path === "/api/search").at(-1)!.query).get("application")).toBe("knowledge");
+    const navigation = within(screen.getByRole("navigation", { name: "The pages" }));
+    expect(navigation.queryByRole("link", { name: "Reisen" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Back to page tree" }));
+    expect(navigation.getByRole("link", { name: "Reisen" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Knowledge search results" })).toBeNull();
   });
 
   it("shows persistent pins and recently edited pages on the start page", async () => {

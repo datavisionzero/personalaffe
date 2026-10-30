@@ -1,16 +1,20 @@
 import { KnowledgeHelp } from "./KnowledgeHelp";
 import {
-  ChevronRightIcon,
+  FileTextIcon,
+  MoreHorizontalIcon,
+  PinIcon,
+  PinOffIcon,
   DownloadIcon,
   FilePlusIcon,
   HistoryIcon,
-  NotebookTextIcon,
   Trash2Icon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
 import { api, guardedBy, versionOf, type Schemas } from "@/api/client";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { usable } from "@/search/useFindings";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -53,10 +57,11 @@ type Revision = Schemas["RevisionResponse"];
  */
 export function Knowledge() {
   const params = useParams();
-  return <KnowledgePage key={params["*"] ?? ""} />;
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  return <KnowledgePage key={params["*"] ?? ""} collapsed={collapsed} setCollapsed={setCollapsed} />;
 }
 
-function KnowledgePage() {
+function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; setCollapsed: React.Dispatch<React.SetStateAction<Set<string>>> }) {
   const params = useParams();
   const navigate = useNavigate();
 
@@ -92,7 +97,11 @@ function KnowledgePage() {
   const [history, setHistory] = useState(false);
   const [moving, setMoving] = useState<Outline>();
   const [destination, setDestination] = useState("");
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [newParent, setNewParent] = useState<string>();
+  const [pagesVisible, setPagesVisible] = useState(false);
+  const [query, setQuery] = useState("");
+  const [dragging, setDragging] = useState<string>();
+  const revealed = useRef(false);
 
   const address = open === undefined ? "/knowledge" : `/knowledge/${open}`;
   const refused = wrote?.at === address ? wrote.refused : undefined;
@@ -213,7 +222,7 @@ function KnowledgePage() {
 
     try {
       const answer = await api.POST("/api/knowledge/pages", {
-        body: { title: named, parent: open ?? null, markdown: "" },
+        body: { title: named, parent: newParent ?? null, markdown: "" },
       });
 
       if (answer.error) {
@@ -318,25 +327,40 @@ function KnowledgePage() {
 
   const pages = tree.asked.at === "known" ? tree.asked.value.pages : [];
 
+  useEffect(() => {
+    if (revealed.current || tree.asked.at !== "known") return;
+    revealed.current = true;
+    if (open) setCollapsed(previous => {
+      const next = new Set(previous);
+      ancestors(tree.asked.at === "known" ? tree.asked.value.pages : [], open)
+        .filter(p => p.id !== open).forEach(p => next.delete(p.id));
+      return next;
+    });
+  }, [open, tree.asked, setCollapsed]);
+
   return (
     <main className="page-frame md:flex-row">
+      <Button variant="outline" className="md:hidden" aria-expanded={pagesVisible} aria-controls="knowledge-pages" onClick={() => setPagesVisible(!pagesVisible)}>Pages</Button>
       <nav
         aria-label="The pages"
-        className="flex shrink-0 flex-col gap-2 md:w-64 md:border-r md:pr-4"
+        id="knowledge-pages"
+        onDragStart={event => setDragging(event.dataTransfer.getData("application/personalaffe-page"))} onDragEnd={() => setDragging(undefined)} onDrop={() => setDragging(undefined)}
+        className={`${pagesVisible ? "flex" : "hidden"} shrink-0 flex-col gap-2 md:flex md:w-64 md:border-r md:pr-4`}
       >
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-xl font-semibold tracking-tight">Knowledge</h1>
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={open === undefined ? "New page" : "New page under this one"}
-            onClick={() => setWriting(true)}
-          >
-            <FilePlusIcon aria-hidden />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" aria-label="Create page" />}><FilePlusIcon aria-hidden /></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => { setNewParent(undefined); setWriting(true); }}>New page</DropdownMenuItem>
+              {open && <DropdownMenuItem onClick={() => { setNewParent(open); setWriting(true); }}>New subpage</DropdownMenuItem>}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <KnowledgeSearch page={open} />
+        <KnowledgeSearch page={open} query={query} setQuery={setQuery} />
+
+        {!usable(query).length && <>
 
         {tree.asked.at === "asking" && <Busy title="Loading pages…" />}
 
@@ -346,11 +370,11 @@ function KnowledgePage() {
           </p>
         )}
 
-        <div onDragOver={event => event.preventDefault()} onDrop={event => {
+        {dragging && <div onDragOver={event => event.preventDefault()} onDrop={event => {
           event.preventDefault(); const source = pages.find(p => p.id === event.dataTransfer.getData("application/personalaffe-page"));
           if (source) { setMoving(source); setDestination(""); }
-        }} className="rounded border border-dashed p-2 text-xs">Drop here to move to the top level</div>
-        <Branch pages={pages} under={null} open={open} depth={0} collapsed={collapsed}
+        }} className="rounded border border-dashed p-2 text-xs">Drop here to move to the top level</div>}
+        <Branch pages={pages} under={null} open={open} depth={0} dragged={dragging} collapsed={collapsed}
           toggle={id => setCollapsed(previous => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; })}
           onMove={(source, parent) => { setMoving(source); setDestination(parent ?? ""); }} />
 
@@ -369,6 +393,7 @@ function KnowledgePage() {
           <DownloadIcon aria-hidden />
           Export all pages
         </Button>
+        </>}
       </nav>
 
       <section className="flex min-w-0 flex-1 flex-col gap-4">
@@ -406,24 +431,18 @@ function KnowledgePage() {
                 />
               </Field> : <h2 className="text-2xl font-semibold">{title}</h2>}
 
-              <div className="flex items-center gap-1 self-end">
-                <Button variant="ghost" size="sm" disabled={working} onClick={() => void pin(it)}>{it.pinned ? "Unpin page" : "Pin page"}</Button>
-                <Button variant="outline" size="sm" disabled={working || !!draft} onClick={() => { setMoving(it); setDestination(it.parent ?? ""); }}>Move page</Button>
+              <div className="flex flex-wrap items-center gap-1">
+                <Button variant="ghost" size="sm" disabled={working} aria-label={it.pinned ? "Unpin page" : "Pin page"} title={it.pinned ? "Unpin page" : "Pin page"} onClick={() => void pin(it)}>{it.pinned ? <PinOffIcon aria-hidden /> : <PinIcon aria-hidden />}</Button>
                 {!editing && <Button size="sm" onClick={() => setEditing(true)}>Edit page</Button>}
-                <Button variant="outline" size="sm" disabled={!!draft || working} onClick={() => setHistory(true)}>
-                  <HistoryIcon aria-hidden />
-                  Version history
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={working || !!draft}
-                  aria-label={`Delete ${it.title}`}
-                  onClick={() => void discard()}
-                >
-                  <Trash2Icon aria-hidden />
-                  Delete
-                </Button>
+                {editing && !draft && <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Done editing</Button>}
+                <DropdownMenu>
+                  <DropdownMenuTrigger render={<Button variant="outline" size="sm" aria-label="Page actions" />}><MoreHorizontalIcon aria-hidden /></DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem disabled={working || !!draft} onClick={() => { setMoving(it); setDestination(it.parent ?? ""); }}>Move page</DropdownMenuItem>
+                    <DropdownMenuItem disabled={!!draft || working} onClick={() => setHistory(true)}><HistoryIcon aria-hidden />Version history</DropdownMenuItem>
+                    <DropdownMenuItem variant="destructive" disabled={working || !!draft} aria-label={`Delete ${it.title}`} onClick={() => void discard()}><Trash2Icon aria-hidden />Delete</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
@@ -462,10 +481,10 @@ function KnowledgePage() {
                   : secured ? "Draft saved in this tab · not yet saved to the server." : "Draft could not be stored. Keep this tab open and save your changes."}
               </span>
             </div>
-            </> : <ReadingPage markdown={markdown} />}
-            {backlinks.asked.at === "known" && <section aria-label="Linked from" className="border-t pt-3">
+            </> : markdown.trim() ? <ReadingPage markdown={markdown} /> : <div className="rounded-lg border border-dashed p-6"><p className="mb-3 text-sm text-muted-foreground">This page is empty. Add notes, links, or ideas.</p><Button onClick={() => setEditing(true)}>Add content</Button></div>}
+            {backlinks.asked.at === "known" && backlinks.asked.value.pages.length > 0 && <section aria-label="Linked from" className="border-t pt-3">
               <h3 className="font-medium">Linked from</h3>
-              {backlinks.asked.value.pages.length === 0 ? <p className="text-sm text-muted-foreground">No pages link here yet.</p> : <ul>{backlinks.asked.value.pages.map(source => <li key={source.id}><Link className="text-brand" to={`/knowledge/${source.id}`}>{source.title}</Link></li>)}</ul>}
+              <ul>{backlinks.asked.value.pages.map(source => <li key={source.id}><Link className="text-brand" to={`/knowledge/${source.id}`}>{source.title}</Link></li>)}</ul>
             </section>}
           </>
         )}
@@ -509,7 +528,7 @@ function KnowledgePage() {
       </Dialog>
       <WriteAPage
         open={writing}
-        under={pages.find((one) => one.id === open)}
+        under={pages.find((one) => one.id === newParent)}
         working={working}
         refused={refused}
         onClose={() => setWriting(false)}
@@ -553,16 +572,18 @@ function Branch({
   pages,
   under,
   open,
-  depth, collapsed, toggle, onMove,
+  depth, collapsed, toggle, onMove, dragged,
 }: {
   pages: Outline[];
   under: string | null;
   open: string | undefined;
   depth: number;
+  dragged?: string;
   collapsed: Set<string>;
   toggle: (id: string) => void;
   onMove: (source: Outline, parent: string | null) => void;
 }) {
+  const [dropTarget, setDropTarget] = useState<string>();
   const here = pages.filter((page) => (page.parent ?? null) === under);
 
   if (here.length === 0) {
@@ -573,26 +594,23 @@ function Branch({
     <ul className="flex flex-col gap-0.5">
       {here.map((page) => (
         <li key={page.id}>
-          <div className="flex items-center" draggable onDragStart={event => event.dataTransfer.setData("application/personalaffe-page", page.id)}
-            onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); event.stopPropagation(); const source = pages.find(p => p.id === event.dataTransfer.getData("application/personalaffe-page")); if (source) onMove(source, page.id); }}>
-          {pages.some(p => p.parent === page.id) && <button type="button" aria-label={`${collapsed.has(page.id) ? "Expand" : "Collapse"} ${page.title}`} aria-expanded={!collapsed.has(page.id)} onClick={() => toggle(page.id)} className="p-1">{collapsed.has(page.id) ? "▸" : "▾"}</button>}
+          <div className={`flex min-w-0 items-center rounded-lg ${dragged && dropTarget === page.id ? "bg-accent ring-1 ring-brand" : ""}`} style={{ paddingInlineStart: `${depth * 0.75}rem` }} draggable onDragStart={event => event.dataTransfer.setData("application/personalaffe-page", page.id)}
+            onDragOver={event => { if (dragged && !ancestors(pages, page.id).some(p => p.id === dragged)) { event.preventDefault(); setDropTarget(page.id); } }} onDragLeave={() => setDropTarget(undefined)} onDrop={event => { event.preventDefault(); setDropTarget(undefined); const source = pages.find(p => p.id === event.dataTransfer.getData("application/personalaffe-page")); if (source && !ancestors(pages, page.id).some(p => p.id === source.id)) onMove(source, page.id); }}>
+          {pages.some(p => p.parent === page.id)
+            ? <button type="button" aria-label={`${collapsed.has(page.id) ? "Expand" : "Collapse"} ${page.title}`} aria-expanded={!collapsed.has(page.id)} onClick={() => toggle(page.id)} className="w-6 shrink-0 p-1">{collapsed.has(page.id) ? "▸" : "▾"}</button>
+            : <span aria-hidden className="w-6 shrink-0" />}
           <Link
             to={`/knowledge/${page.id}`}
             aria-current={page.id === open ? "page" : undefined}
-            className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm hover:bg-muted ${
+            className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2 py-1 text-sm hover:bg-muted ${
               page.id === open ? "bg-muted font-medium" : ""
             }`}
-            style={{ paddingInlineStart: `${0.5 + depth * 0.75}rem` }}
           >
-            {depth === 0 ? (
-              <NotebookTextIcon aria-hidden className="text-muted-foreground size-3.5 shrink-0" />
-            ) : (
-              <ChevronRightIcon aria-hidden className="text-muted-foreground size-3.5 shrink-0" />
-            )}
+            <FileTextIcon aria-hidden className="text-muted-foreground size-3.5 shrink-0" />
             <span className="truncate">{page.title}</span>
           </Link>
           </div>
-          {!collapsed.has(page.id) && <Branch pages={pages} under={page.id} open={open} depth={depth + 1} collapsed={collapsed} toggle={toggle} onMove={onMove} />}
+          {!collapsed.has(page.id) && <Branch pages={pages} under={page.id} open={open} depth={depth + 1} dragged={dragged} collapsed={collapsed} toggle={toggle} onMove={onMove} />}
         </li>
       ))}
     </ul>

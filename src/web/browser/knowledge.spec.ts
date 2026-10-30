@@ -180,7 +180,8 @@ test.describe("Knowledge", () => {
 
     await aPage(page, title);
 
-    await page.getByRole("button", { name: `Delete ${title}` }).click();
+    await page.getByRole("button", { name: "Page actions" }).click();
+    await page.getByRole("menuitem", { name: `Delete ${title}` }).click();
 
     await expect(page.getByRole("heading", { name: "Your knowledge" })).toBeVisible();
 
