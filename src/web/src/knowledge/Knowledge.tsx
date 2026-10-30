@@ -287,6 +287,16 @@ function KnowledgePage() {
     }
   }
 
+  async function pin(source: Outline) {
+    setWorking(true);
+    try {
+      const answer = await api.PUT("/api/knowledge/pages/{id}/pin", { params: { path: { id: source.id } }, body: { pinned: !source.pinned } });
+      if (answer.error) setWrote({ at: address, refused: said_(answer.error, answer.response.status) });
+      else { tree.refresh(); page.refresh(); }
+    } catch { setWrote({ at: address, refused: "Could not update the pin. Try again." }); }
+    finally { setWorking(false); }
+  }
+
   async function move(source: Outline, parent: string | null) {
     if (draft) { setWrote({ at: address, refused: "Save or discard your draft before moving pages." }); return; }
     setWorking(true);
@@ -365,10 +375,17 @@ function KnowledgePage() {
           {ancestors(pages, open).map(p => <span key={p.id}> / <Link to={`/knowledge/${p.id}`}>{p.title}</Link></span>)}
         </nav>}
         {open === undefined && (
-          <Empty title="Pick a page, or write one.">
-            Knowledge is Markdown in a tree. A page keeps its address when you rename it or move it,
-            so a link to it goes on working — and what it used to say is kept behind it.
-          </Empty>
+          <div className="grid gap-6">
+            <h2 className="text-2xl font-semibold">Your knowledge</h2>
+            {pages.length === 0 && <Empty title="Pick a page, or write one.">Create your first page using New page.</Empty>}
+            <section aria-label="Pinned pages"><h3 className="mb-2 font-semibold">Pinned pages</h3>
+              {pages.filter(p => p.pinned).length === 0 && <p className="text-sm text-muted-foreground">Pin pages you use often to keep them here.</p>}
+              <ul className="grid gap-2 sm:grid-cols-2">{pages.filter(p => p.pinned).map(p => <li key={p.id} className="flex items-center justify-between rounded-lg border p-3"><Link to={`/knowledge/${p.id}`}>{p.title}</Link><Button size="sm" variant="ghost" disabled={working} aria-label={`Unpin ${p.title}`} onClick={() => void pin(p)}>Unpin</Button></li>)}</ul>
+            </section>
+            <section aria-label="Recently edited pages"><h3 className="mb-2 font-semibold">Recently edited</h3>
+              <ul className="grid gap-2 sm:grid-cols-2">{[...pages].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 10).map(p => <li key={p.id} className="rounded-lg border p-3"><Link to={`/knowledge/${p.id}`}>{p.title}</Link><p className="text-xs text-muted-foreground">{new Date(p.updated_at).toLocaleString()}</p></li>)}</ul>
+            </section>
+          </div>
         )}
 
         {open !== undefined && page.asked.at === "asking" && <Busy title="Opening the page…" />}
@@ -388,6 +405,7 @@ function KnowledgePage() {
               </Field> : <h2 className="text-2xl font-semibold">{title}</h2>}
 
               <div className="flex items-center gap-1 self-end">
+                <Button variant="ghost" size="sm" disabled={working} onClick={() => void pin(it)}>{it.pinned ? "Unpin page" : "Pin page"}</Button>
                 <Button variant="outline" size="sm" disabled={working || !!draft} onClick={() => { setMoving(it); setDestination(it.parent ?? ""); }}>Move page</Button>
                 {!editing && <Button size="sm" onClick={() => setEditing(true)}>Edit page</Button>}
                 <Button variant="outline" size="sm" disabled={!!draft || working} onClick={() => setHistory(true)}>

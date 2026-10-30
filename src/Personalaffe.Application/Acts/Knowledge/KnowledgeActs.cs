@@ -259,3 +259,16 @@ public sealed class ReadPageBacklinks(ReachingAnApplication reaching, IPages pag
         return new TheTree([.. (await pages.BacklinksAsync(id, cancellationToken)).Select(TheOutline.Of)]);
     }
 }
+
+/// <summary>Pinning changes navigation preferences, not content or its history.</summary>
+public sealed class PinAPage(ReachingAnApplication reaching, IPages pages, RetentionSettings retention)
+{
+    public async Task<ThePage> ExecuteAsync(Guid id, bool pinned, CancellationToken cancellationToken)
+    {
+        await reaching.ToWriteAsync(WorkspaceApplication.Knowledge, cancellationToken);
+        var page = await TheKnowledge.PageAsync(pages, retention, id, cancellationToken);
+        page.SetPinned(pinned);
+        await pages.SaveAsync(cancellationToken);
+        return ThePage.Of(page);
+    }
+}

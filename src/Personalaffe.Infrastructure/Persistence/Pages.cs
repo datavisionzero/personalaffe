@@ -29,14 +29,14 @@ public sealed class Pages(PersonalaffeDbContext context) : IPages
         await context.Pages.AsNoTracking()
             .Where(page => page.Id != target && EF.Functions.ILike(page.Markdown, "%](page:" + target.ToString() + ")%"))
             .OrderBy(page => page.Title)
-            .Select(page => new PageInTheTree(page.Id, page.Title, page.ParentId, false, page.CreatedAt, page.UpdatedAt))
+            .Select(page => new PageInTheTree(page.Id, page.Title, page.ParentId, false, page.CreatedAt, page.UpdatedAt, page.Pinned))
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<PageInTheTree>> TreeAsync(CancellationToken cancellationToken) =>
         await context.Pages
             .OrderBy(page => page.Title)
             .Select(page => new PageInTheTree(
-                page.Id, page.Title, page.ParentId, false, page.CreatedAt, page.UpdatedAt))
+                page.Id, page.Title, page.ParentId, false, page.CreatedAt, page.UpdatedAt, page.Pinned))
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<PageInTheTree>> StructureAsync(CancellationToken cancellationToken) =>

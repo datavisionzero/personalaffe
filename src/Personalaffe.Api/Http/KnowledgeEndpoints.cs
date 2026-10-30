@@ -9,18 +9,18 @@ public sealed record PageResponse(
     Guid? Parent,
     string Markdown,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset UpdatedAt, bool Pinned = false)
 {
     public static PageResponse Of(ThePage page) => new(
-        page.Id, page.Title, page.Parent, page.Markdown, page.CreatedAt, page.UpdatedAt);
+        page.Id, page.Title, page.Parent, page.Markdown, page.CreatedAt, page.UpdatedAt, page.Pinned);
 }
 
 /// <summary>One page as the tree knows it: a title and a place, and no body.</summary>
 public sealed record OutlineResponse(
-    Guid Id, string Title, Guid? Parent, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
+    Guid Id, string Title, Guid? Parent, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, bool Pinned = false)
 {
     public static OutlineResponse Of(TheOutline page) => new(
-        page.Id, page.Title, page.Parent, page.CreatedAt, page.UpdatedAt);
+        page.Id, page.Title, page.Parent, page.CreatedAt, page.UpdatedAt, page.Pinned);
 }
 
 /// <summary>
@@ -48,6 +48,8 @@ public sealed record OldVersionResponse(
 }
 
 /// <summary>A page to write: what it is called, where it goes, what it says.</summary>
+public sealed record PinPageRequest(bool Pinned);
+
 public sealed record WritePageRequest(string? Title, Guid? Parent, string? Markdown);
 
 /// <summary>
@@ -107,6 +109,16 @@ public static class KnowledgeEndpoints
             .WithSummary("Write a page.")
             .Produces<PageResponse>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapPut($"{Pages}/{{id:guid}}/pin", async (
+                Guid id, PinPageRequest body, PinAPage act, CancellationToken cancellationToken) =>
+                Results.Ok(PageResponse.Of(await act.ExecuteAsync(id, body.Pinned, cancellationToken))))
+            .WithName("PinPage")
+            .WithSummary("Pin or unpin a page on the Knowledge start page.")
+            .Produces<PageResponse>()
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);

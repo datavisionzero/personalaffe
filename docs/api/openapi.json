@@ -3327,6 +3327,88 @@
         }
       }
     },
+    "/api/knowledge/pages/{id}/pin": {
+      "put": {
+        "tags": [
+          "personalaffe"
+        ],
+        "summary": "Pin or unpin a page on the Knowledge start page.",
+        "operationId": "PinPage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinPageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/knowledge/pages/{id}/backlinks": {
       "get": {
         "tags": [
@@ -9080,6 +9162,10 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "pinned": {
+            "type": "boolean",
+            "default": false
           }
         },
         "additionalProperties": false
@@ -9119,6 +9205,10 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "pinned": {
+            "type": "boolean",
+            "default": false
           }
         },
         "additionalProperties": false
@@ -9169,6 +9259,18 @@
           },
           "bookmarks": {
             "$ref": "#/components/schemas/Permission"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PinPageRequest": {
+        "required": [
+          "pinned"
+        ],
+        "type": "object",
+        "properties": {
+          "pinned": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

@@ -35,6 +35,8 @@ public sealed class PageConfiguration : IEntityTypeConfiguration<Page>
             .IsRequired()
             .HasMaxLength(PageTitle.MaxLength);
 
+        builder.Property(page => page.Pinned).HasColumnName("pinned").HasDefaultValue(false);
+
         builder.Property(page => page.ParentId).HasColumnName("parent_id");
 
         builder.Property(page => page.Markdown)

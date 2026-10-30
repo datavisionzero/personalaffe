@@ -11,24 +11,24 @@ public sealed record ThePage(
     Guid? Parent,
     string Markdown,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset UpdatedAt, bool Pinned = false)
 {
     /// <summary>The version a guarded write has to be holding.</summary>
     public ContentVersion Version => ContentVersion.Of(UpdatedAt);
 
     internal static ThePage Of(Page page) => new(
-        page.Id, page.Title, page.ParentId, page.Markdown, page.CreatedAt, page.UpdatedAt);
+        page.Id, page.Title, page.ParentId, page.Markdown, page.CreatedAt, page.UpdatedAt, page.Pinned);
 }
 
 /// <summary>One page as the tree knows it: a title and a place, and no body.</summary>
 public sealed record TheOutline(
-    Guid Id, string Title, Guid? Parent, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
+    Guid Id, string Title, Guid? Parent, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, bool Pinned = false)
 {
     /// <summary>The version a guarded write has to be holding.</summary>
     public ContentVersion Version => ContentVersion.Of(UpdatedAt);
 
     internal static TheOutline Of(PageInTheTree page) => new(
-        page.Id, page.Title, page.ParentId, page.CreatedAt, page.UpdatedAt);
+        page.Id, page.Title, page.ParentId, page.CreatedAt, page.UpdatedAt, page.Pinned);
 }
 
 /// <summary>

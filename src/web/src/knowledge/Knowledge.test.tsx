@@ -297,7 +297,7 @@ describe("Knowledge", () => {
 
     await waitFor(() => expect(asked.some((one) => one.method === "DELETE")).toBe(true));
 
-    expect(await screen.findByText("Pick a page, or write one.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Your knowledge" })).toBeInTheDocument();
   });
 
   it("offers the export as a link the browser fetches with the session it has", async () => {
@@ -419,6 +419,18 @@ describe("Knowledge", () => {
     await userEvent.click(screen.getByRole("checkbox", { name: "Only this page and its subpages" }));
     await waitFor(() => expect(asked.some(r => new URLSearchParams(r.query).get("within") === bahn.id)).toBe(true));
     expect(new URLSearchParams(asked.filter(r => r.path === "/api/search").at(-1)!.query).get("application")).toBe("knowledge");
+  });
+
+  it("shows persistent pins and recently edited pages on the start page", async () => {
+    const { asked } = anInstance({ "GET /api/knowledge/pages": aTree({ ...reisen, pinned: true }, bahn),
+      [`PUT /api/knowledge/pages/${reisen.id}/pin`]: { body: { ...reisen, markdown: "", pinned: false } } });
+    knowledgeAt("/knowledge");
+    const pinned = within(await screen.findByRole("region", { name: "Pinned pages" }));
+    await pinned.findByRole("link", { name: "Reisen" });
+    const recent = within(screen.getByRole("region", { name: "Recently edited pages" }));
+    expect(recent.getAllByRole("link")[0]).toHaveTextContent("Bahn");
+    await userEvent.click(pinned.getByRole("button", { name: "Unpin Reisen" }));
+    await waitFor(() => expect(asked.some(r => r.method === "PUT" && (r.body as { pinned: boolean }).pinned === false)).toBe(true));
   });
 
 });

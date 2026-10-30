@@ -228,6 +228,7 @@ builder.Services.AddScoped<TidyTheStorage>();
 builder.Services.AddScoped<ReadTheTree>();
 builder.Services.AddScoped<ReadAPage>();
 builder.Services.AddScoped<ReadPageBacklinks>();
+builder.Services.AddScoped<PinAPage>();
 builder.Services.AddScoped<WriteANewPage>();
 builder.Services.AddScoped<RewriteAPage>();
 builder.Services.AddScoped<DiscardAPage>();

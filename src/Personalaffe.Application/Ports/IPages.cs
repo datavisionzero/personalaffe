@@ -20,7 +20,7 @@ public sealed record PageInTheTree(
     Guid? ParentId,
     bool Deleted,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt, bool Pinned = false);
 
 /// <summary>
 /// Where knowledge pages and their history are kept (<see cref="Page"/>,

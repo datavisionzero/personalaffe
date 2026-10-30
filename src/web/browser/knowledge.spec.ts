@@ -182,7 +182,7 @@ test.describe("Knowledge", () => {
 
     await page.getByRole("button", { name: `Delete ${title}` }).click();
 
-    await expect(page.getByText("Pick a page, or write one.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your knowledge" })).toBeVisible();
 
     await page.goto("/trash");
     await expect(page.getByText(title)).toBeVisible();
