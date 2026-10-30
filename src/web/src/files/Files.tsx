@@ -295,10 +295,10 @@ export function Files() {
           <h1 className="text-2xl font-semibold tracking-tight">Files</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" onClick={() => setMaking(true)}>
+          <Button className="min-h-11 md:min-h-8" type="button" variant="outline" onClick={() => setMaking(true)}>
             <FolderPlusIcon aria-hidden />New folder
           </Button>
-          <Button type="button" onClick={() => picker.current?.click()}>
+          <Button className="min-h-11 md:min-h-8" type="button" onClick={() => picker.current?.click()}>
             <UploadIcon aria-hidden />Upload files
           </Button>
         </div>
@@ -379,8 +379,8 @@ export function Files() {
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 md:px-4">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="text-muted-foreground text-sm">{selected ? "1 selected" : `${things.length} items`}</span>
-              {selected && <Button size="icon-sm" variant="ghost" aria-label="Clear selection" onClick={() => setSelection(undefined)}><XIcon /></Button>}
+              <span className="text-muted-foreground text-sm">{selected && !mobile ? "1 selected" : `${things.length} items`}</span>
+              {selected && !mobile && <Button size="icon-sm" variant="ghost" aria-label="Clear selection" onClick={() => setSelection(undefined)}><XIcon /></Button>}
             </div>
             {selected && !mobile ? <div className="flex items-center gap-1" aria-label="Selected item actions">
               {selected.kind === "file" && <Button variant="ghost" size="sm" render={<a href={`/api/files/${selected.it.id}/content`} download={selected.it.name} />} aria-label={`Download ${selected.it.name}`}><DownloadIcon />Download</Button>}
@@ -389,10 +389,10 @@ export function Files() {
               <Button variant="ghost" size="icon" aria-label={`Details for ${selected.it.name}`} onClick={() => act(selected, "details")}><InfoIcon /></Button>
               <Button variant="ghost" size="icon" aria-label={`Delete ${selected.it.name}`} onClick={() => act(selected, "trash")} disabled={working !== undefined}><Trash2Icon /></Button>
             </div> : <div className="flex items-center gap-1">
-              <select name="file-sort" aria-label="Sort files" className="rounded-md bg-transparent px-2 py-1 text-sm" value={sort.by} onChange={(event) => setSort({ by: event.target.value as typeof sort.by, descending: false })}>
+              <select name="file-sort" aria-label="Sort files" className="h-11 w-28 rounded-md bg-transparent px-2 py-1 text-base md:h-8 md:w-auto md:text-sm" value={sort.by} onChange={(event) => setSort({ by: event.target.value as typeof sort.by, descending: false })}>
                 <option value="name">Name</option><option value="updated">Last modified</option><option value="size">Size</option>
               </select>
-              <Button variant="ghost" size="icon" aria-label={sort.descending ? "Sort ascending" : "Sort descending"} onClick={() => setSort({ ...sort, descending: !sort.descending })}>{sort.descending ? <ArrowDownIcon /> : <ArrowUpIcon />}</Button>
+              <Button variant="ghost" size="icon" className="size-11 md:size-8" aria-label={sort.descending ? "Sort ascending" : "Sort descending"} onClick={() => setSort({ ...sort, descending: !sort.descending })}>{sort.descending ? <ArrowDownIcon /> : <ArrowUpIcon />}</Button>
             </div>}
           </div>
           <table className="w-full table-fixed text-sm" aria-label="Files and folders">
@@ -413,7 +413,7 @@ export function Files() {
           </table>
           <div className="text-muted-foreground flex flex-wrap justify-between gap-2 px-4 py-3 text-xs">
             <span>{listing?.folders.length} folders · {listing?.files.length} files</span>
-            <span>Drop files here to upload</span>
+            <span className="hidden md:inline">Drop files here to upload</span>
           </div>
         </div>
       )}
@@ -421,18 +421,18 @@ export function Files() {
       <Dialog open={focused !== undefined} onOpenChange={(open) => { if (!open && !working) setPanel(undefined); }}>
         <DialogContent showCloseButton={false}
           finalFocus={() => actionOrigin.current?.isConnected ? actionOrigin.current : picker.current?.parentElement?.querySelector<HTMLButtonElement>('button') ?? null}
-          className="bottom-0 left-0 top-auto max-h-[92dvh] max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-t-2xl rounded-b-none p-0 md:bottom-auto md:left-1/2 md:top-1/2 md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl">
+          className="bottom-0 left-0 top-auto flex h-[85dvh] max-h-[92dvh] flex-col gap-0 md:h-auto max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-t-2xl rounded-b-none p-0 md:bottom-auto md:left-1/2 md:top-1/2 md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl">
           {focused && panel && <>
-            <div className="flex items-start gap-3 border-b p-5 pr-3">
-              {panel.view !== "actions" && mobile && <Button variant="ghost" size="icon" aria-label="Back to file actions" disabled={working !== undefined} onClick={() => setPanel({ ...panel, view: "actions" })}><ArrowLeftIcon /></Button>}
-              <div className="mt-1"><FileGlyph thing={focused} /></div>
+            <div className="sticky top-0 z-10 flex shrink-0 items-start gap-3 border-b bg-background p-5 pr-3">
+              {panel.view !== "actions" && mobile && <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Back to file actions" disabled={working !== undefined} onClick={() => setPanel({ ...panel, view: "actions" })}><ArrowLeftIcon /></Button>}
+              {(!mobile || panel.view === "actions") && <div className="mt-1"><FileGlyph thing={focused} /></div>}
               <DialogHeader className="min-w-0 flex-1 gap-1">
                 <DialogTitle className="pr-2 text-base leading-snug wrap-anywhere">{focused.it.name}</DialogTitle>
                 <DialogDescription>{focused.kind === "file" ? size(focused.it.size) : "Folder"} · {listing?.chain.at(-1)?.name ?? "All files"}</DialogDescription>
               </DialogHeader>
               <DialogClose render={<Button size="icon" variant="ghost" className="size-11 shrink-0 md:size-8" disabled={working !== undefined} aria-label="Close file actions" />}><XIcon /></DialogClose>
             </div>
-            {panel.view === "rename" || panel.view === "move" ? <div className="p-5"><ChangeForm key={`${focused.it.id}-${panel.view}`} thing={focused} mode={panel.view} working={working !== undefined} here={listing} refused={refused}
+            {panel.view === "rename" || panel.view === "move" ? <div className="flex-1 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"><ChangeForm key={`${focused.it.id}-${panel.view}`} thing={focused} mode={panel.view} working={working !== undefined} here={listing} refused={refused}
               onClose={() => setPanel(undefined)} onChange={(name, into) => void change(focused, name, into)} /></div>
               : panel.view === "details" ? <div className="space-y-6 p-5">
                 <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-4 text-sm">
@@ -441,7 +441,7 @@ export function Files() {
                   <dt className="text-muted-foreground">Modified</dt><dd>{new Date(focused.it.updated_at).toLocaleString()}</dd>
                 </dl>
                 {focused.kind === "file" && <Button className="min-h-11 w-full md:min-h-8" render={<a href={`/api/files/${focused.it.id}/content`} download={focused.it.name} />} aria-label={`Download ${focused.it.name}`}><DownloadIcon />Download</Button>}
-              </div> : <div className="flex min-h-[55dvh] flex-col p-2 pb-6 md:min-h-0 md:pb-2">
+              </div> : <div className="flex flex-col p-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-2">
                 {focused.kind === "file" && <Button variant="ghost" className="h-14 justify-start gap-4 px-4 font-normal md:h-11" render={<a href={`/api/files/${focused.it.id}/content`} download={focused.it.name} />} aria-label={`Download ${focused.it.name}`}><DownloadIcon />Download</Button>}
                 <div className="my-2 border-t" />
                 <Button variant="ghost" className="h-14 justify-start gap-4 px-4 font-normal md:h-11" disabled={working !== undefined} onClick={() => setPanel({ ...panel, view: "move" })}><FolderInputIcon />Move to folder</Button>
@@ -605,6 +605,7 @@ function ChangeForm({
 
       {mode === "rename" && <Field label="Name" hint="Names in one folder are one each, whatever their capitals.">
         <Input
+          className="h-11 md:h-8"
           name="name"
           value={name}
           autoFocus
@@ -620,7 +621,7 @@ function ChangeForm({
           id={where}
           name="where"
           autoFocus
-          className={selectClass}
+          className={`${selectClass} h-11 text-base md:h-8 md:text-sm`}
           value={into}
           onChange={(event) => setInto(event.target.value)}
         >
@@ -641,10 +642,10 @@ function ChangeForm({
       <Refused>{refused}</Refused>
 
       <div className="mt-2 flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onClose}>
+        <Button className="min-h-11 min-w-24 md:min-h-8 md:min-w-0" type="button" variant="outline" disabled={working} onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit" disabled={name.trim() === "" || working}>
+        <Button className="min-h-11 min-w-24 md:min-h-8 md:min-w-0" type="submit" disabled={name.trim() === "" || working}>
           {working ? "Saving…" : "Save"}
         </Button>
       </div>
