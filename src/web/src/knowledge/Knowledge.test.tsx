@@ -250,7 +250,8 @@ describe("Knowledge", () => {
 
     await userEvent.click(await dialog.findByRole("button", { name: /Die Bahn/ }));
 
-    expect(await dialog.findByText("was es einmal sagte")).toBeInTheDocument();
+    expect((await dialog.findAllByText("was es einmal sagte")).length).toBeGreaterThan(0);
+    expect(dialog.getByRole("region", { name: "Changes from selected version to current page" })).toHaveTextContent("Das Wichtigste zuerst.");
 
     // The fact that makes it safe, said on the screen where it is done.
     expect(
