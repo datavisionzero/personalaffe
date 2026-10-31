@@ -1,3 +1,5 @@
+import { AreaNavigation } from "@/shell/AreaNavigation";
+import { useDestination } from "@/shell/navigation";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -83,6 +85,7 @@ export function Tasks() {
   );
 
   const all = lists.asked.at === "known" ? lists.asked.value.items : [];
+  useDestination(address, open ? all.find(item => item.id === open)?.name : "Tasks", !!open && lists.asked.at === "known" && !all.some(item => item.id === open));
   const here = open !== undefined && tasks.asked.at === "known" ? tasks.asked.value.items : [];
   const openTasks = here.filter((task) => !task.completed);
   const done = here.filter((task) => task.completed);
@@ -191,6 +194,7 @@ export function Tasks() {
 
   return (
     <main className="page-frame md:flex-row">
+      <AreaNavigation label="Lists">
       <nav
         aria-label="The lists"
         className="flex shrink-0 flex-col gap-2 md:w-56 md:border-r md:pr-4"
@@ -230,6 +234,7 @@ export function Tasks() {
           ))}
         </ul>
       </nav>
+      </AreaNavigation>
 
       <section className="flex min-w-0 flex-1 flex-col gap-4">
         {open === undefined && lists.asked.at === "known" && (

@@ -86,7 +86,7 @@ export async function aPage(page: Page, title: string) {
   await page.getByRole("button", { name: "Create page", exact: true }).click();
   await page.getByRole("menuitem", { name: "New page", exact: true }).click();
 
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: "New page", exact: true });
 
   await dialog.getByRole("textbox", { name: "Title" }).fill(title);
   await dialog.getByRole("button", { name: "Create page" }).click();

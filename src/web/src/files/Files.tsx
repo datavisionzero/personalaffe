@@ -1,3 +1,4 @@
+import { useDestination } from "@/shell/navigation";
 import {
   ChevronRightIcon,
   DownloadIcon,
@@ -82,6 +83,7 @@ export function Files() {
   // Which refusal the last read made. Two of the five states are decided by the
   // code rather than the status, and this is where it is kept.
   const why = useRef<string>(undefined);
+  const [missing, setMissing] = useState(false);
 
   const address = folder === undefined ? "/api/files" : `/api/files?folder=${folder}`;
 
@@ -98,6 +100,7 @@ export function Files() {
     });
 
     why.current = answer.error ? refusal(answer.error, answer.response.status).code : undefined;
+    setMissing(why.current === "not-found");
 
     return answer;
   });
@@ -243,6 +246,7 @@ export function Files() {
   }
 
   const listing = asked.at === "known" ? asked.value : undefined;
+  useDestination(folder ? `/files/${folder}` : "/files", listing ? listing.chain.at(-1)?.name ?? "Files" : undefined, missing);
   const things: Thing[] = listing ? [
     ...listing.folders.map((it): Thing => ({ kind: "folder", it })),
     ...listing.files.map((it): Thing => ({ kind: "file", it })),

@@ -109,6 +109,7 @@ test("home respects private favorites, tile visibility, and dashboard navigation
   await tile.getByRole("link", { name: "All of it", exact: true }).click();
   await expect(page).toHaveURL(/\/bookmarks$/);
   await page.getByRole("button", { name: "Private mode off", exact: true }).click();
+  await page.getByRole("button", { name: /^Switch application:/ }).click();
   await page.getByRole("navigation", { name: "The workspace" }).getByRole("link", { name: "Home", exact: true }).click();
   await expect(tile.getByRole("link", { name: new RegExp(title) })).toBeVisible();
   await page.getByRole("button", { name: "Private mode on", exact: true }).click();
@@ -277,7 +278,8 @@ test("private visibility stays in one tab across search, palette and Trash", asy
   expect(removed.ok()).toBeTruthy();
   await page.goto("/trash"); await expect(page.getByText(marker, { exact: true })).toHaveCount(0);
   await page.goto("/bookmarks"); await page.getByRole("button", { name: "Private mode off", exact: true }).click();
-  await page.getByRole("link", { name: "Trash", exact: true }).first().click();
+  await page.getByRole("button", { name: /^Switch application:/ }).click();
+  await page.getByRole("navigation", { name: "The workspace" }).getByRole("link", { name: "Trash", exact: true }).click();
   await expect(page.getByText(marker, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Private mode on", exact: true }).click();
   await expect(page.getByText(marker, { exact: true })).toHaveCount(0);

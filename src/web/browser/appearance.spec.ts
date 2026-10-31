@@ -31,7 +31,7 @@ test.describe("the instance says whose it is", () => {
     await page.getByRole("button", { name: "Save" }).click();
 
     // The sidebar, without a reload.
-    await expect(page.locator('[data-slot="sidebar-header"]').getByText(name)).toBeVisible();
+    await expect(page.locator('[data-slot="workspace-brand"]').getByText(name)).toBeVisible();
 
     // The tab.
     await expect(page).toHaveTitle(name);
@@ -74,7 +74,7 @@ test.describe("the instance says whose it is", () => {
     await page.getByLabel("Name").fill(trouble);
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.locator('[data-slot="sidebar-header"]').getByText(trouble)).toBeVisible();
+    await expect(page.locator('[data-slot="workspace-brand"]').getByText(trouble)).toBeVisible();
     await expect(page).toHaveTitle(trouble);
 
     // Nothing was parsed as markup: the sidebar holds the characters, not a
@@ -94,7 +94,7 @@ test.describe("the instance says whose it is", () => {
     await page.getByLabel("Mark").selectOption("square");
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.locator('[data-slot="sidebar-header"]').getByText("personalaffe")).toBeVisible();
+    await expect(page.locator('[data-slot="workspace-brand"]').getByText("personalaffe")).toBeVisible();
     await expect(page).toHaveTitle("personalaffe");
 
     // The icon the document shipped with, byte for byte: an instance nobody has

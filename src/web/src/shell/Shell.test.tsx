@@ -2,7 +2,7 @@ import { KnowledgeDraftProvider } from "@/knowledge/KnowledgeDraftProvider";
 import type { ReactElement } from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   anInstance,
@@ -23,6 +23,7 @@ const emptyTrash = { "GET /api/trash": { body: { items: [], has_more: false } } 
 const emptyHome = { "GET /api/dashboard": theDashboard(), "GET /api/weather": theWeather() };
 
 describe("the frame", () => {
+  beforeEach(() => localStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
   it("offers the applications this workspace has switched on", async () => {
@@ -30,7 +31,7 @@ describe("the frame", () => {
 
     renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
 
-    const navigation = await screen.findByRole("navigation", { name: "The workspace" });
+    const navigation = await openNavigation();
 
     for (const label of ["Home", "Scratchpad", "Knowledge", "Tasks", "Files", "Settings"]) {
       expect(await within(navigation).findByRole("link", { name: label })).toBeInTheDocument();
@@ -86,7 +87,7 @@ describe("the frame", () => {
 
     renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
 
-    const navigation = await screen.findByRole("navigation", { name: "The workspace" });
+    const navigation = await openNavigation();
     await within(navigation).findByRole("link", { name: "Knowledge" });
 
     // Absent rather than greyed out: a row that cannot be pressed is a promise
@@ -114,7 +115,7 @@ describe("the frame", () => {
       <Shell me={anAgent({ knowledge: "read" })} onSignedOut={() => undefined} />,
     );
 
-    const navigation = await screen.findByRole("navigation", { name: "The workspace" });
+    const navigation = await openNavigation();
 
     expect(await within(navigation).findByRole("link", { name: "Knowledge" })).toBeInTheDocument();
     expect(within(navigation).queryByRole("link", { name: "Files" })).toBeNull();
@@ -125,13 +126,13 @@ describe("the frame", () => {
 
     renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
 
-    const navigation = await screen.findByRole("navigation", { name: "The workspace" });
+    const navigation = await openNavigation();
 
     await userEvent.click(within(navigation).getByRole("link", { name: "Tasks" }));
 
     expect(await screen.findByRole("heading", { name: "Tasks" })).toBeInTheDocument();
 
-    await userEvent.click(within(navigation).getByRole("link", { name: "Home" }));
+    await userEvent.click(within(await openNavigation()).getByRole("link", { name: "Home" }));
     expect(
       await screen.findByRole("heading", { name: "What is useful or pending" }),
     ).toBeInTheDocument();
@@ -222,7 +223,7 @@ describe("the frame", () => {
       renderAt("/calendar", <Shell me={theOwner} onSignedOut={() => undefined} />);
 
       expect(await screen.findByText("Nothing at this address.")).toBeInTheDocument();
-      expect(screen.getByRole("navigation", { name: "The workspace" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^Switch application:/ })).toBeInTheDocument();
     });
   });
 
@@ -231,7 +232,7 @@ describe("the frame", () => {
       anInstance({ "GET /api/applications": theApplications(), ...emptyTrash, ...emptyHome });
 
       renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
-      await screen.findByRole("navigation", { name: "The workspace" });
+      await screen.findByRole("button", { name: /^Switch application:/ });
 
       await userEvent.keyboard("{Meta>}k{/Meta}");
 
@@ -247,7 +248,7 @@ describe("the frame", () => {
       anInstance({ "GET /api/applications": theApplications(), ...emptyTrash, ...emptyHome });
 
       renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
-      await screen.findByRole("navigation", { name: "The workspace" });
+      await screen.findByRole("button", { name: /^Switch application:/ });
 
       await userEvent.keyboard("?");
 
@@ -295,7 +296,7 @@ describe("the frame", () => {
       });
 
       renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
-      await screen.findByRole("navigation", { name: "The workspace" });
+      await screen.findByRole("button", { name: /^Switch application:/ });
 
       await userEvent.keyboard("{Meta>}k{/Meta}");
 
@@ -322,7 +323,7 @@ describe("the frame", () => {
       });
 
       renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
-      await screen.findByRole("navigation", { name: "The workspace" });
+      await screen.findByRole("button", { name: /^Switch application:/ });
 
       await userEvent.keyboard("{Meta>}k{/Meta}");
 
@@ -343,7 +344,7 @@ describe("the frame", () => {
 
     renderAt("/", <Shell me={theOwner} onSignedOut={() => undefined} />);
 
-    const navigation = await screen.findByRole("navigation", { name: "The workspace" });
+    const navigation = await openNavigation();
     await within(navigation).findByRole("link", { name: "Knowledge" });
 
     // The refresh is on a timer this test does not wait for; what is asserted
@@ -353,3 +354,8 @@ describe("the frame", () => {
 });
 
 function renderAt(path: string, element: ReactElement) { return originalRenderAt(path, <KnowledgeDraftProvider account="shell-test">{element}</KnowledgeDraftProvider>); }
+
+async function openNavigation() {
+  await userEvent.click(await screen.findByRole("button", { name: /^Switch application:/ }));
+  return screen.findByRole("navigation", { name: "The workspace" });
+}

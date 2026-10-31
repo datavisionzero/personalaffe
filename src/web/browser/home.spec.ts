@@ -33,6 +33,7 @@ test.describe("the home page", () => {
   test("draws its tiles and walks into one of them", async ({ page }) => {
     await anEntry(page, `a ${word} note for the home page`);
 
+    await page.getByRole("button", { name: /^Switch application:/ }).click();
     await page.getByRole("navigation", { name: "The workspace" }).getByRole("link", { name: "Home" }).click();
 
     const scratchpad = page.getByRole("region", { name: "Scratchpad" });

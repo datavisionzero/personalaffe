@@ -1043,3 +1043,31 @@ IDs. Missing or unreadable images display explanatory alternative text. The futu
 Images application has no API in this version; existing Files provides media
 storage and selection. General Knowledge help uses native disclosures for
 keyboard and touch access.
+
+### Workspace navigation
+
+The shared frame uses `shell/AppSwitcher.tsx` in the header instead of a global
+sidebar. On desktop it opens a keyboard-accessible popover; below 768px it opens
+a bottom sheet. It offers Home, permitted and enabled applications, Trash and
+Settings. The instance mark links directly to Home. Search and account controls
+stay in the header.
+
+`AreaNavigation.tsx` gives Knowledge's page tree and Tasks' lists a collapsible
+desktop column and a labelled mobile drawer. Choosing a destination closes the
+drawer. Files keeps its folder listing and breadcrumbs.
+
+`NavigationProvider.tsx` and `navigation.ts` keep browser-local, account-scoped
+favorites and the twelve most recent destinations. Screens register loaded page,
+list and folder names. The app switcher resumes the most recent destination for
+that application; a missing destination detected by its screen is forgotten.
+`home/Launchpad.tsx` shows reorderable favorites, applications and the six most
+recent visits above the existing dashboard. The header star pins the current
+destination. App favorites point to the app root; page, list and folder favorites
+point to their stable routes. Disabled or inaccessible apps are filtered out of
+all these navigation surfaces.
+
+Only known internal routes are stored; bookmark filters, private folders and
+search terms are excluded. Favorites and history do not synchronize between
+browsers. Clearing recent visits leaves favorites intact. Storage failures keep
+navigation usable in memory and show a notice on Home. No API or schema change is
+required.

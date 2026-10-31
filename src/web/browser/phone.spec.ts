@@ -21,7 +21,7 @@ test.describe("on a phone", () => {
       page.getByRole("navigation", { name: "The workspace" }).getByRole("link", { name: "Files" }),
     ).toBeHidden();
 
-    await page.getByRole("button", { name: /sidebar/i }).click();
+    await page.getByRole("button", { name: /^Switch application:/ }).click();
 
     const drawer = page.getByRole("dialog");
     await drawer.getByRole("link", { name: "Files" }).click();
@@ -51,7 +51,7 @@ test.describe("on a phone", () => {
 
     await expect(page).toHaveTitle("Haus");
 
-    await page.getByRole("button", { name: /sidebar/i }).click();
+    await page.getByRole("button", { name: /^Switch application:/ }).click();
     await expect(page.getByRole("dialog").getByText("Haus")).toBeVisible();
 
     // Put it back: the instance these run against keeps whatever the last check

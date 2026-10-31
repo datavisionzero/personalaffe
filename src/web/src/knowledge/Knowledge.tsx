@@ -1,3 +1,5 @@
+import { AreaNavigation } from "@/shell/AreaNavigation";
+import { useDestination } from "@/shell/navigation";
 import { PageTitle } from "./PageTitle";
 import "./knowledge-layout.css";
 import { KnowledgeHelp } from "./KnowledgeHelp";
@@ -93,7 +95,6 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
   const [moving, setMoving] = useState<Outline>();
   const [destination, setDestination] = useState("");
   const [newParent, setNewParent] = useState<string>();
-  const [pagesVisible, setPagesVisible] = useState(false);
   const [query, setQuery] = useState("");
   const [dragging, setDragging] = useState<string>();
   const revealed = useRef(false);
@@ -282,6 +283,7 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
   }
 
   const pages = tree.asked.at === "known" ? tree.asked.value.pages : [];
+  useDestination(address, open ? pages.find(item => item.id === open)?.title : "Knowledge", !!open && tree.asked.at === "known" && !pages.some(item => item.id === open));
 
   useEffect(() => {
     if (revealed.current || tree.asked.at !== "known") return;
@@ -296,12 +298,12 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
 
   return (
     <main className="knowledge-page page-frame md:flex-row">
-      <Button variant="outline" className="md:hidden" aria-expanded={pagesVisible} aria-controls="knowledge-pages" onClick={() => { setFocus(false); setPagesVisible(!pagesVisible); }}>Pages</Button>
+      <AreaNavigation label="Pages" hidden={focus}>
       <nav
         aria-label="The pages"
         id="knowledge-pages"
         onDragStart={event => setDragging(event.dataTransfer.getData("application/personalaffe-page"))} onDragEnd={() => setDragging(undefined)} onDrop={() => setDragging(undefined)}
-        className={`${focus ? "hidden" : `${pagesVisible ? "flex" : "hidden"} md:flex`} shrink-0 flex-col gap-2 md:w-64 md:border-r md:pr-4`}
+        className="flex shrink-0 flex-col gap-2 md:w-64 md:border-r md:pr-4"
       >
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-xl font-semibold tracking-tight">Knowledge</h1>
@@ -351,6 +353,7 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
         </Button>
         </>}
       </nav>
+      </AreaNavigation>
 
       <section className="mx-auto flex w-full min-w-0 max-w-4xl flex-1 flex-col gap-4">
         {open && <nav aria-label="Page path" className="flex flex-wrap gap-2 text-sm">

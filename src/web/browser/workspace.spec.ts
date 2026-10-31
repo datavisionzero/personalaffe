@@ -8,6 +8,7 @@ test.describe("the workspace in a browser", () => {
   });
 
   test("offers the four applications and walks into one and back", async ({ page }) => {
+    await page.getByRole("button", { name: /^Switch application:/ }).click();
     const navigation = page.getByRole("navigation", { name: "The workspace" });
 
     for (const label of ["Home", "Scratchpad", "Knowledge", "Tasks", "Files", "Trash", "Settings"]) {
@@ -19,6 +20,7 @@ test.describe("the workspace in a browser", () => {
     await expect(page).toHaveURL(/\/tasks$/);
     await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
 
+    await page.getByRole("button", { name: /^Switch application:/ }).click();
     await navigation.getByRole("link", { name: "Home" }).click();
     await expect(
       page.getByRole("heading", { name: "What is useful or pending" }),
@@ -35,7 +37,7 @@ test.describe("the workspace in a browser", () => {
     // else silently hides the typo.
     await page.goto("/calendar");
     await expect(page.getByText("Nothing at this address.")).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "The workspace" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Switch application:/ })).toBeVisible();
   });
 
   test("goes where the palette is told to, from the keyboard alone", async ({ page }) => {
@@ -100,8 +102,13 @@ test.describe("the workspace in a browser", () => {
       await page.keyboard.press("Tab");
     }
 
-    expect(reached.join(" | ")).toContain("Knowledge");
-    expect(reached.join(" | ")).toContain("Settings");
+    expect(reached.join(" | ")).toContain("Switch application:");
+    expect(reached.join(" | ")).toContain("Account:");
+    await page.getByRole("button", { name: /^Switch application:/ }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("navigation", { name: "The workspace" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: /^Switch application:/ })).toBeFocused();
   });
 });
 
@@ -115,6 +122,7 @@ test.describe("the application switch", () => {
   });
 
   test("takes an application out of the workspace and puts it back", async ({ page }) => {
+    await page.getByRole("button", { name: /^Switch application:/ }).click();
     await page.getByRole("navigation", { name: "The workspace" }).getByRole("link", { name: "Settings" }).click();
     await expect(page).toHaveURL(/\/settings\/applications$/);
 
@@ -124,6 +132,7 @@ test.describe("the application switch", () => {
     await expect(tasks.getByText("Off")).toBeVisible();
 
     // Out of the navigation, and out of the palette with it.
+    await page.getByRole("button", { name: /^Switch application:/ }).click();
     const navigation = page.getByRole("navigation", { name: "The workspace" });
     await expect(navigation.getByRole("link", { name: "Tasks" })).toBeHidden();
 
@@ -134,10 +143,12 @@ test.describe("the application switch", () => {
     await page.getByRole("link", { name: "Switch it on" }).click();
     await page.getByRole("button", { name: "Switch on Tasks" }).click();
 
+    await page.getByRole("button", { name: /^Switch application:/ }).click();
     await expect(navigation.getByRole("link", { name: "Tasks" })).toBeVisible();
   });
 
   test("brings a change made somewhere else onto the screen without a reload", async ({ page }) => {
+    await page.getByRole("button", { name: /^Switch application:/ }).click();
     const navigation = page.getByRole("navigation", { name: "The workspace" });
     await expect(navigation.getByRole("link", { name: "Tasks" })).toBeVisible();
 
