@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { anInstance, renderAt, theApplications, theOwner } from "@/shared/anInstance";
+import { anInstance, renderWorkspaceAt as renderAt, theApplications, theOwner } from "@/shared/anInstance";
 import { Shell } from "@/shell/Shell";
 import { addressOf, usable, worthAsking } from "./useFindings";
 import { marked } from "./marked";

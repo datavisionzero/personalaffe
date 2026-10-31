@@ -1,3 +1,7 @@
+import { useState } from "react";
+import { KnowledgeDraftProvider, useKnowledgeDrafts } from "@/knowledge/KnowledgeDraftProvider";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { api } from "@/api/client";
 import { Setup } from "@/session/Setup";
 import { SignIn } from "@/session/SignIn";
@@ -24,7 +28,8 @@ export function App() {
   const { session, ask, signedIn, signedOut, unlocked } = useSession();
 
   async function signOut() {
-    await api.DELETE("/api/session");
+    const answer = await api.DELETE("/api/session");
+    if (answer.error) throw new Error("Could not sign out");
     signedOut();
   }
 
@@ -64,13 +69,16 @@ export function App() {
     );
   }
 
+  const account = session.me ? JSON.stringify([session.me.kind, session.me.since]) : "";
   return (
-    <Authenticated
-      session={session}
-      onRetry={ask}
-      onUnlocked={unlocked}
-      onSignOut={signOut}
-    />
+    <KnowledgeDraftProvider key={account} account={account} paused={session.state === "locked"}>
+      <Authenticated
+        session={session}
+        onRetry={ask}
+        onUnlocked={unlocked}
+        onSignOut={signOut}
+      />
+    </KnowledgeDraftProvider>
   );
 }
 
@@ -86,19 +94,51 @@ function Authenticated({
   onSignOut: () => Promise<void>;
 }) {
   const locked = session.state === "locked";
+  const { manager, pages } = useKnowledgeDrafts();
+  const [leaving, setLeaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState(false);
+  const unsafe = Object.values(pages).some(page => page.draft && !page.secured);
+  async function finishSignOut() {
+    setSigningOut(true);
+    setLogoutError(false);
+    try {
+      await manager.flush();
+      if (Object.values(manager.snapshot()).some(page => page.draft && !page.secured)) { setLeaving(true); return; }
+      manager.deactivate();
+      await onSignOut();
+    } catch { setLogoutError(true); if (!locked) manager.start(); }
+    finally { setSigningOut(false); }
+  }
+  function requestSignOut() {
+    if (Object.values(pages).some(page => page.draft)) setLeaving(true);
+    else void finishSignOut();
+  }
   return (
     <>
       {session.me && (
         <div hidden={locked} inert={locked} aria-hidden={locked || undefined}>
-          <Shell me={session.me} onSignedOut={() => void onSignOut()} />
+          <Shell me={session.me} onSignedOut={requestSignOut} />
         </div>
       )}
+      <Dialog open={leaving || logoutError} onOpenChange={open => { if (!signingOut) { setLeaving(open); if (!open) setLogoutError(false); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Unsent knowledge changes</DialogTitle></DialogHeader>
+          <p>{unsafe ? "Some changes are not protected on this device. Save them before signing out, or explicitly discard them." : "Your pending changes will remain on this device for this account. They will be restored when you sign in again."}</p>
+          {logoutError && <p role="alert">Could not sign out. Please try again.</p>}
+          <DialogFooter>
+            <Button variant="outline" disabled={signingOut} onClick={() => { setLeaving(false); setLogoutError(false); }}>Stay signed in</Button>
+            <Button disabled={signingOut} onClick={() => void finishSignOut()}>{unsafe ? "Save and sign out" : "Keep drafts and sign out"}</Button>
+            {unsafe && <Button variant="destructive" disabled={signingOut || Object.values(pages).some(page => page.saving)} onClick={() => { manager.discardUnsafe(); void finishSignOut(); }}>Discard unprotected changes and sign out</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {locked && (
         <InactivityLock
           reason={session.reason}
           onRetry={onRetry}
           onUnlocked={onUnlocked}
-          onSignOut={onSignOut}
+          onSignOut={async () => requestSignOut()}
         />
       )}
     </>

@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router";
+import { createBrowserRouter, RouterProvider } from "react-router";
 
 import "./index.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -24,13 +24,13 @@ import { AppearanceProvider } from "@/shell/AppearanceProvider";
  * preference on one device, which is not a thing the instance should be asked
  * about.
  */
+const router = createBrowserRouter([{ path: "*", element: <App /> }]);
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
       <AppearanceProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <RouterProvider router={router} />
       </AppearanceProvider>
     </ThemeProvider>
   </StrictMode>,

@@ -1,4 +1,3 @@
-import { clearKnowledgeDrafts } from "@/knowledge/drafts";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, codeOf, describe, onDoorEvent, type Problem, type Schemas } from "@/api/client";
@@ -30,7 +29,6 @@ export function useSession(): {
   const channelRef = useRef<BroadcastChannel | undefined>(undefined);
 
   const setSession = useCallback((next: Session) => {
-    if (next.state === "signed-out" || next.state === "setup") clearKnowledgeDrafts();
     sessionRef.current = next;
     setSessionState(next);
   }, []);

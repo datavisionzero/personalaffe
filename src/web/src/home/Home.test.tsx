@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   anInstance,
-  renderAt,
+  renderWorkspaceAt as renderAt,
   theApplications,
   theDashboard,
   theOwner,

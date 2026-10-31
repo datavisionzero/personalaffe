@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Route, Routes } from "react-router";
 
-import { readDraft } from "./drafts";
+import { KnowledgeDrafts } from "./drafts";
+import { KnowledgeDraftProvider } from "./KnowledgeDraftProvider";
+let manager: KnowledgeDrafts;
+const readDraft = (id: string) => manager.snapshot()[id]?.draft;
 import { Knowledge } from "@/knowledge/Knowledge";
 import { anInstance, refused, renderAt } from "@/shared/anInstance";
 
@@ -44,14 +47,14 @@ function aTree(...pages: unknown[]) {
 function knowledgeAt(path: string) {
   return renderAt(
     path,
-    <Routes>
+    <KnowledgeDraftProvider account="test" manager={manager}><Routes>
       <Route path="/knowledge/*" element={<Knowledge />} />
-    </Routes>,
+    </Routes></KnowledgeDraftProvider>,
   );
 }
 
 describe("Knowledge", () => {
-  beforeEach(() => sessionStorage.clear());
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); manager = new KnowledgeDrafts("test"); });
   it("says nothing is written rather than drawing a blank page", async () => {
     anInstance({ "GET /api/knowledge/pages": aTree() });
 
@@ -169,7 +172,7 @@ describe("Knowledge", () => {
 
     await userEvent.type(field, "noch ein Satz");
 
-    expect(screen.getByText(/Draft protected in this tab/)).toBeInTheDocument();
+    expect(screen.getByText(/Draft saved on this device/)).toBeInTheDocument();
     await waitFor(() => expect(asked.some(r => r.method === "PUT")).toBe(true), { timeout: 2000 });
 
     expect(await screen.findByText("Saved.")).toBeInTheDocument();
@@ -393,20 +396,19 @@ describe("Knowledge", () => {
     expect(asked.find(r => r.method === "PUT")?.headers.get("If-Match")).toBe(`"${thePage.updated_at}"`);
   });
 
-  it("confirms leaving unsaved work and keeps the draft when leaving", async () => {
-    anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn),
+  it("leaves protected drafts without confirmation and saves after navigation", async () => {
+    const { asked } = anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn),
       [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage },
+      [`PUT /api/knowledge/pages/${bahn.id}`]: { body: { ...thePage, markdown: "changed" } },
       [`GET /api/knowledge/pages/${reisen.id}`]: { body: { ...reisen, markdown: "" } } });
     knowledgeAt(`/knowledge/${bahn.id}`);
     await userEvent.type(await screen.findByRole("textbox", { name: "The page" }), "draft");
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const tree = within(screen.getByRole("navigation", { name: "The pages" }));
-    await userEvent.click(tree.getByRole("link", { name: "Reisen" }));
-    expect(screen.getByRole("textbox", { name: "The page" })).toBeInTheDocument();
-    confirm.mockReturnValue(true);
-    await userEvent.click(tree.getByRole("link", { name: "Reisen" }));
+    const confirm = vi.spyOn(window, "confirm");
+    await userEvent.click(within(screen.getByRole("navigation", { name: "The pages" })).getByRole("link", { name: "Reisen" }));
     await screen.findByDisplayValue("Reisen");
-    expect(readDraft(bahn.id)?.markdown).toContain("draft");
+    await waitFor(() => expect(readDraft(bahn.id)).toBeUndefined());
+    expect(asked.find(r => r.method === "PUT")?.body).toMatchObject({ markdown: thePage.markdown + "draft" });
+    expect(confirm).not.toHaveBeenCalled();
     confirm.mockRestore();
   });
 
@@ -442,6 +444,22 @@ describe("Knowledge", () => {
     await userEvent.click(screen.getByRole("button", { name: "Back to page tree" }));
     expect(navigation.getByRole("link", { name: "Reisen" })).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Knowledge search results" })).toBeNull();
+  });
+
+  it("keeps pin metadata after autosaving, even when pinning leaves the document version unchanged", async () => {
+    const saved = { ...thePage, markdown: "Updated", pinned: false, updated_at: "2026-09-14T10:00:00.000000Z" };
+    anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn),
+      [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage },
+      [`PUT /api/knowledge/pages/${bahn.id}`]: { body: saved },
+      [`PUT /api/knowledge/pages/${bahn.id}/pin`]: { body: { ...saved, pinned: true } } });
+    const view = knowledgeAt(`/knowledge/${bahn.id}`);
+    await userEvent.type(await screen.findByRole("textbox", { name: "The page" }), "Updated");
+    await screen.findByText("Saved.", {}, { timeout: 2000 });
+    await userEvent.click(screen.getByRole("button", { name: "Pin page" }));
+    await screen.findByRole("button", { name: "Unpin page" });
+    view.unmount();
+    knowledgeAt(`/knowledge/${bahn.id}`);
+    await screen.findByRole("button", { name: "Unpin page" });
   });
 
   it("shows persistent pins and recently edited pages on the start page", async () => {

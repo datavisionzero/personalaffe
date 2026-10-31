@@ -29,7 +29,8 @@ import { Input } from "@/components/ui/input";
 import { refusal } from "@/session/useSession";
 import { Field, Refused } from "@/shared/Form";
 import { Markdown } from "@/shared/Markdown";
-import { readDraft, storeDraft, type Draft } from "./drafts";
+import type { Draft } from "./drafts";
+import { useKnowledgeDrafts } from "./KnowledgeDraftProvider";
 import { KnowledgeSearch } from "./KnowledgeSearch";
 import { RevisionDiff } from "./RevisionDiff";
 import { useAsk } from "@/shared/ask";
@@ -70,38 +71,21 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
   const at = (params["*"] ?? "").replace(/\/+$/, "");
   const open = at === "" ? undefined : at;
 
-  const [draft, setDraftState] = useState<Draft | undefined>(() => readDraft(open ?? ""));
-  const [saved, setSaved] = useState<Page>();
+  const { manager, pages: pendingPages } = useKnowledgeDrafts();
+  const pendingPage = pendingPages[open ?? ""];
+  const draft = pendingPage?.draft;
+  const saved = pendingPage?.saved;
+  function setSaved(page: Page) { manager.remember(page); }
   const [focus, setFocus] = useState(false);
-  const saving = useRef(false);
-  const active = useRef(true);
-  useEffect(() => {
-    active.current = true;
-    return () => { active.current = false; };
-  }, []);
-  const [saveError, setSaveError] = useState(false);
-  const draftRef = useRef(draft);
-  const [secured, setSecured] = useState(true);
-  const [conflict, setConflict] = useState<Page>();
+  const saveError = !!pendingPage?.error;
+  const secured = pendingPage?.secured ?? true;
+  const conflict = pendingPage?.conflict;
+  function currentDraft() { return manager.snapshot()[open ?? ""]?.draft; }
   function setDraft(next: Draft | undefined) {
-    draftRef.current = next;
-    setSecured(storeDraft(open ?? "", next));
-    setDraftState(next);
+    manager.edit(open ?? "", next);
   }
-  useEffect(() => {
-    if (!draft) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
-    const leave = (event: MouseEvent) => {
-      const link = (event.target as Element).closest?.("a[href]");
-      if (link?.closest('[contenteditable="true"]') && !event.metaKey && !event.ctrlKey) return;
-      if (link && !link.getAttribute("href")?.startsWith("#") && !window.confirm("Leave this page? Your draft will remain in this tab. Unsaved changes have not been sent to the server.")) {
-        event.preventDefault(); event.stopPropagation();
-      }
-    };
-    window.addEventListener("beforeunload", warn);
-    document.addEventListener("click", leave, true);
-    return () => { window.removeEventListener("beforeunload", warn); document.removeEventListener("click", leave, true); };
-  }, [draft]);
+  function save() { return manager.save(open ?? ""); }
+  useEffect(() => () => { if (open) void manager.save(open); }, [manager, open]);
   const [wrote, setWrote] = useState<{ at: string; refused?: string; said?: string }>();
   const [working, setWorking] = useState(false);
   const [writing, setWriting] = useState(false);
@@ -115,12 +99,16 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
   const revealed = useRef(false);
 
   const address = open === undefined ? "/knowledge" : `/knowledge/${open}`;
-  const refused = wrote?.at === address ? wrote.refused : undefined;
+  const refused = pendingPage?.error ?? (wrote?.at === address ? wrote.refused : undefined);
   const said = wrote?.at === address ? wrote.said : undefined;
 
   const tree = useAsk<Tree>("/api/knowledge/pages", (signal) =>
     api.GET("/api/knowledge/pages", { signal }),
   );
+
+  const refreshTree = useRef(tree.refresh);
+  useEffect(() => { refreshTree.current = tree.refresh; });
+  useEffect(() => { if (pendingPage?.saved) refreshTree.current(); }, [pendingPage?.saved]);
 
   // Which refusal the page read made. Two of the five states are decided by the
   // code rather than the status, and this is where it is kept.
@@ -137,7 +125,7 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
 
       // A poll that began before the first keystroke must not change the
       // version against which that draft is written.
-      if (answer.data && draftRef.current && read.current) return { ...answer, data: read.current };
+      if (answer.data && currentDraft() && read.current) return { ...answer, data: read.current };
       setWhy(answer.error ? refusal(answer.error, answer.response.status).code : undefined);
 
       return answer;
@@ -166,93 +154,21 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
   }, [it]);
 
   function change(next: Partial<Draft>) {
-    // A draft carries title and body together. Refs also include changes
-    // from the current transaction, before React has rendered them.
-    const base = draftRef.current?.base ?? read.current ?? it;
+    // Read the shared store directly so changes from the current transaction
+    // are included even before React has rendered them.
+    const base = currentDraft()?.base ?? read.current ?? it;
 
     if (base === undefined) {
       return;
     }
 
-    if (saveError && !conflict) { setSaveError(false); setWrote({ at: address }); }
+    if (saveError && !conflict) setWrote({ at: address });
     setDraft({
-      title: next.title ?? draftRef.current?.title ?? base.title,
-      markdown: next.markdown ?? draftRef.current?.markdown ?? base.markdown,
+      title: next.title ?? currentDraft()?.title ?? base.title,
+      markdown: next.markdown ?? currentDraft()?.markdown ?? base.markdown,
       base,
     });
   }
-
-  async function save() {
-    const pending = draftRef.current;
-    if (saving.current || working || conflict || pending === undefined || !pending.title.trim()) {
-      return;
-    }
-
-    saving.current = true;
-    setWorking(true);
-    setSaveError(false);
-    setWrote({ at: address });
-
-    try {
-      const answer = await api.PUT("/api/knowledge/pages/{id}", {
-        params: { path: { id: pending.base.id }, ...guardedBy(versionOf(pending.base.updated_at)) },
-        // One write carries the title, the place and the body, because all
-        // three are the same row. The place is not this screen's to change.
-        body: { title: pending.title, parent: pending.base.parent, markdown: pending.markdown },
-      });
-
-      if (!active.current) {
-        // A late acknowledgement may clear or rebase only the draft it saved,
-        // never recreate a draft cleared by signing out or discard newer work.
-        const stored = readDraft(pending.base.id);
-        if (answer.data && stored?.base.updated_at === pending.base.updated_at) {
-          storeDraft(pending.base.id, stored.title === pending.title && stored.markdown === pending.markdown
-            ? undefined : { ...stored, base: answer.data });
-        }
-        return;
-      }
-      if (answer.error) {
-        setSaveError(true);
-        setWrote({ at: address, refused: said_(answer.error, answer.response.status) });
-        if (refusal(answer.error, answer.response.status).code === "stale") {
-          const latest = await api.GET("/api/knowledge/pages/{id}", { params: { path: { id: pending.base.id } } });
-          if (latest.data) setConflict(latest.data);
-        }
-        return;
-      }
-
-      if (!answer.data) throw new Error("Missing saved page");
-      // Acknowledge the exact write, without remounting the document. Edits
-      // made while it travelled use the returned version for the next write.
-      read.current = answer.data;
-      setSaved(answer.data);
-      if (draftRef.current !== pending && draftRef.current) {
-        setDraft({ ...draftRef.current, base: answer.data });
-      } else {
-        setDraft(undefined);
-      }
-      tree.refresh();
-    } catch {
-      setSaveError(true);
-      setWrote({ at: address, refused: "Could not save. Your draft is still here. Try again when connected." });
-    } finally {
-      saving.current = false;
-      setWorking(false);
-    }
-  }
-
-  const autosave = useRef(save);
-  useEffect(() => { autosave.current = save; });
-  useEffect(() => {
-    if (!draft || working || conflict || saveError || !draft.title.trim()) return;
-    const timer = window.setTimeout(() => void autosave.current(), 900);
-    return () => window.clearTimeout(timer);
-  }, [draft, working, conflict, saveError]);
-  useEffect(() => {
-    const retry = () => { if (draftRef.current) void autosave.current(); };
-    window.addEventListener("online", retry);
-    return () => window.removeEventListener("online", retry);
-  }, []);
 
   async function write(named: string) {
     setWorking(true);
@@ -478,8 +394,8 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
             </div>
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span role="status" aria-live="polite">{saveError ? "Not saved" : working && draft ? "Saving…" : draft ? "Waiting to save…" : "Saved."}</span>
-              {draft && <span>{secured ? "Draft protected in this tab." : "Draft could not be stored. Keep this tab open."}</span>}
+              <span role="status" aria-live="polite">{saveError ? "Not saved" : pendingPage?.saving ? "Saving…" : draft ? "Waiting to save…" : "Saved."}</span>
+              {draft && <span>{secured ? "Draft saved on this device." : "Draft could not be stored. Keep this page open."}</span>}
               {!title.trim() && <span role="alert">Add a title to save this page.</span>}
               {saveError && !conflict && <Button size="sm" variant="outline" disabled={working} onClick={() => void save()}>Retry saving</Button>}
             </div>
@@ -500,8 +416,8 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
             <div><h4>Current server version: {conflict.title}</h4><pre className="whitespace-pre-wrap">{conflict.markdown}</pre></div>
             <div><h4>Your draft: {draft.title}</h4><pre className="whitespace-pre-wrap">{draft.markdown}</pre></div>
           </div>
-          <Button onClick={() => { setDraft({ ...draft, base: conflict }); setConflict(undefined); setSaveError(false); setWrote({ at: address }); }}>I reviewed the changes — keep my draft</Button>
-          <Button variant="ghost" onClick={() => { setSaved(conflict); read.current = conflict; setDraft(undefined); setConflict(undefined); setSaveError(false); setWrote({ at: address }); page.refresh(); }}>Use server version</Button>
+          <Button onClick={() => { manager.resolve(open ?? "", true); setWrote({ at: address }); }}>I reviewed the changes — keep my draft</Button>
+          <Button variant="ghost" onClick={() => { setSaved(conflict); read.current = conflict; manager.resolve(open ?? "", false); setWrote({ at: address }); page.refresh(); }}>Use server version</Button>
         </section>}
         <Refused>{refused}</Refused>
 
