@@ -187,6 +187,7 @@ test.describe("Knowledge", () => {
       else await route.continue();
     });
     await page.getByRole("textbox", { name: "The page" }).fill("Survives switching and closing the tab");
+    await page.getByRole("button", { name: /^Switch application:/ }).click();
     await page.getByRole("link", { name: "Home", exact: true }).click();
     await expect(page.getByRole("heading", { name: "What is useful or pending" })).toBeVisible();
     await expect(page.getByRole("complementary", { name: "Pending knowledge changes" })).toContainText("Saved only on this device");

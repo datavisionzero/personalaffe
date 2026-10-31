@@ -1,3 +1,4 @@
+import { useDestination } from "@/shell/navigation";
 import { CopyIcon, PinIcon, PinOffIcon, Trash2Icon } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
@@ -36,6 +37,7 @@ const clamped = 400;
  * row, so the dialog says that in those words rather than asking "are you sure".
  */
 export function Scratchpad() {
+  useDestination("/scratchpad", "Scratchpad");
   const [text, setText] = useState("");
   const [refused, setRefused] = useState<string>();
   const [working, setWorking] = useState<string>();

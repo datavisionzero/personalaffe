@@ -1,3 +1,4 @@
+import { Launchpad } from "./Launchpad";
 import { BookmarkLink } from "@/bookmarks/BookmarkLink";
 import { domainOf } from "@/bookmarks/useBookmarks";
 import type { LucideIcon } from "lucide-react";
@@ -15,7 +16,7 @@ import { Weather } from "./Weather";
  * The home page, which is the dashboard (VISION §6.1).
  *
  * <b>It answers one question: what is useful or pending right now.</b> Not what
- * this workspace contains — the sidebar says that — and not a report. Five
+ * this workspace contains — the launchpad says that — and not a report. Five
  * tiles in a fixed order, each with at most five rows, each row a link to the
  * thing itself.
  *
@@ -37,6 +38,8 @@ export function Home({ me, applications: asked }: { me: Me; applications: TheApp
         <h1 className="text-xl font-semibold tracking-tight">What is useful or pending</h1>
         <p className="text-muted-foreground text-sm">{called}</p>
       </header>
+
+      <Launchpad applications={asked} />
 
       {home.at === "asking" && <Busy title="Asking what is pending…" />}
 

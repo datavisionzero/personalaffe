@@ -1,3 +1,4 @@
+import { useDestination } from "@/shell/navigation";
 import { useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import { ArrowLeftIcon, ArrowRightIcon, LockKeyholeIcon, PlusIcon, StarIcon } from "lucide-react";
@@ -21,6 +22,7 @@ import { domainOf, folderPath, useBookmarkDashboard, useBookmarkFolders, useBook
 export function Bookmarks() {
   const privacy = useBookmarkPrivacy();
   const location = useLocation();
+  useDestination("/bookmarks", privacy.enabled ? undefined : "Bookmarks");
   return location.pathname.endsWith("/manage") ? <BookmarkManagement key={privacy.epoch} /> : <Dashboard key={privacy.epoch} />;
 }
 

@@ -1,10 +1,9 @@
+import { FavoriteDestination } from "./FavoriteDestination";
 import { CommandIcon, WifiOffIcon } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type ReactElement } from "react";
 import { Link, Route, Routes, useNavigate } from "react-router";
 
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Bookmarks } from "@/bookmarks/Bookmarks";
 import { BookmarkPrivacyProvider, PrivateSwitch } from "@/bookmarks/privacy";
 import { useBookmarkPrivacy } from "@/bookmarks/useBookmarkPrivacy";
@@ -20,7 +19,8 @@ import { Tasks } from "@/tasks/Tasks";
 import { Trash } from "@/trash/Trash";
 import { AccountMenu } from "./AccountMenu";
 import { applications, type Application } from "./applications";
-import { AppSidebar } from "./AppSidebar";
+import { AppSwitcher } from "./AppSwitcher";
+import { NavigationProvider } from "./NavigationProvider";
 import { Busy, Denied, Disabled, Empty } from "./States";
 import { Keys, ShortcutsDialog } from "./ShortcutsDialog";
 import { is, overlaid, typing } from "./shortcuts";
@@ -35,16 +35,23 @@ const Palette = lazy(() => import("./Palette").then((module) => ({ default: modu
  * remounted by navigation.
  *
  * <b>One person's workspace, so the frame stands in the whole of it</b> — there
- * is nothing to scope it to. What it holds is the sidebar, the header, the
+ * is nothing to scope it to. What it holds is the app switcher, the header, the
  * palette, the overview of the keys, and the routes.
  *
  * The applications are asked for once, here, and handed to everything that
- * needs them. A sidebar, a palette and a route each asking on their own would
+ * needs them. An app switcher, a palette and a route each asking on their own would
  * be three requests and three moments at which they could disagree about what
  * this workspace has.
  */
 export function Shell({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) {
-  return <BookmarkPrivacyProvider><Frame me={me} onSignedOut={onSignedOut} /></BookmarkPrivacyProvider>;
+  const account = `${me.kind}:${me.email ?? me.name ?? ""}`;
+  return (
+    <BookmarkPrivacyProvider>
+      <NavigationProvider key={account} account={account}>
+        <Frame me={me} onSignedOut={onSignedOut} />
+      </NavigationProvider>
+    </BookmarkPrivacyProvider>
+  );
 }
 
 function Frame({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) {
@@ -91,13 +98,12 @@ function Frame({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) {
   }, [navigate]);
 
   return (
-    <SidebarProvider>
-      <AppSidebar applications={applicationsAsked} />
-      <SidebarInset>
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
-          <SidebarTrigger className="md:hidden" />
-          <Separator orientation="vertical" className="mr-1 h-4! md:hidden" />
+    <>
+      <div className="flex min-h-svh min-w-0 flex-col">
+        <header className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b px-3">
+          <AppSwitcher applications={applicationsAsked} />
           <div className="flex-1" />
+          <FavoriteDestination applications={applicationsAsked} />
           {privacy.enabled && <PrivateSwitch />}
 
           {/* The one thing the frame says about the connection. A workspace
@@ -178,7 +184,7 @@ function Frame({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) {
             }
           />
         </Routes>
-      </SidebarInset>
+      </div>
 
       <Suspense fallback={null}>
         <Palette
@@ -191,7 +197,7 @@ function Frame({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) {
         />
       </Suspense>
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
-    </SidebarProvider>
+    </>
   );
 }
 
