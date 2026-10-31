@@ -1,3 +1,5 @@
+import { PageTitle } from "./PageTitle";
+import "./knowledge-layout.css";
 import { KnowledgeHelp } from "./KnowledgeHelp";
 import {
   FileTextIcon,
@@ -377,7 +379,7 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
   }, [open, tree.asked, setCollapsed]);
 
   return (
-    <main className="page-frame md:flex-row">
+    <main className="knowledge-page page-frame md:flex-row">
       <Button variant="outline" className="md:hidden" aria-expanded={pagesVisible} aria-controls="knowledge-pages" onClick={() => { setFocus(false); setPagesVisible(!pagesVisible); }}>Pages</Button>
       <nav
         aria-label="The pages"
@@ -389,7 +391,7 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
           <h1 className="text-xl font-semibold tracking-tight">Knowledge</h1>
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="outline" size="sm" aria-label="Create page" />}><FilePlusIcon aria-hidden /></DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="knowledge-controls">
               <DropdownMenuItem onClick={() => { setNewParent(undefined); setWriting(true); }}>New page</DropdownMenuItem>
               {open && <DropdownMenuItem onClick={() => { setNewParent(open); setWriting(true); }}>New subpage</DropdownMenuItem>}
             </DropdownMenuContent>
@@ -459,21 +461,14 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
 
         {it !== undefined && (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Input
-                aria-label="Title"
-                name="title"
-                value={title}
-                maxLength={200}
-                className="h-auto min-w-0 flex-1 border-transparent bg-transparent dark:bg-transparent px-0 py-2 text-3xl font-semibold shadow-none md:text-3xl"
-                onChange={event => change({ title: event.target.value })}
-              />
+            <div className="flex min-w-0 flex-col gap-2">
+              <PageTitle value={title} onChange={next => change({ title: next })} />
               <div className="flex flex-wrap items-center gap-1">
                 <Button variant="ghost" size="sm" aria-pressed={focus} onClick={() => setFocus(!focus)}>{focus ? "Show navigation" : "Focus"}</Button>
                 <Button variant="ghost" size="sm" disabled={working || !!draft} aria-label={it.pinned ? "Unpin page" : "Pin page"} title={it.pinned ? "Unpin page" : "Pin page"} onClick={() => void pin(it)}>{it.pinned ? <PinOffIcon aria-hidden /> : <PinIcon aria-hidden />}</Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger render={<Button variant="outline" size="sm" aria-label="Page actions" />}><MoreHorizontalIcon aria-hidden /></DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="knowledge-controls">
                     <DropdownMenuItem disabled={working || !!draft} onClick={() => { setMoving(it); setDestination(it.parent ?? ""); }}>Move page</DropdownMenuItem>
                     <DropdownMenuItem disabled={!!draft || working} onClick={() => setHistory(true)}><HistoryIcon aria-hidden />Version history</DropdownMenuItem>
                     <DropdownMenuItem variant="destructive" disabled={working || !!draft} aria-label={`Delete ${it.title}`} onClick={() => void discard()}><Trash2Icon aria-hidden />Delete</DropdownMenuItem>
@@ -524,7 +519,7 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
       </section>
 
       <Dialog open={moving !== undefined} onOpenChange={next => { if (!next) setMoving(undefined); }}>
-        <DialogContent>
+        <DialogContent className="knowledge-controls">
           <DialogHeader><DialogTitle>Move {moving?.title}</DialogTitle></DialogHeader>
           <label htmlFor="knowledge-destination">Destination</label>
           <select id="knowledge-destination" value={destination} onChange={event => setDestination(event.target.value)} className="rounded border bg-background p-2">
@@ -654,7 +649,7 @@ function WriteAPage({
         }
       }}
     >
-      <DialogContent>
+      <DialogContent className="knowledge-controls">
         <form
           className="flex flex-col gap-4"
           onSubmit={(event) => {
@@ -761,7 +756,7 @@ function TheHistory({
         }
       }}
     >
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="knowledge-controls sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Version history</DialogTitle>
         </DialogHeader>

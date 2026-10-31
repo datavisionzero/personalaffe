@@ -7,6 +7,7 @@ afterEach(cleanup);
 // jsdom lays nothing out and implements neither of these. Base UI's popups and
 // the sidebar's mobile switch reach for them, and neither is a thing to assert
 // about here.
+globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} };
 Element.prototype.scrollIntoView ??= () => undefined;
 Element.prototype.scrollTo ??= () => undefined;
 window.matchMedia ??= (query: string) =>
