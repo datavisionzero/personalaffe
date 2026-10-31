@@ -67,7 +67,7 @@ test("creates and selects a list in the mobile drawer", async ({ page }) => {
   const dialog = page.getByRole("dialog", { name: "New list", exact: true });
   await dialog.getByRole("textbox", { name: "Name", exact: true }).fill(name);
   await dialog.getByRole("button", { name: "Make it", exact: true }).click();
-  await page.getByRole("navigation", { name: "The lists" }).getByRole("link", { name, exact: true }).click();
+  await page.getByRole("navigation", { name: "The lists" }).getByRole("link", { name }).click();
   await expect(page.getByRole("navigation", { name: "The lists" })).toBeHidden();
-  await expect(page.getByRole("textbox", { name: "New task", exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "What has to be done", exact: true })).toBeVisible();
 });

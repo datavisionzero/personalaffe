@@ -129,11 +129,13 @@ test.describe("Tasks", () => {
 /** A list of its own for each check, opened and ready to capture into. */
 async function aList(page: Page, name: string) {
   await page.goto("/tasks");
+  const lists = page.getByRole("button", { name: "Lists", exact: true });
+  if (await lists.isVisible()) await lists.click();
   await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
 
   await page.getByRole("button", { name: "New list" }).click();
 
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByRole("dialog", { name: "New list", exact: true });
 
   await dialog.getByRole("textbox", { name: "Name" }).fill(name);
   await dialog.getByRole("button", { name: "Make it" }).click();
