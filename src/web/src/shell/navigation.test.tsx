@@ -22,7 +22,7 @@ function Visit({ path, title }: { path: string; title: string }) {
 const key = "personalaffe-navigation-v1:owner";
 describe("personal navigation", () => {
   beforeEach(() => localStorage.clear());
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
   it("rejects external, private and malformed saved destinations", () => {
     localStorage.setItem(key, JSON.stringify({ favorites: [
       { path: "https://example.com", title: "external" },
@@ -55,7 +55,13 @@ describe("personal navigation", () => {
     expect(readNavigation(key).favorites).toHaveLength(2);
   });
   it("keeps navigation usable when browser storage fails", async () => {
-    vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("full"); });
+    vi.stubGlobal("localStorage", new Proxy(localStorage, {
+      get(storage, key) {
+        if (key === "setItem") return () => { throw new Error("full"); };
+        const value = Reflect.get(storage, key, storage);
+        return typeof value === "function" ? value.bind(storage) : value;
+      },
+    }));
     renderWithRouter(<NavigationProvider account="owner"><Visit path="/tasks" title="Tasks" /></NavigationProvider>);
     await userEvent.click(screen.getByRole("button", { name: "Favorite" }));
     expect(screen.getByText("Storage unavailable")).toBeInTheDocument();
