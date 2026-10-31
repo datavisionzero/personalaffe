@@ -80,7 +80,7 @@ export async function switchApplication(page: Page, application: string, enabled
  */
 export async function aPage(page: Page, title: string) {
   await page.goto("/knowledge");
-  if (await page.getByRole("button", { name: "Pages", exact: true }).isVisible()) await page.getByRole("button", { name: "Pages", exact: true }).click();
+  if ((page.viewportSize()?.width ?? 1280) < 768) await page.getByRole("button", { name: "Pages", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Knowledge", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Create page", exact: true }).click();

@@ -71,3 +71,10 @@ test("creates and selects a list in the mobile drawer", async ({ page }) => {
   await expect(page.getByRole("navigation", { name: "The lists" })).toBeHidden();
   await expect(page.getByRole("textbox", { name: "What has to be done", exact: true })).toBeVisible();
 });
+
+test("creates a page from the mobile drawer and returns to its editor", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await aPage(page, `Mobile page ${Date.now()}`);
+  await expect(page.locator('[data-slot="sheet-content"]')).toBeHidden();
+  await expect(page.getByRole("textbox", { name: "The page" })).toBeVisible();
+});

@@ -130,7 +130,7 @@ test.describe("Tasks", () => {
 async function aList(page: Page, name: string) {
   await page.goto("/tasks");
   const lists = page.getByRole("button", { name: "Lists", exact: true });
-  if (await lists.isVisible()) await lists.click();
+  if ((page.viewportSize()?.width ?? 1280) < 768) await lists.click();
   await expect(page.getByRole("heading", { name: "Tasks" })).toBeVisible();
 
   await page.getByRole("button", { name: "New list" }).click();
