@@ -1,6 +1,7 @@
+import { KnowledgeDraftProvider } from "@/knowledge/KnowledgeDraftProvider";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { vi } from "vitest";
 
 import { ThemeProvider } from "@/components/theme-provider";
@@ -118,7 +119,7 @@ export function renderAt(path: string, element: ReactElement) {
     <ThemeProvider storageKey="a-test.theme">
       <AppearanceProvider>
         <TooltipProvider>
-          <MemoryRouter initialEntries={[path]}>{element}</MemoryRouter>
+          <RouterProvider router={createMemoryRouter([{ path: "*", element }], { initialEntries: [path] })} />
         </TooltipProvider>
       </AppearanceProvider>
     </ThemeProvider>,
@@ -249,4 +250,9 @@ export function theWeather(overrides: Record<string, unknown> = {}): Answer {
       ...overrides,
     },
   };
+}
+
+/** A workspace screen with the same persistent draft owner as App. */
+export function renderWorkspaceAt(path: string, element: ReactElement) {
+  return renderAt(path, <KnowledgeDraftProvider account="workspace-test">{element}</KnowledgeDraftProvider>);
 }

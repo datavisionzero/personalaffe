@@ -125,7 +125,7 @@ test.describe("Knowledge", () => {
     await page.getByRole("textbox", { name: "The page" }).click();
     await page.keyboard.type("was ich gerade schreibe");
 
-    await expect(page.getByText(/Draft protected in this tab/)).toBeVisible();
+    await expect(page.getByText(/Draft saved on this device/)).toBeVisible();
 
     const read = await page.request.get(`/api/knowledge/pages/${id}`);
     const { updated_at: version } = (await read.json()) as { updated_at: string };
@@ -174,6 +174,33 @@ test.describe("Knowledge", () => {
     await page.getByRole("searchbox", { name: "Search Knowledge" }).fill("Uniquequartzcontent");
     await page.getByRole("checkbox", { name: "Only this page and its subpages" }).check();
     await expect(page.getByRole("list", { name: "Knowledge search results" }).getByRole("link", { name: title })).toBeVisible();
+  });
+
+  test("saves after leaving the editor and restores an offline draft after closing its tab", async ({ page, context }) => {
+    const title = `Durable draft ${Date.now()}`;
+    await aPage(page, title);
+    const address = page.url();
+    const id = new URL(address).pathname.split("/").at(-1)!;
+    const endpoint = `**/api/knowledge/pages/${id}`;
+    await context.route(endpoint, async route => {
+      if (route.request().method() === "PUT") await route.abort("failed");
+      else await route.continue();
+    });
+    await page.getByRole("textbox", { name: "The page" }).fill("Survives switching and closing the tab");
+    await page.getByRole("link", { name: "Home", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "What is useful or pending" })).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Pending knowledge changes" })).toContainText("Saved only on this device");
+    await page.close();
+    const reopened = await context.newPage();
+    await reopened.goto(address);
+    await expect(reopened.getByRole("textbox", { name: "The page" })).toContainText("Survives switching and closing the tab");
+    await expect(reopened.getByText("Not saved", { exact: true })).toBeVisible();
+    await context.unroute(endpoint);
+    await reopened.getByRole("button", { name: "Retry saving", exact: true }).last().click();
+    await expect(reopened.getByText("Saved.", { exact: true })).toBeVisible();
+    const stored = await reopened.request.get(`/api/knowledge/pages/${id}`);
+    expect((await stored.json()).markdown).toContain("Survives switching and closing the tab");
+    await reopened.close();
   });
 
   test("pins pages, links them and displays stored images", async ({ page }) => {

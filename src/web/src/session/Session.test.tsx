@@ -1,3 +1,4 @@
+import { KnowledgeDrafts } from "@/knowledge/drafts";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -156,6 +157,34 @@ describe("the door", () => {
 
     const write = asked.find((request) => request.method === "POST");
     expect(write?.headers.get("X-Personalaffe-CSRF")).toBe("1");
+  });
+
+  it("retains unsent account drafts after explicit sign-out and restores them on return", async () => {
+    localStorage.clear();
+    const account = JSON.stringify([owner.kind, owner.since]);
+    const drafts = new KnowledgeDrafts(account);
+    const base = { id: "pending-page", title: "Pending knowledge", markdown: "original", parent: null, pinned: false,
+      created_at: owner.since, updated_at: owner.since };
+    drafts.edit(base.id, { base, title: base.title, markdown: "offline changes" });
+    anInstance({
+      "GET /api/setup": { body: { required: false } },
+      "GET /api/me": { body: owner },
+      "DELETE /api/session": {},
+      "PUT /api/knowledge/pages/pending-page": refused("unavailable", 503),
+      ...nothingBehindTheDoor,
+    });
+    const view = renderAt("/", <App />);
+    await userEvent.click(await screen.findByRole("button", { name: `Account: ${owner.email}` }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Sign out" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Keep drafts and sign out" }));
+    await screen.findByRole("heading", { name: "Sign in" });
+    expect(new KnowledgeDrafts(account).snapshot()[base.id]?.draft?.markdown).toBe("offline changes");
+    expect(new KnowledgeDrafts("another account").snapshot()).toEqual({});
+    view.unmount();
+    const returned = renderAt("/", <App />);
+    await screen.findByRole("link", { name: base.title });
+    returned.unmount();
+    localStorage.clear();
   });
 
   it("goes back to sign-in when the session is ended", async () => {

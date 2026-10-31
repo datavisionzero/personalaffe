@@ -10,6 +10,7 @@ import { BookmarkPrivacyProvider, PrivateSwitch } from "@/bookmarks/privacy";
 import { useBookmarkPrivacy } from "@/bookmarks/useBookmarkPrivacy";
 import { Home } from "@/home/Home";
 import { Files } from "@/files/Files";
+import { KnowledgeSaveStatus } from "@/knowledge/KnowledgeDraftProvider";
 import { Knowledge } from "@/knowledge/Knowledge";
 import { Scratchpad } from "@/scratchpad/Scratchpad";
 import { Search } from "@/search/Search";
@@ -139,6 +140,7 @@ function Frame({ me, onSignedOut }: { me: Me; onSignedOut: () => void }) {
           />
         </header>
 
+        <KnowledgeSaveStatus />
         <Routes>
           <Route path="/" element={<Home key={privacy.epoch} me={me} applications={applicationsAsked} />} />
           <Route path="/trash" element={<Trash key={privacy.epoch} />} />

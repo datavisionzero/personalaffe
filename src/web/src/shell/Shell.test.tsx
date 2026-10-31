@@ -1,3 +1,5 @@
+import { KnowledgeDraftProvider } from "@/knowledge/KnowledgeDraftProvider";
+import type { ReactElement } from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -5,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   anInstance,
   anAgent,
-  renderAt,
+  renderAt as originalRenderAt,
   theAppearance,
   theApplications,
   theDashboard,
@@ -349,3 +351,5 @@ describe("the frame", () => {
     expect(screen.queryByText("Not answering")).toBeNull();
   });
 });
+
+function renderAt(path: string, element: ReactElement) { return originalRenderAt(path, <KnowledgeDraftProvider account="shell-test">{element}</KnowledgeDraftProvider>); }

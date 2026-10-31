@@ -975,13 +975,29 @@ returned version and saved next. Failures stop automatic retries and expose
 Retry saving; reconnecting or correcting the draft also retries. Conflicts
 require explicit review before any further write.
 
-Each document transaction also keeps a tab-local draft in session storage,
-including the server version it was based on. Drafts survive reloads and page navigation, remain hidden behind
-the session lock, and are cleared on sign-out. The UI reports storage failures;
-these drafts are not server backups and closing the tab removes them.
+`KnowledgeDraftProvider` owns the save queue for the authenticated workspace,
+independently of the current route. Navigation flushes pending writes immediately;
+subsequent edits, errors and retries remain managed after the editor unmounts.
+The shell lists every pending page, its save state and a link to resolve errors.
+
+Each document transaction also writes a durable local-storage draft, including
+its original server version. Storage is scoped to the origin and account identity
+(kind and account creation time). Drafts survive closing the browser and
+sign-out, and are loaded only for the same authenticated account. Signing out
+with pending work explains this and attempts a final save. The session lock hides
+draft contents and pauses new writes until unlocked. Local browser data is not a
+server backup: clearing site data removes these drafts.
+
+Protected drafts do not block navigation. If local storage fails, the data router
+blocks all internal navigation (including back/forward and the command palette)
+until the write succeeds or the user explicitly discards the unprotected changes.
+Browser unload uses the native warning in that case. Sign-out also requires saving
+or explicitly discarding unprotected changes. Concurrent tab drafts are retained
+as recovery copies instead of silently overwriting them; recovery submits each
+against its original version and requires review when the server has changed.
 Stale writes retain the draft and offer a side-by-side comparison before the
-owner explicitly rebases their draft onto the current version. New edits made
-while a save is pending remain protected and are queued for the next save.
+owner explicitly rebases it. New edits made while a save is pending are queued
+against the acknowledged version and remain protected.
 
 Markdown remains the API, storage and export format. Opening a document does
 not rewrite its source; editing serializes through Milkdown and can normalize

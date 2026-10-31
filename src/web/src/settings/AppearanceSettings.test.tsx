@@ -6,7 +6,7 @@ import {
   anAgent,
   anInstance,
   refused,
-  renderAt,
+  renderWorkspaceAt as renderAt,
   theAppearance,
   theApplications,
   theOwner,
