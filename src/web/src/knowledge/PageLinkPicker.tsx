@@ -11,7 +11,7 @@ export function PageLinkPicker({ pages, onPick, disabled }: { pages: LinkablePag
   return <>
     <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={() => setOpen(true)}>Link page</Button>
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent><DialogHeader><DialogTitle>Link to a page</DialogTitle></DialogHeader>
+      <DialogContent className="knowledge-controls"><DialogHeader><DialogTitle>Link to a page</DialogTitle></DialogHeader>
         <Input name="page-link-query" aria-label="Find a page by title" value={query} onChange={event => setQuery(event.target.value)} autoFocus />
         <ul className="max-h-72 overflow-auto" aria-label="Pages to link">
           {matches.map(page => <li key={page.id}><Button type="button" variant="ghost" onClick={() => { onPick(page); setOpen(false); setQuery(""); }}>{page.title}</Button></li>)}

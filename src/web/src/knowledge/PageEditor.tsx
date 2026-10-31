@@ -1,3 +1,4 @@
+import { DocumentOutline } from "./DocumentOutline";
 import { CrepeBuilder } from "@milkdown/crepe/builder";
 import { blockEdit } from "@milkdown/crepe/feature/block-edit";
 import { cursor } from "@milkdown/crepe/feature/cursor";
@@ -42,6 +43,8 @@ export default function PageEditor(props: Props) {
 
 function Document({ value, onChange, pages }: Props) {
   const navigate = useNavigate();
+  const documentRoot = useRef<HTMLDivElement>(null);
+  const formatting = useRef<HTMLDivElement>(null);
   const [block, setBlock] = useState("paragraph");
   const [failedImages, setFailedImages] = useState<Record<string, string>>({});
   const latest = useRef({ value, onChange });
@@ -142,7 +145,8 @@ function Document({ value, onChange, pages }: Props) {
       if (href?.startsWith("/knowledge/")) void navigate(href);
       else if (href) window.open(href, "_blank", "noopener,noreferrer");
     }}>
-    <div aria-label="Document formatting" role="group" className="sticky top-0 z-10 mb-2 flex flex-wrap items-center gap-1 border-b bg-background/95 py-2">
+    <DocumentOutline documentRoot={documentRoot} toolbar={formatting} ready={!loading} />
+    <div ref={formatting} aria-label="Document formatting" role="group" className="sticky top-0 z-10 mb-2 flex flex-wrap items-center gap-1 border-b bg-background/95 py-2">
       <select name="paragraph-style" aria-label="Paragraph style" value={block} disabled={!editor} className="rounded-md bg-background px-2 py-1.5 text-sm" onChange={event => {
         const level = event.target.value;
         editor?.action(ctx => callCommand(setBlockTypeCommand.key, { nodeType: level === "paragraph" ? paragraphSchema.type(ctx) : headingSchema.type(ctx), attrs: level === "paragraph" ? undefined : { level: Number(level) } })(ctx));
@@ -162,7 +166,7 @@ function Document({ value, onChange, pages }: Props) {
     {Object.entries(failedImages).filter(([source]) => value.includes(source)).map(([source, alt]) =>
       <p key={source} role="status" className="text-sm text-muted-foreground">Image unavailable: {alt}. It may have been deleted or access may be restricted.</p>)}
     {loading && <p role="status" className="text-sm text-muted-foreground">Loading document…</p>}
-    <Milkdown />
+    <div ref={documentRoot}><Milkdown /></div>
   </div>;
 }
 
