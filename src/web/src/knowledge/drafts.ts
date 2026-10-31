@@ -162,6 +162,11 @@ export class KnowledgeDrafts {
     this.requests.set(id, operation);
     return operation;
   }
+  /** Pinning changes metadata without changing the document's version. */
+  remember(saved: Schemas["PageResponse"]) {
+    const previous = this.pages[saved.id];
+    this.publish(saved.id, { ...(previous ?? { secured: true, saving: false }), saved });
+  }
   resolve(id: string, keepDraft: boolean) {
     const page = this.pages[id];
     if (!page?.conflict || !page.draft || page.saving) return;

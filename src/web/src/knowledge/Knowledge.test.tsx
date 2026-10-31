@@ -446,6 +446,22 @@ describe("Knowledge", () => {
     expect(screen.queryByRole("list", { name: "Knowledge search results" })).toBeNull();
   });
 
+  it("keeps pin metadata after autosaving, even when pinning leaves the document version unchanged", async () => {
+    const saved = { ...thePage, markdown: "Updated", pinned: false, updated_at: "2026-09-14T10:00:00.000000Z" };
+    anInstance({ "GET /api/knowledge/pages": aTree(reisen, bahn),
+      [`GET /api/knowledge/pages/${bahn.id}`]: { body: thePage },
+      [`PUT /api/knowledge/pages/${bahn.id}`]: { body: saved },
+      [`PUT /api/knowledge/pages/${bahn.id}/pin`]: { body: { ...saved, pinned: true } } });
+    const view = knowledgeAt(`/knowledge/${bahn.id}`);
+    await userEvent.type(await screen.findByRole("textbox", { name: "The page" }), "Updated");
+    await screen.findByText("Saved.", {}, { timeout: 2000 });
+    await userEvent.click(screen.getByRole("button", { name: "Pin page" }));
+    await screen.findByRole("button", { name: "Unpin page" });
+    view.unmount();
+    knowledgeAt(`/knowledge/${bahn.id}`);
+    await screen.findByRole("button", { name: "Unpin page" });
+  });
+
   it("shows persistent pins and recently edited pages on the start page", async () => {
     const { asked } = anInstance({ "GET /api/knowledge/pages": aTree({ ...reisen, pinned: true }, bahn),
       [`PUT /api/knowledge/pages/${reisen.id}/pin`]: { body: { ...reisen, markdown: "", pinned: false } } });

@@ -10,7 +10,7 @@ const stores: KnowledgeDrafts[] = [];
 function store(account = "owner") { const manager = new KnowledgeDrafts(account); stores.push(manager); manager.start(); return manager; }
 
 beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
-afterEach(() => { stores.splice(0).forEach(s => s.deactivate()); vi.useRealTimers(); vi.restoreAllMocks(); });
+afterEach(() => { stores.splice(0).forEach(s => s.deactivate()); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("Durable knowledge queue", () => {
   it("recovers after the tab is gone, including the original version, only for the same account", async () => {
@@ -65,7 +65,13 @@ describe("Durable knowledge queue", () => {
 
   it("keeps the in-memory draft if durable storage fails and still saves to the server", async () => {
     const manager = store();
-    vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota"); });
+    vi.stubGlobal("localStorage", new Proxy(localStorage, {
+      get(storage, key) {
+        if (key === "setItem") return () => { throw new Error("quota"); };
+        const value = Reflect.get(storage, key, storage);
+        return typeof value === "function" ? value.bind(storage) : value;
+      },
+    }));
     manager.edit(base.id, draft);
     expect(manager.snapshot().page.secured).toBe(false);
     expect(manager.snapshot().page.draft).toEqual(draft);

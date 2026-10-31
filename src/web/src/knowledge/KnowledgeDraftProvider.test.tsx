@@ -10,7 +10,7 @@ const base = { id: "page", title: "Pending page", markdown: "original", parent: 
   created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" };
 let manager: KnowledgeDrafts;
 beforeEach(() => { localStorage.clear(); sessionStorage.clear(); manager = new KnowledgeDrafts("test"); });
-afterEach(() => { manager.deactivate(); vi.restoreAllMocks(); });
+afterEach(() => { manager.deactivate(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 function workspace() {
   const router = createMemoryRouter([{ element: <KnowledgeDraftProvider account="test" manager={manager}><KnowledgeSaveStatus /><Outlet /></KnowledgeDraftProvider>, children: [
     { path: "/one", element: <h1>First area</h1> }, { path: "/two", element: <h1>Second area</h1> },
@@ -23,7 +23,13 @@ describe("Workspace draft protection", () => {
   it("blocks browser back when storage fails, and requires an explicit discard", async () => {
     anInstance({ "PUT /api/knowledge/pages/page": refused("unavailable", 503) });
     const router = workspace();
-    vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota"); });
+    vi.stubGlobal("localStorage", new Proxy(localStorage, {
+      get(storage, key) {
+        if (key === "setItem") return () => { throw new Error("quota"); };
+        const value = Reflect.get(storage, key, storage);
+        return typeof value === "function" ? value.bind(storage) : value;
+      },
+    }));
     act(() => manager.edit(base.id, { title: base.title, markdown: "unsaved", base }));
     await act(() => router.navigate(-1));
     expect(await screen.findByRole("dialog", { name: "Changes are not protected" })).toBeInTheDocument();
@@ -39,7 +45,13 @@ describe("Workspace draft protection", () => {
   it("continues navigation automatically after an unprotected draft saves successfully", async () => {
     anInstance({ "PUT /api/knowledge/pages/page": { body: { ...base, markdown: "unsaved" } } });
     const router = workspace();
-    vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota"); });
+    vi.stubGlobal("localStorage", new Proxy(localStorage, {
+      get(storage, key) {
+        if (key === "setItem") return () => { throw new Error("quota"); };
+        const value = Reflect.get(storage, key, storage);
+        return typeof value === "function" ? value.bind(storage) : value;
+      },
+    }));
     act(() => manager.edit(base.id, { title: base.title, markdown: "unsaved", base }));
     await act(() => router.navigate("/one"));
     await userEvent.click(await screen.findByRole("button", { name: "Retry saving" }));

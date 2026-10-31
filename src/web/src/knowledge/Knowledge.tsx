@@ -72,8 +72,8 @@ function KnowledgePage({ collapsed, setCollapsed }: { collapsed: Set<string>; se
   const { manager, pages: pendingPages } = useKnowledgeDrafts();
   const pendingPage = pendingPages[open ?? ""];
   const draft = pendingPage?.draft;
-  const [locallySaved, setSaved] = useState<Page>();
-  const saved = pendingPage?.saved && (!locallySaved || pendingPage.saved.updated_at >= locallySaved.updated_at) ? pendingPage.saved : locallySaved;
+  const saved = pendingPage?.saved;
+  function setSaved(page: Page) { manager.remember(page); }
   const [focus, setFocus] = useState(false);
   const saveError = !!pendingPage?.error;
   const secured = pendingPage?.secured ?? true;
