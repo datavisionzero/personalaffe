@@ -15,7 +15,7 @@ export function AreaNavigation({ label, children, hidden = false }: { label: str
   const [collapsed, setCollapsed] = useState(false);
   if (mobile) return <Sheet open={open} onOpenChange={setOpen}>
     <SheetTrigger render={<Button variant="outline" className="min-h-11 self-start" />}><PanelLeftOpenIcon aria-hidden />{label}</SheetTrigger>
-    <SheetContent side="left" className="w-[min(90vw,24rem)]! overflow-y-auto">
+    <SheetContent side="left" className="w-[min(90vw,24rem)]! overflow-y-auto [&_a]:min-h-11 [&_button]:min-h-11 [&_button]:min-w-11 [&_input]:min-h-11">
       <SheetHeader><SheetTitle>{label}</SheetTitle></SheetHeader>
       <div className="px-4 pb-4" onClick={event => {
         if ((event.target as HTMLElement).closest('a[href^="/"]:not([download])')) setOpen(false);

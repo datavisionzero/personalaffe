@@ -51,7 +51,9 @@ test("uses a bottom app sheet and closes the page drawer after navigation at 320
   await expect(page).toHaveURL(address);
   await page.getByRole("button", { name: "Pages", exact: true }).click();
   await expect(sheet).toHaveAttribute("data-side", "left");
-  await sheet.getByRole("link", { name: title, exact: true }).click();
+  const pageLink = sheet.getByRole("link", { name: title, exact: true });
+  expect((await pageLink.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await pageLink.click();
   await expect(sheet).toBeHidden();
   const width = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(width).toBeLessThanOrEqual(1);

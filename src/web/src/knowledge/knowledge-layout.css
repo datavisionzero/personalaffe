@@ -7,14 +7,14 @@
   .knowledge-page button,
   .knowledge-page select,
   .knowledge-page [role="menuitem"],
-  .knowledge-page #knowledge-pages a,
-  .knowledge-page #knowledge-pages label {
+  #knowledge-pages a,
+  #knowledge-pages label {
     min-height: 44px;
   }
   .knowledge-page button, .knowledge-controls button { min-width: 44px; }
-  .knowledge-page #knowledge-pages input[type="search"] { min-height: 44px; font-size: 16px; }
-  .knowledge-page #knowledge-pages label { align-items: center; }
-  .knowledge-page #knowledge-pages button[aria-expanded] { width: 44px; }
-  .knowledge-page #knowledge-pages span[aria-hidden] { width: 44px; }
+  #knowledge-pages input[type="search"] { min-height: 44px; font-size: 16px; }
+  #knowledge-pages label { align-items: center; }
+  #knowledge-pages button[aria-expanded] { width: 44px; }
+  #knowledge-pages span[aria-hidden] { width: 44px; }
   .knowledge-document select { font-size: 16px; }
 }
