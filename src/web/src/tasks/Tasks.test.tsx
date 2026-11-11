@@ -285,6 +285,102 @@ describe("Tasks", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("already called");
   });
 
+  it("puts the open list in the Trash with everything on it, and says where it went", async () => {
+    const { asked } = anInstance({
+      "GET /api/tasks/lists": theLists(einkauf),
+      [`GET /api/tasks/lists/${einkauf.id}/tasks`]: theTasks(milch),
+      [`DELETE /api/tasks/lists/${einkauf.id}`]: { status: 204 },
+    });
+
+    tasksAt(`/tasks/${einkauf.id}`);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Delete list" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Einkauf and everything on it are in the Trash.",
+    );
+
+    const discard = asked.find((request) => request.method === "DELETE");
+
+    expect(discard?.headers.get("If-Match")).toBe(`"${einkauf.updated_at}"`);
+  });
+
+  it("renames a list with a guarded write and updates its heading and navigation", async () => {
+    const renamed = { ...einkauf, name: "Wochenmarkt" };
+    const { asked } = anInstance({
+      "GET /api/tasks/lists": [theLists(einkauf), theLists(renamed)],
+      [`GET /api/tasks/lists/${einkauf.id}/tasks`]: theTasks(milch),
+      [`PUT /api/tasks/lists/${einkauf.id}`]: { body: renamed },
+    });
+    tasksAt(`/tasks/${einkauf.id}`);
+    await userEvent.click(await screen.findByRole("button", { name: "Rename list" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Rename list" }));
+    expect(dialog.getByLabelText("Name")).toHaveValue("Einkauf");
+    await userEvent.clear(dialog.getByLabelText("Name"));
+    expect(dialog.getByRole("button", { name: "Save" })).toBeDisabled();
+    await userEvent.type(dialog.getByLabelText("Name"), "  Wochenmarkt  {Enter}");
+    expect(await screen.findByRole("heading", { name: "Wochenmarkt" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Wochenmarkt/ })).toHaveAttribute("href", `/tasks/${einkauf.id}`);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const write = asked.find((request) => request.method === "PUT");
+    expect(write?.body).toEqual({ name: "Wochenmarkt" });
+    expect(write?.headers.get("If-Match")).toBe(`"${einkauf.updated_at}"`);
+    expect(screen.getByText("Milch holen")).toBeInTheDocument();
+  });
+
+  it("keeps the typed name when a rename conflicts and cancels without writing again", async () => {
+    const { asked } = anInstance({
+      "GET /api/tasks/lists": theLists(einkauf),
+      [`GET /api/tasks/lists/${einkauf.id}/tasks`]: theTasks(milch),
+      [`PUT /api/tasks/lists/${einkauf.id}`]: refused("conflict", 409, "A list is already called Arbeit."),
+    });
+    tasksAt(`/tasks/${einkauf.id}`);
+    await userEvent.click(await screen.findByRole("button", { name: "Rename list" }));
+    const dialog = within(screen.getByRole("dialog"));
+    await userEvent.clear(dialog.getByLabelText("Name"));
+    await userEvent.type(dialog.getByLabelText("Name"), "Arbeit{Enter}");
+    expect(await dialog.findByRole("alert")).toHaveTextContent("already called Arbeit");
+    expect(dialog.getByLabelText("Name")).toHaveValue("Arbeit");
+    await userEvent.click(dialog.getByRole("button", { name: "Cancel" }));
+    await userEvent.click(screen.getByRole("button", { name: "Rename list" }));
+    expect(within(screen.getByRole("dialog")).getByLabelText("Name")).toHaveValue("Einkauf");
+    expect(asked.filter((request) => request.method === "PUT")).toHaveLength(1);
+  });
+
+  it("refreshes after a stale rename and preserves the draft for a deliberate retry", async () => {
+    const newer = { ...einkauf, name: "Extern", updated_at: "2026-09-14T09:00:00.000000Z" };
+    const { asked } = anInstance({
+      "GET /api/tasks/lists": [theLists(einkauf), theLists(newer), theLists({ ...newer, name: "Markt" })],
+      [`GET /api/tasks/lists/${einkauf.id}/tasks`]: theTasks(milch),
+      [`PUT /api/tasks/lists/${einkauf.id}`]: [refused("stale", 412), { body: { ...newer, name: "Markt" } }],
+    });
+    tasksAt(`/tasks/${einkauf.id}`);
+    await userEvent.click(await screen.findByRole("button", { name: "Rename list" }));
+    const dialog = within(screen.getByRole("dialog"));
+    await userEvent.clear(dialog.getByLabelText("Name"));
+    await userEvent.type(dialog.getByLabelText("Name"), "Markt{Enter}");
+    expect(await dialog.findByRole("alert")).toHaveTextContent("changed somewhere else");
+    await screen.findByRole("heading", { name: "Extern", hidden: true });
+    expect(dialog.getByLabelText("Name")).toHaveValue("Markt");
+    await userEvent.click(dialog.getByRole("button", { name: "Save" }));
+    await screen.findByRole("heading", { name: "Markt" });
+    expect(asked.filter((request) => request.method === "PUT").map((request) => request.headers.get("If-Match")))
+      .toEqual([`"${einkauf.updated_at}"`, `"${newer.updated_at}"`]);
+  });
+
+  it("keeps a list open when deleting it is refused", async () => {
+    anInstance({
+      "GET /api/tasks/lists": theLists(einkauf),
+      [`GET /api/tasks/lists/${einkauf.id}/tasks`]: theTasks(milch),
+      [`DELETE /api/tasks/lists/${einkauf.id}`]: refused("stale", 412),
+    });
+    tasksAt(`/tasks/${einkauf.id}`);
+    await userEvent.click(await screen.findByRole("button", { name: "Delete list" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("changed somewhere else");
+    expect(screen.getByRole("heading", { name: "Einkauf" })).toBeInTheDocument();
+    expect(screen.getByText("Milch holen")).toBeInTheDocument();
+  });
+
   it("draws the denied state rather than a failure when access was revoked", async () => {
     anInstance({
       "GET /api/tasks/lists": refused("forbidden", 403, "This access does not reach Tasks."),

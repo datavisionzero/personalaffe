@@ -9,7 +9,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 
 import { api, guardedBy, versionOf, type Schemas } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ type Task = Schemas["TaskResponse"];
  */
 export function Tasks() {
   const params = useParams();
+  const navigate = useNavigate();
 
   const at = (params["*"] ?? "").replace(/\/+$/, "");
   const open = at === "" ? undefined : at;
@@ -58,6 +59,8 @@ export function Tasks() {
   const [working, setWorking] = useState<string>();
   const [making, setMaking] = useState(false);
   const [editing, setEditing] = useState<Task>();
+  const [renaming, setRenaming] = useState<List>();
+  const [gone, setGone] = useState<string>();
 
   const address = open === undefined ? "/tasks" : `/tasks/${open}`;
   const refused = wrote?.at === address ? wrote.refused : undefined;
@@ -70,7 +73,7 @@ export function Tasks() {
     setWhy(answer.error ? refusal(answer.error, answer.response.status).code : undefined);
 
     return answer;
-  });
+  }, { hold: renaming !== undefined });
 
   const tasks = useAsk<Tasks>(
     address,
@@ -86,6 +89,7 @@ export function Tasks() {
 
   const all = lists.asked.at === "known" ? lists.asked.value.items : [];
   useDestination(address, open ? all.find(item => item.id === open)?.name : "Tasks", !!open && lists.asked.at === "known" && !all.some(item => item.id === open));
+  const current = open === undefined ? undefined : all.find((list) => list.id === open);
   const here = open !== undefined && tasks.asked.at === "known" ? tasks.asked.value.items : [];
   const openTasks = here.filter((task) => !task.completed);
   const done = here.filter((task) => task.completed);
@@ -99,6 +103,9 @@ export function Tasks() {
 
       if (answer.error) {
         setWrote({ at: address, refused: said(answer.error, answer.response.status) });
+        if (refusal(answer.error, answer.response.status).code === "stale") {
+          lists.refresh();
+        }
         return false;
       }
 
@@ -165,12 +172,47 @@ export function Tasks() {
     }
   }
 
+  /**
+   * Puts the open list in the Trash with every task on it. Nothing is
+   * destroyed, so — like a folder in Files — it is not asked about first; the
+   * sentence afterwards says where it went.
+   */
+  async function discardList(list: List) {
+    const went = await write("discard-list", () =>
+      api.DELETE("/api/tasks/lists/{id}", {
+        params: { path: { id: list.id }, ...guardedBy(versionOf(list.updated_at)) },
+      }),
+    );
+
+    if (went) {
+      setGone(`${list.name} and everything on it are in the Trash.`);
+      lists.again();
+      void navigate("/tasks");
+    }
+  }
+
   async function makeList(name: string) {
     const went = await write("list", () => api.POST("/api/tasks/lists", { body: { name } }));
 
     if (went) {
       setMaking(false);
       lists.again();
+    }
+  }
+
+  async function renameList(list: List, name: string) {
+    // A stale refusal refreshes the lists; a deliberate retry uses that version.
+    const latest = all.find((one) => one.id === list.id) ?? list;
+    const went = await write("rename-list", () =>
+      api.PUT("/api/tasks/lists/{id}", {
+        params: { path: { id: list.id }, ...guardedBy(versionOf(latest.updated_at)) },
+        body: { name },
+      }),
+    );
+
+    if (went) {
+      setRenaming(undefined);
+      lists.refresh();
     }
   }
 
@@ -244,8 +286,43 @@ export function Tasks() {
           </Empty>
         )}
 
+        {open === undefined && gone !== undefined && (
+          <p role="status" className="text-muted-foreground text-sm text-balance">
+            {gone}
+          </p>
+        )}
+
         {open !== undefined && (
           <>
+            {current !== undefined && (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="min-w-0 truncate text-lg font-semibold tracking-tight">{current.name}</h2>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={working !== undefined}
+                    onClick={() => {
+                      setWrote(undefined);
+                      setRenaming(current);
+                    }}
+                  >
+                    <PencilIcon aria-hidden />
+                    Rename list
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={working !== undefined}
+                    onClick={() => void discardList(current)}
+                  >
+                    <Trash2Icon aria-hidden />
+                    Delete list
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <form
               className="flex items-center gap-2"
               onSubmit={(event) => {
@@ -299,13 +376,22 @@ export function Tasks() {
         )}
       </section>
 
-      <MakeAList
-        open={making}
+      {making && <ListNameDialog
+        title="New list"
         working={working === "list"}
         refused={refused}
         onClose={() => setMaking(false)}
-        onMake={(name) => void makeList(name)}
-      />
+        onSave={(name) => void makeList(name)}
+      />}
+
+      {renaming !== undefined && <ListNameDialog
+        title="Rename list"
+        initialName={renaming.name}
+        working={working === "rename-list"}
+        refused={refused}
+        onClose={() => setRenaming(undefined)}
+        onSave={(name) => void renameList(renaming, name)}
+      />}
 
       {editing !== undefined && (
         <EditATask
@@ -428,28 +514,29 @@ function Due({ day, completed }: { day: string; completed: boolean }) {
   );
 }
 
-/** The dialog behind "New list". */
-function MakeAList({
-  open,
+/** The name form shared by creating and renaming a list. */
+function ListNameDialog({
+  title,
+  initialName = "",
   working,
   refused,
   onClose,
-  onMake,
+  onSave,
 }: {
-  open: boolean;
+  title: "New list" | "Rename list";
+  initialName?: string;
   working: boolean;
   refused: string | undefined;
   onClose: () => void;
-  onMake: (name: string) => void;
+  onSave: (name: string) => void;
 }) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
 
   return (
     <Dialog
-      open={open}
+      open
       onOpenChange={(next) => {
         if (!next) {
-          setName("");
           onClose();
         }
       }}
@@ -459,11 +546,11 @@ function MakeAList({
           className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
-            onMake(name.trim());
+            if (name.trim() !== "" && !working) onSave(name.trim());
           }}
         >
           <DialogHeader>
-            <DialogTitle>New list</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
 
           <Field label="Name" hint="Names are one each, whatever their capitals.">
@@ -482,7 +569,7 @@ function MakeAList({
               Cancel
             </Button>
             <Button type="submit" disabled={name.trim() === "" || working}>
-              {working ? "Making it…" : "Make it"}
+              {title === "New list" ? (working ? "Making it…" : "Make it") : (working ? "Saving…" : "Save")}
             </Button>
           </DialogFooter>
         </form>
