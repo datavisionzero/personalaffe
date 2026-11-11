@@ -285,6 +285,26 @@ describe("Tasks", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("already called");
   });
 
+  it("puts the open list in the Trash with everything on it, and says where it went", async () => {
+    const { asked } = anInstance({
+      "GET /api/tasks/lists": theLists(einkauf),
+      [`GET /api/tasks/lists/${einkauf.id}/tasks`]: theTasks(milch),
+      [`DELETE /api/tasks/lists/${einkauf.id}`]: { status: 204 },
+    });
+
+    tasksAt(`/tasks/${einkauf.id}`);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Delete list" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Einkauf and everything on it are in the Trash.",
+    );
+
+    const discard = asked.find((request) => request.method === "DELETE");
+
+    expect(discard?.headers.get("If-Match")).toBe(`"${einkauf.updated_at}"`);
+  });
+
   it("draws the denied state rather than a failure when access was revoked", async () => {
     anInstance({
       "GET /api/tasks/lists": refused("forbidden", 403, "This access does not reach Tasks."),

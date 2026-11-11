@@ -9,7 +9,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 
 import { api, guardedBy, versionOf, type Schemas } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ type Task = Schemas["TaskResponse"];
  */
 export function Tasks() {
   const params = useParams();
+  const navigate = useNavigate();
 
   const at = (params["*"] ?? "").replace(/\/+$/, "");
   const open = at === "" ? undefined : at;
@@ -58,6 +59,7 @@ export function Tasks() {
   const [working, setWorking] = useState<string>();
   const [making, setMaking] = useState(false);
   const [editing, setEditing] = useState<Task>();
+  const [gone, setGone] = useState<string>();
 
   const address = open === undefined ? "/tasks" : `/tasks/${open}`;
   const refused = wrote?.at === address ? wrote.refused : undefined;
@@ -86,6 +88,7 @@ export function Tasks() {
 
   const all = lists.asked.at === "known" ? lists.asked.value.items : [];
   useDestination(address, open ? all.find(item => item.id === open)?.name : "Tasks", !!open && lists.asked.at === "known" && !all.some(item => item.id === open));
+  const current = open === undefined ? undefined : all.find((list) => list.id === open);
   const here = open !== undefined && tasks.asked.at === "known" ? tasks.asked.value.items : [];
   const openTasks = here.filter((task) => !task.completed);
   const done = here.filter((task) => task.completed);
@@ -162,6 +165,25 @@ export function Tasks() {
     if (went) {
       tasks.refresh();
       lists.refresh();
+    }
+  }
+
+  /**
+   * Puts the open list in the Trash with every task on it. Nothing is
+   * destroyed, so — like a folder in Files — it is not asked about first; the
+   * sentence afterwards says where it went.
+   */
+  async function discardList(list: List) {
+    const went = await write("discard-list", () =>
+      api.DELETE("/api/tasks/lists/{id}", {
+        params: { path: { id: list.id }, ...guardedBy(versionOf(list.updated_at)) },
+      }),
+    );
+
+    if (went) {
+      setGone(`${list.name} and everything on it are in the Trash.`);
+      lists.again();
+      void navigate("/tasks");
     }
   }
 
@@ -244,8 +266,29 @@ export function Tasks() {
           </Empty>
         )}
 
+        {open === undefined && gone !== undefined && (
+          <p role="status" className="text-muted-foreground text-sm text-balance">
+            {gone}
+          </p>
+        )}
+
         {open !== undefined && (
           <>
+            {current !== undefined && (
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="truncate text-lg font-semibold tracking-tight">{current.name}</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={working === "discard-list"}
+                  onClick={() => void discardList(current)}
+                >
+                  <Trash2Icon aria-hidden />
+                  Delete list
+                </Button>
+              </div>
+            )}
+
             <form
               className="flex items-center gap-2"
               onSubmit={(event) => {
