@@ -107,6 +107,39 @@ test.describe("Tasks", () => {
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
+  test("renames a list and puts it and its tasks in the Trash", async ({ page }) => {
+    await page.setViewportSize({ width: 400, height: 780 });
+    const original = `Einkauf ${Date.now()}`;
+    const renamed = `Wochenmarkt ${Date.now()}`;
+    await aList(page, original);
+    const address = page.url();
+    await page.getByLabel("What has to be done").fill("Milch holen");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("checkbox", { name: "Complete Milch holen" })).toBeVisible();
+    await page.getByRole("button", { name: "Rename list", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Rename list" });
+    await expect(dialog.getByLabel("Name")).toHaveValue(original);
+    await dialog.getByLabel("Name").fill(renamed);
+    await dialog.getByLabel("Name").press("Enter");
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole("heading", { name: renamed })).toBeVisible();
+    await expect(page).toHaveURL(address);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: renamed })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+    await page.getByRole("button", { name: "Delete list", exact: true }).click();
+    await expect(page).toHaveURL(/\/tasks$/);
+    await expect(page.getByRole("status")).toHaveText(`${renamed} and everything on it are in the Trash.`);
+    await page.goto("/trash");
+    await expect(page.getByText(renamed, { exact: true })).toBeVisible();
+    await page.getByRole("listitem").filter({ has: page.getByText(renamed, { exact: true }) })
+      .getByRole("button", { name: "Put it back" }).click();
+    await expect(page.getByText(renamed, { exact: true })).toBeHidden();
+    await page.goto(address);
+    await expect(page.getByRole("heading", { name: renamed })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "Complete Milch holen" })).toBeVisible();
+  });
+
   test("puts a deleted task in the Trash", async ({ page }) => {
     const title = `wegwerfen ${Date.now()}`;
 
