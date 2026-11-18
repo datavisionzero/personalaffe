@@ -65,6 +65,96 @@ test.describe("Tasks", () => {
     await expect(async () => expect(await titles(page)).toEqual(["drei", "eins", "zwei"])).toPass();
   });
 
+  test("moves past a completed task in one step, and keeps the keyboard on what it moved", async ({ page }) => {
+    await aList(page, `Einkauf ${Date.now()}`);
+
+    for (const title of ["eins", "zwei", "drei"]) {
+      await page.getByLabel("What has to be done").fill(title);
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
+    }
+
+    // The one in the middle is done: it is still between the other two in the
+    // order the instance keeps, and nowhere near them on the screen.
+    await page.getByRole("checkbox", { name: "Complete zwei" }).click();
+    await expect(async () => expect(await titles(page)).toEqual(["eins", "drei", "zwei"])).toPass();
+
+    await page.getByRole("button", { name: "Move drei up" }).focus();
+    await page.keyboard.press("Enter");
+
+    await expect(async () => expect(await titles(page)).toEqual(["drei", "eins", "zwei"])).toPass();
+
+    // At the top there is no further up, so the keyboard is on the way back
+    // down — and it is on something, which is the point.
+    await expect(page.getByRole("button", { name: "Move drei down" })).toBeFocused();
+
+    await page.keyboard.press("Enter");
+
+    await expect(async () => expect(await titles(page)).toEqual(["eins", "drei", "zwei"])).toPass();
+    await expect(page.getByRole("button", { name: "Move drei up" })).toBeFocused();
+
+    // A tick takes the row to the other group, and the keyboard goes with it.
+    await page.getByRole("checkbox", { name: "Complete drei" }).focus();
+    await page.keyboard.press("Space");
+
+    await expect(page.getByRole("checkbox", { name: "Reopen drei" })).toBeFocused();
+  });
+
+  test("captures with a day, shows the notes, and is pointed at from the home page", async ({ page }) => {
+    const title = `Geschenk ${Date.now()}`;
+
+    await aList(page, `Einkauf ${Date.now()}`);
+
+    const id = page.url().split("/").pop();
+
+    await page.getByLabel("What has to be done").fill(title);
+    await page.getByLabel("When it is due").fill("2026-12-24");
+    await page.getByLabel("What has to be done").press("Enter");
+
+    const row = page.getByRole("listitem").filter({ hasText: title });
+
+    await expect(row).toContainText("2026-12-24");
+    await expect(page.getByLabel("When it is due")).toHaveValue("");
+
+    // The notes are written somewhere else — a console, an agent — and what
+    // this screen owes them is saying that they are there.
+    const read = await page.request.get(`/api/tasks/lists/${id}/tasks`);
+    const { items } = (await read.json()) as { items: Record<string, unknown>[] };
+    const task = items.find((one) => one.title === title)!;
+
+    const written = await page.request.put(`/api/tasks/${task.id as string}`, {
+      headers: {
+        "If-Match": `"${task.updated_at as string}"`,
+        "X-Personalaffe-CSRF": "1",
+        Origin: new URL(page.url()).origin,
+      },
+      data: {
+        list: task.list,
+        title: task.title,
+        description: "aus dem **Buchladen** am Markt",
+        due_on: task.due_on,
+        completed: task.completed,
+        after: task.after,
+      },
+    });
+
+    expect(written.ok(), await written.text()).toBeTruthy();
+
+    await page.reload();
+
+    await expect(page.getByText("Buchladen")).toBeHidden();
+    await row.getByRole("button", { name: `Show the notes on ${title}` }).click();
+    await expect(row.locator("strong", { hasText: "Buchladen" })).toBeVisible();
+
+    await page.goto("/");
+
+    await page.getByRole("region", { name: "Tasks" }).getByRole("link", { name: title }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/tasks/${id}\\?task=${task.id as string}$`));
+    await expect(row).toHaveAttribute("aria-current", "true");
+    await expect(row.locator("strong", { hasText: "Buchladen" })).toBeVisible();
+  });
+
   test("brings a task captured elsewhere onto the list without a reload", async ({ page }) => {
     const list = `Einkauf ${Date.now()}`;
     const title = `von woanders ${Date.now()}`;
@@ -156,6 +246,54 @@ test.describe("Tasks", () => {
 
     await page.goto("/trash");
     await expect(page.getByText(title)).toBeVisible();
+  });
+
+  test("puts back what was just deleted, from where it was deleted", async ({ page }) => {
+    const stamp = Date.now();
+    const list = `Einkauf ${stamp}`;
+
+    await aList(page, list);
+
+    const address = page.url();
+
+    for (const title of [`bleibt ${stamp}`, `fertig ${stamp}`, `auch fertig ${stamp}`]) {
+      await page.getByLabel("What has to be done").fill(title);
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("listitem").filter({ hasText: title })).toBeVisible();
+    }
+
+    // One task.
+    await page.getByRole("button", { name: `Delete bleibt ${stamp}` }).click();
+    await expect(page.getByRole("status")).toHaveText(`bleibt ${stamp} is in the Trash.`);
+    await expect(page.getByRole("checkbox", { name: `Complete bleibt ${stamp}` })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Put it back" }).click();
+    await expect(page.getByRole("checkbox", { name: `Complete bleibt ${stamp}` })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Put it back" })).toHaveCount(0);
+
+    // Everything completed, and only that.
+    await page.getByRole("checkbox", { name: `Complete fertig ${stamp}` }).click();
+    await expect(page.getByRole("checkbox", { name: `Reopen fertig ${stamp}` })).toBeVisible();
+    await page.getByRole("checkbox", { name: `Complete auch fertig ${stamp}` }).click();
+    await expect(page.getByRole("checkbox", { name: `Reopen auch fertig ${stamp}` })).toBeVisible();
+
+    await page.getByRole("button", { name: "Delete completed" }).click();
+    await expect(page.getByRole("status")).toHaveText("2 completed tasks are in the Trash.");
+    await expect(page.getByRole("heading", { name: "Done" })).toHaveCount(0);
+    await expect(page.getByRole("checkbox", { name: `Complete bleibt ${stamp}` })).toBeVisible();
+
+    await page.getByRole("button", { name: "Put them back" }).click();
+    await expect(page.getByRole("checkbox", { name: `Reopen fertig ${stamp}` })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: `Reopen auch fertig ${stamp}` })).toBeVisible();
+
+    // The list itself.
+    await page.getByRole("button", { name: "Delete list", exact: true }).click();
+    await expect(page).toHaveURL(/\/tasks$/);
+
+    await page.getByRole("button", { name: "Put it back" }).click();
+    await expect(page).toHaveURL(address);
+    await expect(page.getByRole("heading", { name: list })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: `Complete bleibt ${stamp}` })).toBeVisible();
   });
 });
 

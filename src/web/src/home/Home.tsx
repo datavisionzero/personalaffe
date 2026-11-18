@@ -77,7 +77,9 @@ function Tiles({ home, applications: asked }: { home: TheHome; applications: The
       {home.tasks !== null && (
         <Panel tile="tasks" empty="Nothing is open.">
           {home.tasks.map((task) => (
-            <Row key={task.id} to={`/tasks/${task.list_id}`} title={task.title}>
+            // Its list, with the task pointed at: there is no screen for one task,
+            // and a row among forty is not what somebody clicked on.
+            <Row key={task.id} to={`/tasks/${task.list_id}?task=${task.id}`} title={task.title}>
               <span className="text-muted-foreground text-xs">{task.list}</span>
               {task.due_on !== null && (
                 <span

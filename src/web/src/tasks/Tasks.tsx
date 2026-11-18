@@ -6,10 +6,11 @@ import {
   ListTodoIcon,
   PencilIcon,
   PlusIcon,
+  StickyNoteIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { api, guardedBy, versionOf, type Schemas } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { refusal } from "@/session/useSession";
 import { Field, Refused } from "@/shared/Form";
+import { Markdown } from "@/shared/Markdown";
 import { MarkdownField } from "@/shared/MarkdownField";
 import { useAsk } from "@/shared/ask";
 import { todayHere } from "@/tasks/today";
@@ -32,6 +34,22 @@ type Lists = Schemas["TaskListsResponse"];
 type List = Schemas["TaskListResponse"];
 type Tasks = Schemas["TasksResponse"];
 type Task = Schemas["TaskResponse"];
+
+/** What a write answers, as far as this screen reads it. */
+type Sent = { error?: unknown; response: Response };
+
+/**
+ * What was just put in the Trash from the address it was put there from, and
+ * what bringing it back takes.
+ */
+type Gone = {
+  at: string;
+  sentence: string;
+  /** The Trash entries: one list, or one or more tasks. */
+  back: string[];
+  /** The list to walk to once it is back, when what went was a list. */
+  list?: string;
+};
 
 /**
  * Tasks: the lists beside them, a box to tick, and an order the owner sets
@@ -45,22 +63,45 @@ type Task = Schemas["TaskResponse"];
  *
  * <b>Moving is two buttons and not a drag.</b> A drag needs a pointer, and this
  * screen has to work with a keyboard alone at 400px; a personal list is short
- * enough that a step at a time is the whole interaction.
+ * enough that a step at a time is the whole interaction. <b>A step is a step
+ * among what is drawn</b>: open and completed tasks share one order on the
+ * instance and are two groups here, so a task moves past its neighbour in its
+ * own group — and past whatever of the other group sits between them, which
+ * nobody can see and nobody meant.
+ *
+ * <b>Deleting is not asked about and can be taken back where it was done.</b>
+ * Nothing is destroyed, so there is no dialog in the way; the sentence that
+ * says where it went carries the button that brings it back, which is the
+ * Trash's own restore and nothing this screen keeps for itself.
  */
 export function Tasks() {
   const params = useParams();
   const navigate = useNavigate();
+  const [search] = useSearchParams();
 
   const at = (params["*"] ?? "").replace(/\/+$/, "");
   const open = at === "" ? undefined : at;
 
+  // `?task=` is how the home page and a search point at one task: there is no
+  // screen for a single task, so its row is marked and its notes are open.
+  const marked = search.get("task") ?? undefined;
+
   const [capturing, setCapturing] = useState("");
+  const [due, setDue] = useState("");
   const [wrote, setWrote] = useState<{ at: string; refused?: string }>();
   const [working, setWorking] = useState<string>();
   const [making, setMaking] = useState(false);
   const [editing, setEditing] = useState<Task>();
   const [renaming, setRenaming] = useState<List>();
-  const [gone, setGone] = useState<string>();
+  const [gone, setGone] = useState<Gone>();
+  // Whose notes are the other way round from how they start: closed, except on
+  // the task the address points at.
+  const [flipped, setFlipped] = useState<ReadonlySet<string>>(new Set());
+
+  // The control the keyboard was on when it changed something, in the order to
+  // look for it afterwards. A tick moves a row to the other group and a step
+  // moves it past another, and either takes the focus away with the element.
+  const refocus = useRef<string[]>(undefined);
 
   const address = open === undefined ? "/tasks" : `/tasks/${open}`;
   const refused = wrote?.at === address ? wrote.refused : undefined;
@@ -82,9 +123,14 @@ export function Tasks() {
         params: { path: { id: open ?? "" } },
         signal,
       }),
-    // Nothing arrives underneath a half-typed capture, and nothing at all is
-    // asked when no list is open.
-    { hold: capturing !== "", every: open === undefined ? false : undefined },
+    // Nothing arrives underneath a half-typed capture or an open dialog — what
+    // the dialog holds is the version the owner is looking at, and a write from
+    // it is refused rather than applied over something they never saw. Nothing
+    // at all is asked when no list is open.
+    {
+      hold: capturing !== "" || due !== "" || editing !== undefined,
+      every: open === undefined ? false : undefined,
+    },
   );
 
   const all = lists.asked.at === "known" ? lists.asked.value.items : [];
@@ -94,7 +140,40 @@ export function Tasks() {
   const openTasks = here.filter((task) => !task.completed);
   const done = here.filter((task) => task.completed);
 
-  async function write(what: string, sending: () => Promise<{ error?: unknown; response: Response }>) {
+  const order = here.map((task) => `${task.id}${task.completed ? "+" : "-"}`).join(" ");
+
+  useEffect(() => {
+    if (working !== undefined) {
+      return;
+    }
+
+    for (const control of refocus.current ?? []) {
+      const found = document.querySelector<HTMLElement>(`[data-control="${control}"]:not(:disabled)`);
+
+      if (found !== null) {
+        found.focus();
+        return;
+      }
+    }
+  }, [order, working]);
+
+  const pointedAt = marked !== undefined && here.some((task) => task.id === marked);
+
+  useEffect(() => {
+    if (!pointedAt || marked === undefined) {
+      return;
+    }
+
+    const row = document.getElementById(`task-${marked}`);
+
+    // Asked for rather than assumed: not everything that draws this has a
+    // viewport to scroll.
+    if (row !== null && "scrollIntoView" in row) {
+      row.scrollIntoView({ block: "center" });
+    }
+  }, [pointedAt, marked]);
+
+  async function write(what: string, sending: () => Promise<Sent>) {
     setWorking(what);
     setWrote({ at: address });
 
@@ -104,7 +183,12 @@ export function Tasks() {
       if (answer.error) {
         setWrote({ at: address, refused: said(answer.error, answer.response.status) });
         if (refusal(answer.error, answer.response.status).code === "stale") {
+          // Both, because the sentence says it is being read again and either
+          // may be what was stale.
           lists.refresh();
+          if (open !== undefined) {
+            tasks.refresh();
+          }
         }
         return false;
       }
@@ -123,7 +207,7 @@ export function Tasks() {
     const went = await write("capture", () =>
       api.POST("/api/tasks/lists/{id}/tasks", {
         params: { path: { id: open } },
-        body: { title: capturing.trim(), description: "", due_on: null },
+        body: { title: capturing.trim(), description: "", due_on: due === "" ? null : due },
       }),
     );
 
@@ -131,26 +215,48 @@ export function Tasks() {
       // Cleared only once the instance has it: a box emptied optimistically is
       // a box that loses what somebody typed when the write is refused.
       setCapturing("");
+      setDue("");
       tasks.refresh();
       lists.refresh();
     }
   }
 
   async function change(task: Task, to: Partial<Task>) {
-    const went = await write(task.id, () =>
-      api.PUT("/api/tasks/{id}", {
-        params: { path: { id: task.id }, ...guardedBy(versionOf(task.updated_at)) },
+    // What is on the screen now, which after a stale refusal is newer than
+    // what a dialog was opened with: a deliberate retry uses that version.
+    const latest = here.find((one) => one.id === task.id) ?? task;
+    const list = to.list ?? latest.list;
+
+    const went = await write(task.id, async () => {
+      let after = to.after === undefined ? latest.after : to.after;
+
+      if (list !== latest.list) {
+        // Arriving in another list is arriving at the end of it, which is
+        // where anything arriving in a list goes — and `null` would be the top.
+        const there = await api.GET("/api/tasks/lists/{id}/tasks", {
+          params: { path: { id: list } },
+        });
+
+        if (there.data === undefined) {
+          return there;
+        }
+
+        after = there.data.items[there.data.items.length - 1]?.id ?? null;
+      }
+
+      return api.PUT("/api/tasks/{id}", {
+        params: { path: { id: task.id }, ...guardedBy(versionOf(latest.updated_at)) },
         // One write carries all of it, because all of it is one row.
         body: {
-          list: to.list ?? task.list,
-          title: to.title ?? task.title,
-          description: to.description ?? task.description,
-          due_on: to.due_on === undefined ? task.due_on : to.due_on,
-          completed: to.completed ?? task.completed,
-          after: to.after === undefined ? task.after : to.after,
+          list,
+          title: to.title ?? latest.title,
+          description: to.description ?? latest.description,
+          due_on: to.due_on === undefined ? latest.due_on : to.due_on,
+          completed: to.completed ?? latest.completed,
+          after,
         },
-      }),
-    );
+      });
+    });
 
     if (went) {
       setEditing(undefined);
@@ -167,9 +273,51 @@ export function Tasks() {
     );
 
     if (went) {
+      setGone({ at: address, sentence: `${task.title} is in the Trash.`, back: [task.id] });
       tasks.refresh();
       lists.refresh();
     }
+  }
+
+  /**
+   * Puts every completed task on the open list in the Trash, one write each:
+   * each is its own entry there, as it would be had they been deleted one at a
+   * time, and what a refusal half-way leaves behind is exactly what went.
+   */
+  async function discardDone() {
+    const back: string[] = [];
+
+    await write("discard-done", async () => {
+      let sent: Sent = { response: new Response(null, { status: 204 }) };
+
+      for (const task of done) {
+        sent = await api.DELETE("/api/tasks/{id}", {
+          params: { path: { id: task.id }, ...guardedBy(versionOf(task.updated_at)) },
+        });
+
+        if (sent.error) {
+          break;
+        }
+
+        back.push(task.id);
+      }
+
+      return sent;
+    });
+
+    if (back.length > 0) {
+      setGone({
+        at: address,
+        sentence:
+          back.length === 1
+            ? "1 completed task is in the Trash."
+            : `${back.length} completed tasks are in the Trash.`,
+        back,
+      });
+    }
+
+    tasks.refresh();
+    lists.refresh();
   }
 
   /**
@@ -185,9 +333,71 @@ export function Tasks() {
     );
 
     if (went) {
-      setGone(`${list.name} and everything on it are in the Trash.`);
+      setGone({
+        at: "/tasks",
+        sentence: `${list.name} and everything on it are in the Trash.`,
+        back: [list.id],
+        list: list.id,
+      });
       lists.again();
       void navigate("/tasks");
+    }
+  }
+
+  /**
+   * Brings back what was just deleted here. It is the Trash's restore and
+   * needs the version the Trash holds, so the Trash is read first; an entry
+   * that is no longer there was put back, or removed, somewhere else.
+   */
+  async function putBack(what: Gone) {
+    let restored = 0;
+
+    const went = await write("put-back", async () => {
+      const trash = await api.GET("/api/trash");
+
+      if (trash.data === undefined) {
+        return trash;
+      }
+
+      let sent: Sent = trash;
+
+      for (const id of what.back) {
+        const entry = trash.data.items.find((one) => one.application === "tasks" && one.id === id);
+
+        if (entry === undefined) {
+          continue;
+        }
+
+        sent = await api.POST("/api/trash/{application}/{id}/restore", {
+          params: {
+            path: { application: "tasks", id },
+            ...guardedBy(versionOf(entry.updated_at)),
+          },
+        });
+
+        if (sent.error) {
+          break;
+        }
+
+        restored += 1;
+      }
+
+      return sent;
+    });
+
+    if (went) {
+      setGone(undefined);
+
+      if (restored === 0) {
+        setWrote({ at: address, refused: "That is no longer in the Trash." });
+      } else if (what.list !== undefined) {
+        void navigate(`/tasks/${what.list}`);
+      }
+    }
+
+    lists.refresh();
+    if (open !== undefined) {
+      tasks.refresh();
     }
   }
 
@@ -216,26 +426,72 @@ export function Tasks() {
     }
   }
 
-  /** Where a task goes when it moves one step up or down among its neighbours. */
+  /**
+   * Moves a task one step among the ones drawn with it — the open ones, or the
+   * completed ones.
+   */
   function step(task: Task, by: -1 | 1) {
-    const order = here;
-    const from = order.findIndex((one) => one.id === task.id);
-    const to = from + by;
+    const group = task.completed ? done : openTasks;
+    const neighbour = group[group.findIndex((one) => one.id === task.id) + by];
 
-    if (from < 0 || to < 0 || to >= order.length) {
+    if (neighbour === undefined || !group.includes(task)) {
       return;
     }
 
-    // The neighbour it lands behind: the one before the place it is going,
-    // skipping itself. `null` is the top of the list.
-    const without = order.filter((one) => one.id !== task.id);
-    const after = to === 0 ? null : (without[to - 1]?.id ?? null);
+    // Down is behind the neighbour. Up is where the neighbour is, which is
+    // behind whatever the neighbour sits behind — in the whole order, because
+    // that is the order the instance keeps. `null` is the top of the list.
+    const without = here.filter((one) => one.id !== task.id);
+    const after =
+      by === 1 ? neighbour.id : (without[without.indexOf(neighbour) - 1]?.id ?? null);
+
+    refocus.current =
+      by === 1 ? [`${task.id}:down`, `${task.id}:up`] : [`${task.id}:up`, `${task.id}:down`];
 
     void change(task, { after });
   }
 
+  function flip(task: Task) {
+    setFlipped((before) => {
+      const next = new Set(before);
+
+      if (!next.delete(task.id)) {
+        next.add(task.id);
+      }
+
+      return next;
+    });
+  }
+
+  const wentAway = gone !== undefined && gone.at === address && (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <p role="status" className="text-muted-foreground text-sm text-balance">
+        {gone.sentence}
+      </p>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={working !== undefined}
+        onClick={() => void putBack(gone)}
+      >
+        {gone.back.length === 1 ? "Put it back" : "Put them back"}
+      </Button>
+    </div>
+  );
+
   return (
-    <main className="page-frame md:flex-row">
+    <main
+      className="page-frame md:flex-row"
+      // Whatever the owner does next is where the focus belongs, so the place
+      // remembered for after a write is forgotten the moment they do anything.
+      // A step or a tick sets it again, in the click that follows.
+      onKeyDownCapture={() => {
+        refocus.current = undefined;
+      }}
+      onPointerDownCapture={() => {
+        refocus.current = undefined;
+      }}
+    >
       <AreaNavigation label="Lists">
       <nav
         aria-label="The lists"
@@ -250,7 +506,7 @@ export function Tasks() {
 
         {lists.asked.at === "asking" && <Busy title="Reading the lists…" />}
 
-        {lists.asked.at === "failed" && whyItFailed(lists.asked.why)}
+        {lists.asked.at === "failed" && whyItFailed(lists.asked.why, lists.again)}
 
         {lists.asked.at === "known" && all.length === 0 && (
           <p className="text-muted-foreground text-sm text-balance">
@@ -286,11 +542,7 @@ export function Tasks() {
           </Empty>
         )}
 
-        {open === undefined && gone !== undefined && (
-          <p role="status" className="text-muted-foreground text-sm text-balance">
-            {gone}
-          </p>
-        )}
+        {open === undefined && wentAway}
 
         {open !== undefined && (
           <>
@@ -324,7 +576,7 @@ export function Tasks() {
             )}
 
             <form
-              className="flex items-center gap-2"
+              className="flex flex-wrap items-center gap-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 void capture();
@@ -336,18 +588,39 @@ export function Tasks() {
               <Input
                 id="capture"
                 name="title"
+                className="min-w-40 flex-1"
                 value={capturing}
                 placeholder="What has to be done?"
                 onChange={(event) => setCapturing(event.target.value)}
+              />
+              {/* Beside the title and never in its way: Enter in the title is
+                  still the whole capture, and the day is there for the task
+                  that already has one when it occurs to somebody. */}
+              <label className="sr-only" htmlFor="capture-due">
+                When it is due
+              </label>
+              <Input
+                id="capture-due"
+                type="date"
+                name="due"
+                className="w-auto"
+                value={due}
+                onChange={(event) => setDue(event.target.value)}
               />
               <Button type="submit" disabled={capturing.trim() === "" || working === "capture"}>
                 Add
               </Button>
             </form>
 
+            {wentAway}
+
             {tasks.asked.at === "asking" && <Busy title="Reading the list…" />}
 
-            {tasks.asked.at === "failed" && whyItFailed(tasks.asked.why)}
+            {tasks.asked.at === "failed" &&
+              whyItFailed(tasks.asked.why, () => {
+                lists.again();
+                tasks.again();
+              })}
 
             {tasks.asked.at === "known" && here.length === 0 && (
               <Empty title="Nothing on this list.">
@@ -356,12 +629,23 @@ export function Tasks() {
               </Empty>
             )}
 
-            {openTasks.length > 0 && <Rows tasks={openTasks} />}
+            {openTasks.length > 0 && rows(openTasks)}
 
             {done.length > 0 && (
               <>
-                <h2 className="text-muted-foreground mt-2 text-xs font-medium">Done</h2>
-                <Rows tasks={done} />
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <h2 className="text-muted-foreground text-xs font-medium">Done</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={working !== undefined}
+                    onClick={() => void discardDone()}
+                  >
+                    <Trash2Icon aria-hidden />
+                    Delete completed
+                  </Button>
+                </div>
+                {rows(done)}
               </>
             )}
           </>
@@ -406,76 +690,120 @@ export function Tasks() {
     </main>
   );
 
-  function Rows({ tasks: rows }: { tasks: Task[] }) {
+  /**
+   * One group of rows. <b>A function that is called and not a component that
+   * is rendered</b>: declared in here it would be a new component on every
+   * render, and every row — with whatever had the focus — would be taken down
+   * and put up again each time anything on the screen changed.
+   */
+  function rows(group: Task[]) {
     return (
       <ul className="flex flex-col divide-y rounded-lg border">
-        {rows.map((task) => (
-          <li key={task.id} className="flex flex-wrap items-center gap-2 p-2.5">
-            <input
-              type="checkbox"
-              name={`done-${task.id}`}
-              checked={task.completed}
-              disabled={working === task.id}
-              aria-label={`${task.completed ? "Reopen" : "Complete"} ${task.title}`}
-              className="size-4 shrink-0 accent-brand"
-              onChange={(event) => void change(task, { completed: event.target.checked })}
-            />
+        {group.map((task, place) => {
+          const noted = task.description.trim() !== "";
+          const shown = noted && flipped.has(task.id) !== (task.id === marked);
 
-            <span
-              className={`min-w-0 flex-1 text-sm ${
-                task.completed ? "text-muted-foreground line-through" : ""
+          return (
+            <li
+              key={task.id}
+              id={`task-${task.id}`}
+              aria-current={task.id === marked ? "true" : undefined}
+              className={`flex flex-wrap items-center gap-2 p-2.5 ${
+                task.id === marked ? "bg-muted/60" : ""
               }`}
             >
-              {task.title}
-            </span>
-
-            {task.due_on !== null && <Due day={task.due_on} completed={task.completed} />}
-
-            <span className="flex items-center gap-0.5">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={working === task.id || here[0]?.id === task.id}
-                aria-label={`Move ${task.title} up`}
-                onClick={() => step(task, -1)}
-              >
-                <ChevronUpIcon aria-hidden />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={working === task.id || here[here.length - 1]?.id === task.id}
-                aria-label={`Move ${task.title} down`}
-                onClick={() => step(task, 1)}
-              >
-                <ChevronDownIcon aria-hidden />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
+              <input
+                type="checkbox"
+                name={`done-${task.id}`}
+                data-control={`${task.id}:box`}
+                checked={task.completed}
                 disabled={working === task.id}
-                aria-label={`Edit ${task.title}`}
-                onClick={() => setEditing(task)}
+                aria-label={`${task.completed ? "Reopen" : "Complete"} ${task.title}`}
+                className="size-4 shrink-0 accent-brand"
+                onChange={(event) => {
+                  refocus.current = [`${task.id}:box`];
+                  void change(task, { completed: event.target.checked });
+                }}
+              />
+
+              <span
+                className={`min-w-0 flex-1 text-sm ${
+                  task.completed ? "text-muted-foreground line-through" : ""
+                }`}
               >
-                <PencilIcon aria-hidden />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={working === task.id}
-                aria-label={`Delete ${task.title}`}
-                onClick={() => void discard(task)}
-              >
-                <Trash2Icon aria-hidden />
-              </Button>
-            </span>
-          </li>
-        ))}
+                {task.title}
+              </span>
+
+              {/* Only where there is something to read: a button on every row
+                  would say nothing about which tasks have more to them. */}
+              {noted && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-expanded={shown}
+                  aria-label={`${shown ? "Hide" : "Show"} the notes on ${task.title}`}
+                  onClick={() => flip(task)}
+                >
+                  <StickyNoteIcon aria-hidden />
+                </Button>
+              )}
+
+              {task.due_on !== null && <Due day={task.due_on} completed={task.completed} />}
+
+              <span className="flex items-center gap-0.5">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  data-control={`${task.id}:up`}
+                  disabled={working === task.id || place === 0}
+                  aria-label={`Move ${task.title} up`}
+                  onClick={() => step(task, -1)}
+                >
+                  <ChevronUpIcon aria-hidden />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  data-control={`${task.id}:down`}
+                  disabled={working === task.id || place === group.length - 1}
+                  aria-label={`Move ${task.title} down`}
+                  onClick={() => step(task, 1)}
+                >
+                  <ChevronDownIcon aria-hidden />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={working === task.id}
+                  aria-label={`Edit ${task.title}`}
+                  onClick={() => setEditing(task)}
+                >
+                  <PencilIcon aria-hidden />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={working === task.id}
+                  aria-label={`Delete ${task.title}`}
+                  onClick={() => void discard(task)}
+                >
+                  <Trash2Icon aria-hidden />
+                </Button>
+              </span>
+
+              {shown && (
+                <Markdown className="text-muted-foreground basis-full pl-6">
+                  {task.description}
+                </Markdown>
+              )}
+            </li>
+          );
+        })}
       </ul>
     );
   }
 
-  function whyItFailed(sentence: string) {
+  function whyItFailed(sentence: string, again: () => void) {
     if (why === "forbidden") {
       return <Denied what="Tasks" />;
     }
@@ -484,7 +812,7 @@ export function Tasks() {
       return <Disabled what="Tasks" />;
     }
 
-    return <Failed why={sentence} again={lists.again} />;
+    return <Failed why={sentence} again={again} />;
   }
 }
 
@@ -613,10 +941,9 @@ function EditATask({
               title: title.trim(),
               description,
               due_on: due === "" ? null : due,
+              // Where it sits is not this form's to say: it stays where it is,
+              // or arrives at the end of the list it is moved to.
               list,
-              // Moving it to another list puts it at the end of that one, which
-              // is where anything arriving in a list goes.
-              after: list === task.list ? task.after : null,
             });
           }}
         >

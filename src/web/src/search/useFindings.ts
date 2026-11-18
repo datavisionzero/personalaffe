@@ -98,8 +98,8 @@ export function useSettled(typed: string, after = 200): string {
  *
  * <b>The instance never says this.</b> It answers what the thing is and what it
  * sits in; which address that is belongs to the application that has the
- * addresses. A page is its own address, a task opens its list, a file opens its
- * folder, and an entry opens the Scratchpad.
+ * addresses. A page is its own address, a task opens its list with the task pointed
+ * at, a file opens its folder, and an entry opens the Scratchpad.
  */
 export function addressOf(found: Found): string {
   switch (found.application) {
@@ -108,7 +108,7 @@ export function addressOf(found: Found): string {
     case "knowledge":
       return `/knowledge/${found.id}`;
     case "tasks":
-      return found.within === null ? "/tasks" : `/tasks/${found.within}`;
+      return found.within === null ? "/tasks" : `/tasks/${found.within}?task=${found.id}`;
     case "files":
       return found.within === null ? "/files" : `/files/${found.within}`;
     case "scratchpad":

@@ -47,7 +47,7 @@ describe("the home page", () => {
 
     expect(within(tasks).getByRole("link", { name: /Milch holen/ })).toHaveAttribute(
       "href",
-      `/tasks/${aTask.list_id}`,
+      `/tasks/${aTask.list_id}?task=${aTask.id}`,
     );
 
     // The list is beside the task, because a task on the home page is out of
