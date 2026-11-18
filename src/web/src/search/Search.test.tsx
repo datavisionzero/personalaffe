@@ -50,7 +50,7 @@ describe("the words the instance will look for", () => {
 describe("where a finding lives", () => {
   it("opens the thing itself, or the screen it is on", () => {
     expect(addressOf(aPage)).toBe(`/knowledge/${aPage.id}`);
-    expect(addressOf(aTask)).toBe(`/tasks/${aTask.within}`);
+    expect(addressOf(aTask)).toBe(`/tasks/${aTask.within}?task=${aTask.id}`);
     expect(addressOf({ ...aTask, within: null })).toBe("/tasks");
     expect(addressOf({ ...aPage, application: "scratchpad" })).toBe("/scratchpad");
   });
@@ -101,7 +101,7 @@ describe("the search screen", () => {
     // In the instance's order, not regrouped: a page does not outrank a task
     // for being a page, and grouping by application would hide exactly that.
     expect(within(rows[0]!).getByRole("link")).toHaveAttribute("href", `/knowledge/${aPage.id}`);
-    expect(within(rows[1]!).getByRole("link")).toHaveAttribute("href", `/tasks/${aTask.within}`);
+    expect(within(rows[1]!).getByRole("link")).toHaveAttribute("href", `/tasks/${aTask.within}?task=${aTask.id}`);
   });
 
   it("fills its field from the address, so a search can be linked to", async () => {
